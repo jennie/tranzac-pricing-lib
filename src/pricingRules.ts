@@ -180,6 +180,7 @@ export default class PricingRules {
       let totalPrice = 0;
       let daytimePrice = 0;
       let eveningPrice = 0;
+      let fullDayPrice = 0; // Variable to store full-day price if applicable
       let daytimeHours = 0;
       let eveningHours = 0;
       let rateDescription = "";
@@ -188,68 +189,106 @@ export default class PricingRules {
       const eveningStartTime = new Date(startTime);
       eveningStartTime.setHours(17, 0, 0, 0);
 
+      const totalBookingHours = differenceInHours(endTime, startTime);
       const bookingCrossesEveningThreshold =
         startTime < eveningStartTime && endTime > eveningStartTime;
 
-      // Handle full-day rate
+      // Full Day Logic
       if (dayRules.fullDay) {
         const fullDayRate = dayRules.fullDay[isPrivate ? "private" : "public"];
-        const minimumHours = dayRules.fullDay.minimumHours || 0;
-
-        const totalBookingHours = differenceInHours(endTime, startTime);
-
-        if (dayRules.fullDay.type === "hourly") {
-          totalPrice = fullDayRate * Math.max(totalBookingHours, minimumHours);
-          rateDescription = `Full Day (${fullDayRate.toFixed(2)}/hour)`;
-        } else if (dayRules.fullDay.type === "flat") {
-          totalPrice = fullDayRate;
-          rateDescription = "Full Day Rate";
+        if (dayRules.fullDay.type === "flat") {
+          fullDayPrice = fullDayRate; // Set the full-day price for flat rate
+          rateDescription = "Full Day Flat Rate";
+        } else if (dayRules.fullDay.type === "hourly") {
+          const effectiveHours = Math.max(
+            totalBookingHours,
+            dayRules.fullDay.minimumHours || 0
+          );
+          fullDayPrice = fullDayRate * effectiveHours; // Set the full-day price for hourly rate
+          rateDescription = `Full Day Rate: $${fullDayRate}/hour`;
+          if (effectiveHours > totalBookingHours) {
+            rateSubDescription = `${dayRules.fullDay.minimumHours}-hour minimum`;
+          }
         }
+      }
+
+      // If full-day price is set, use it; otherwise, calculate daytime and evening prices
+      if (fullDayPrice > 0) {
+        totalPrice = fullDayPrice;
       } else {
-        // Calculate daytime price
+        // Daytime Calculation
         if (startTime < eveningStartTime && dayRules.daytime) {
           const daytimeEndTime = bookingCrossesEveningThreshold
             ? eveningStartTime
             : endTime;
           daytimeHours = differenceInHours(daytimeEndTime, startTime);
-          const daytimeRate = bookingCrossesEveningThreshold
-            ? dayRules.daytime.crossoverRate ||
-              dayRules.daytime[isPrivate ? "private" : "public"]
-            : dayRules.daytime[isPrivate ? "private" : "public"];
+
+          let daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
+
+          // Only apply crossover rate if there is a flat evening rate
+          if (
+            bookingCrossesEveningThreshold &&
+            dayRules.evening &&
+            dayRules.evening.type === "flat"
+          ) {
+            if (dayRules.daytime.crossoverRate) {
+              daytimeRate = dayRules.daytime.crossoverRate;
+              rateSubDescription = "Crossover rate applied";
+            }
+          }
 
           if (dayRules.daytime.type === "hourly") {
-            if (bookingCrossesEveningThreshold) {
-              daytimePrice = daytimeRate * daytimeHours;
-              rateSubDescription = dayRules.evening ? "Crossover rate" : ""; // Only show if there is an evening rate
-              rateDescription = `$${daytimeRate.toFixed(2)}/hour`;
-            } else {
-              daytimePrice =
-                daytimeRate *
-                Math.max(daytimeHours, dayRules.daytime.minimumHours || 0);
-              rateDescription = `$${daytimeRate.toFixed(2)}/hour`;
-            }
+            daytimePrice = daytimeRate * daytimeHours;
+            rateDescription = `Daytime: $${daytimeRate}/hour`;
           } else if (dayRules.daytime.type === "flat") {
             daytimePrice = daytimeRate;
-            rateDescription = "Flat Rate";
+            rateDescription = "Flat Daytime Rate";
           }
         }
 
-        // Calculate evening price
+        // Evening Calculation
         if (endTime > eveningStartTime && dayRules.evening) {
           eveningHours = differenceInHours(endTime, eveningStartTime);
-          const eveningRate =
-            dayRules.evening[isPrivate ? "private" : "public"];
-          if (dayRules.evening.type === "hourly") {
-            eveningPrice = eveningRate * eveningHours;
-            rateDescription = `$${eveningRate.toFixed(2)}/hour`;
-          } else if (dayRules.evening.type === "flat") {
+          let eveningRate = dayRules.evening[isPrivate ? "private" : "public"];
+
+          if (dayRules.evening.type === "flat") {
             eveningPrice = eveningRate;
-            rateDescription = "Flat Rate";
-            rateSubDescription = ""; // No subdescription for flat evening rates
+            rateDescription += rateDescription
+              ? " + Evening (flat rate)"
+              : "Evening (flat rate)";
+          } else if (dayRules.evening.type === "hourly") {
+            eveningPrice = eveningRate * eveningHours;
+            rateDescription += rateDescription
+              ? ` + Evening: $${eveningRate}/hour`
+              : `Evening: $${eveningRate}/hour`;
           }
         }
 
         totalPrice = daytimePrice + eveningPrice;
+
+        // Apply minimum hours if necessary
+        if (
+          dayRules.minimumHours &&
+          totalBookingHours < dayRules.minimumHours
+        ) {
+          const rate =
+            dayRules.daytime?.[isPrivate ? "private" : "public"] ||
+            dayRules.evening?.[isPrivate ? "private" : "public"];
+          const minimumPrice = rate * dayRules.minimumHours;
+          if (minimumPrice > totalPrice) {
+            totalPrice = minimumPrice;
+            rateSubDescription = `${dayRules.minimumHours}-hour minimum applied`;
+            // Distribute the minimum price proportionally
+            if (daytimeHours > 0 && eveningHours > 0) {
+              daytimePrice = (daytimeHours / totalBookingHours) * totalPrice;
+              eveningPrice = totalPrice - daytimePrice;
+            } else if (daytimeHours > 0) {
+              daytimePrice = totalPrice;
+            } else {
+              eveningPrice = totalPrice;
+            }
+          }
+        }
       }
 
       const roomAdditionalCosts = additionalCosts.filter(
@@ -267,10 +306,18 @@ export default class PricingRules {
         eveningHours,
         daytimePrice,
         eveningPrice,
+        fullDayPrice, // Include full-day price in the estimate
+        daytimeRate: dayRules.daytime?.[isPrivate ? "private" : "public"],
+        daytimeRateType: dayRules.daytime?.type || null, // Include rate type in the estimate
+        eveningRate: dayRules.evening?.[isPrivate ? "private" : "public"],
+        eveningRateType: dayRules.evening?.type || null, // Include rate type in the estimate
         additionalCosts: roomAdditionalCosts,
         totalCost: totalPrice + roomAdditionalCostTotal,
         rateDescription,
         rateSubDescription,
+        minimumHours: dayRules.minimumHours || dayRules.fullDay?.minimumHours,
+        totalBookingHours,
+        isFullDay: !!dayRules.fullDay,
       });
     }
 
