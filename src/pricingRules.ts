@@ -27,21 +27,45 @@ export default class PricingRules {
     this.rules = null;
     this.additionalCosts = null;
   }
-
   async initialize() {
     if (!this.rules) {
-      try {
-        const rulesFromDB = await PricingRule.find().lean();
-        this.rules = rulesFromDB.reduce((acc, rule) => {
-          acc[rule.roomSlug] = rule.pricing;
-          return acc;
-        }, {});
+      const maxRetries = 3;
+      let retries = 0;
+      while (retries < maxRetries) {
+        try {
+          console.log(
+            `Attempting to fetch pricing rules (Attempt ${retries + 1})`
+          );
+          const PricingRule = getPricingRuleModel(mongoose);
+          const TimePeriod = getTimePeriodModel(mongoose);
+          const AdditionalCost = getAdditionalCostModel(mongoose);
 
-        this.timePeriods = await TimePeriod.find().lean();
-        this.additionalCosts = await AdditionalCost.findOne().lean();
-      } catch (error) {
-        console.error("Error fetching pricing data from database:", error);
-        throw error;
+          const rulesFromDB = await PricingRule.find().lean().maxTimeMS(30000); // Increase timeout to 30 seconds
+          this.rules = rulesFromDB.reduce((acc, rule) => {
+            acc[rule.roomSlug] = rule.pricing;
+            return acc;
+          }, {});
+
+          this.timePeriods = await TimePeriod.find().lean().maxTimeMS(30000);
+          this.additionalCosts = await AdditionalCost.findOne()
+            .lean()
+            .maxTimeMS(30000);
+
+          console.log("Successfully fetched pricing rules");
+          return; // Exit the function if successful
+        } catch (error) {
+          console.error(
+            `Error fetching pricing data (Attempt ${retries + 1}):`,
+            error
+          );
+          retries++;
+          if (retries >= maxRetries) {
+            throw new Error(
+              `Failed to fetch pricing data after ${maxRetries} attempts: ${error.message}`
+            );
+          }
+          await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds before retrying
+        }
       }
     }
   }
@@ -493,7 +517,7 @@ export default class PricingRules {
             roomSlug,
             description,
             subDescription,
-            cost: cost,
+            cost: typeof cost === "number" ? cost : 0,
           });
         }
       }
