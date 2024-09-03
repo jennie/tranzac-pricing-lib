@@ -39,8 +39,18 @@ interface ICostEstimateVersion {
     slotTotal: number;
   }>;
   totalCost: number;
+  statusHistory: IStatusHistory[]; // Array of status history entries
   createdAt: Date;
 }
+const StatusHistorySchema = new Schema<IStatusHistory>({
+  status: {
+    type: String,
+    enum: ["draft", "sent", "approved", "rejected", "accepted"],
+    required: true,
+  },
+  timestamp: { type: Date, default: Date.now, required: true },
+  changedBy: { type: String, required: true },
+});
 
 interface ICostEstimate extends Document {
   rentalRequestId: string;
@@ -98,6 +108,8 @@ const CostEstimateVersionSchema = new Schema<ICostEstimateVersion>({
     },
   ],
   totalCost: { type: Number, required: true },
+  statusHistory: [StatusHistorySchema], // Array of status history entries
+
   createdAt: { type: Date, default: Date.now },
 });
 

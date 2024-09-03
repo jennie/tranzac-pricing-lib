@@ -383,7 +383,8 @@ export default class PricingRules {
 
     if (roomSlugs.includes("parking-lot") || resources.includes("security")) {
       perSlotCosts.push({
-        description: "Security – will be quoted separately",
+        description: "Security",
+        subDescription: "Will be quoted separately",
         cost: 0,
       });
     }
