@@ -1,5 +1,9 @@
 import mongoose, { Schema, Model, Document } from "mongoose";
-
+interface IStatusHistory {
+  status: "draft" | "sent" | "approved" | "rejected" | "accepted";
+  timestamp: Date;
+  changedBy: string;
+}
 interface ICostEstimateVersion {
   version: number;
   label: string;
@@ -42,15 +46,6 @@ interface ICostEstimateVersion {
   statusHistory: IStatusHistory[]; // Array of status history entries
   createdAt: Date;
 }
-const StatusHistorySchema = new Schema<IStatusHistory>({
-  status: {
-    type: String,
-    enum: ["draft", "sent", "approved", "rejected", "accepted"],
-    required: true,
-  },
-  timestamp: { type: Date, default: Date.now, required: true },
-  changedBy: { type: String, required: true },
-});
 
 interface ICostEstimate extends Document {
   rentalRequestId: string;
@@ -60,6 +55,35 @@ interface ICostEstimate extends Document {
   stripeEstimateId?: string;
   updatedAt: Date;
 }
+interface DayRules {
+  fullDay?: {
+    type: "flat" | "hourly";
+    private: number;
+    public: number;
+    minimumHours?: number;
+  };
+  daytime?: {
+    type: "flat" | "hourly";
+    private: number;
+    public: number;
+    crossoverRate?: number;
+  };
+  evening?: {
+    type: "flat" | "hourly";
+    private: number;
+    public: number;
+  };
+  minimumHours?: number;
+}
+const StatusHistorySchema = new Schema<IStatusHistory>({
+  status: {
+    type: String,
+    enum: ["draft", "sent", "approved", "rejected", "accepted"],
+    required: true,
+  },
+  timestamp: { type: Date, default: Date.now, required: true },
+  changedBy: { type: String, required: true },
+});
 
 const CostEstimateVersionSchema = new Schema<ICostEstimateVersion>({
   version: { type: Number, required: true },
@@ -115,7 +139,7 @@ const CostEstimateVersionSchema = new Schema<ICostEstimateVersion>({
 
 const CostEstimateSchema = new Schema<ICostEstimate>({
   rentalRequestId: { type: String, required: true },
-  versions: [CostEstimateVersionSchema],
+  versions: [CostEstimateVersionSchema] as unknown as ICostEstimateVersion[],
   currentVersion: { type: Number, default: 0 },
   status: {
     type: String,
