@@ -1,14 +1,16 @@
 {
   "compilerOptions": {
+    "module": "ESNext", // Make sure it matches your module type
+    "target": "ES6", // or "ES6" depending on your needs
+    "declaration": true, // Generates the declaration files
+    "declarationDir": "./dist", // Outputs the .d.ts files to the dist folder
     "outDir": "./dist",
-    "module": "ESNext",
-    "target": "ES2015",
-    "declaration": true,
-    "esModuleInterop": true,
-    "skipLibCheck": true,
-    "moduleResolution": "Node",
-    "allowSyntheticDefaultImports": true,
-    "strict": true
+    "rootDir": "./src",
+    "strict": true, // Ensures type safety
+    "esModuleInterop": true, // Ensures compatibility with CommonJS modules
+    "skipLibCheck": true, // Skips checking of library declaration files
+    "moduleResolution": "node",
+    "sourceMap": true // Optional: include source maps for debugging
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist"]

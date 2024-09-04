@@ -14,6 +14,7 @@ export interface IPricingRule {
   rate: number;
   type: "hourly" | "flat";
   minimumHours?: number;
+  pricing: any;
 }
 
 export interface IAdditionalCost {

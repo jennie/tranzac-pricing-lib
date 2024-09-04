@@ -5,6 +5,7 @@ import {
   getTimePeriodModel,
   getAdditionalCostModel,
 } from "./models/pricing.schema";
+import { AdditionalCosts } from "./models/additionalCosts.schema"; // Import the interface
 
 // Initialize models using the factory functions
 const PricingRule = getPricingRuleModel(mongoose);
@@ -14,19 +15,34 @@ const AdditionalCost = getAdditionalCostModel(mongoose);
 import { formatISO, parseISO, isValid, differenceInHours } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
 
+interface Booking {
+  resources?: string[];
+  private?: boolean;
+  expectedAttendance?: number;
+  roomSlugs: string[];
+  start: string;
+  end: string;
+}
+
 const TORONTO_TIMEZONE = "America/Toronto";
-function formatCurrency(amount) {
+function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
     style: "currency",
     currency: "CAD",
   }).format(amount);
 }
+
 export default class PricingRules {
+  private additionalCosts: AdditionalCosts | null = null;
+  private rules: Record<string, any> | null = null;
+  private timePeriods: any[] | null = null;
+
   constructor() {
     this.timePeriods = null;
     this.rules = null;
     this.additionalCosts = null;
   }
+
   async initialize() {
     if (!this.rules) {
       const maxRetries = 3;
@@ -41,19 +57,22 @@ export default class PricingRules {
           const AdditionalCost = getAdditionalCostModel(mongoose);
 
           const rulesFromDB = await PricingRule.find().lean().maxTimeMS(30000); // Increase timeout to 30 seconds
-          this.rules = rulesFromDB.reduce((acc, rule) => {
-            acc[rule.roomSlug] = rule.pricing;
-            return acc;
-          }, {});
+          this.rules = rulesFromDB.reduce<Record<string, any>>(
+            (acc, rule: any) => {
+              acc[rule.roomSlug] = rule.pricing;
+              return acc;
+            },
+            {}
+          );
 
           this.timePeriods = await TimePeriod.find().lean().maxTimeMS(30000);
-          this.additionalCosts = await AdditionalCost.findOne()
+          this.additionalCosts = (await AdditionalCost.findOne()
             .lean()
-            .maxTimeMS(30000);
+            .maxTimeMS(30000)) as unknown as AdditionalCosts;
 
           console.log("Successfully fetched pricing rules");
           return; // Exit the function if successful
-        } catch (error) {
+        } catch (error: any) {
           console.error(
             `Error fetching pricing data (Attempt ${retries + 1}):`,
             error
@@ -70,16 +89,19 @@ export default class PricingRules {
     }
   }
 
-  async getPrice(data) {
+  async getPrice(
+    data: any
+  ): Promise<{ costEstimates: any[]; grandTotal: number }> {
     try {
       await this.initialize();
       const costEstimates = [];
       let grandTotal = 0;
 
       for (const [date, bookings] of Object.entries(data.rentalDates)) {
-        for (const booking of bookings) {
+        for (const booking of bookings as any[]) {
           try {
-            const preparedBooking = this.prepareBookingForPricing(booking);
+            const preparedBooking: Booking =
+              this.prepareBookingForPricing(booking);
             const { estimates, perSlotCosts, slotTotal } =
               await this.calculatePrice({
                 ...preparedBooking,
@@ -101,7 +123,7 @@ export default class PricingRules {
             });
 
             grandTotal += slotTotal;
-          } catch (error) {
+          } catch (error: any) {
             console.error(
               `Error calculating price for booking ${booking.id}:`,
               error
@@ -119,13 +141,17 @@ export default class PricingRules {
       }
 
       return { costEstimates, grandTotal };
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error in getPrice method:", error);
-      return { costEstimates: [], grandTotal: 0, error: error.message };
+      return { costEstimates: [], grandTotal: 0 };
     }
   }
 
-  prepareBookingForPricing(booking) {
+  prepareBookingForPricing(booking: {
+    start: string;
+    end: string;
+    roomSlugs: string[];
+  }) {
     const { start, end, roomSlugs } = booking;
 
     if (!roomSlugs || roomSlugs.length === 0) {
@@ -151,7 +177,7 @@ export default class PricingRules {
     };
   }
 
-  async calculatePrice(booking) {
+  async calculatePrice(booking: any) {
     const {
       roomSlugs,
       start,
@@ -184,16 +210,23 @@ export default class PricingRules {
     perSlotCosts = calculatedPerSlotCosts;
 
     for (const roomSlug of roomSlugs) {
+      if (!this.rules) throw new Error("Rules are not initialized");
       const roomRules = this.rules[roomSlug];
       if (!roomRules) {
         throw new Error(`No pricing rules found for room: ${roomSlug}`);
       }
 
-      const dayRules = Object.entries(roomRules).find(
-        ([day]) =>
-          day.toLowerCase() === currentDay.toLowerCase() ||
-          day.toLowerCase() === "all"
-      )?.[1];
+      const dayRules: {
+        fullDay?: { [key: string]: any };
+        daytime?: { [key: string]: any };
+        evening?: { [key: string]: any };
+        minimumHours?: number;
+      } =
+        Object.entries(roomRules).find(
+          ([day]) =>
+            day.toLowerCase() === currentDay.toLowerCase() ||
+            day.toLowerCase() === "all"
+        )?.[1] || {};
 
       if (!dayRules) {
         throw new Error(
@@ -357,7 +390,7 @@ export default class PricingRules {
     return { estimates, perSlotCosts, slotTotal };
   }
 
-  async calculateAdditionalCosts(booking) {
+  async calculateAdditionalCosts(booking: any) {
     const { resources, roomSlugs, start, end, isPrivate, expectedAttendance } =
       booking;
 
@@ -391,22 +424,24 @@ export default class PricingRules {
 
     // Add Door Staff to per-slot costs
     if (resources.includes("door_staff")) {
-      const doorStaffConfig = this.additionalCosts.resources.find(
-        (r) => r.id === "door_staff"
-      );
-      if (doorStaffConfig) {
-        const hours = differenceInHours(parseISO(end), parseISO(start));
-        const doorStaffCost = doorStaffConfig.cost * hours;
-        perSlotCosts.push({
-          description: `Door Staff (${hours} hours)`,
-          cost: doorStaffCost,
-        });
+      if (this.additionalCosts?.resources) {
+        const doorStaffConfig = this.additionalCosts.resources.find(
+          (r) => r.id === "door_staff"
+        );
+        if (doorStaffConfig) {
+          const hours = differenceInHours(parseISO(end), parseISO(start));
+          const doorStaffCost = Number(doorStaffConfig.cost) * Number(hours);
+          perSlotCosts.push({
+            description: `Door Staff (${hours} hours)`,
+            cost: doorStaffCost,
+          });
+        }
       }
     }
 
     // Add Piano Tuning to per-slot costs
     if (resources.includes("piano_tuning")) {
-      const pianoTuningConfig = this.additionalCosts.resources.find(
+      const pianoTuningConfig = this.additionalCosts?.resources?.find(
         (r) => r.id === "piano_tuning"
       );
       if (pianoTuningConfig) {
@@ -423,20 +458,23 @@ export default class PricingRules {
       let projectorIncluded = false;
 
       // Check if backline includes projector
-      const backlineResource = resources.find((r) => r === "backline");
+      const backlineResource = resources.find((r: string) => r === "backline");
       if (backlineResource) {
-        const backlineConfig = this.additionalCosts.resources.find(
+        const backlineConfig = this.additionalCosts?.resources?.find(
           (r) => r.id === "backline"
         );
-        if (backlineConfig && backlineConfig.rooms[normalizedRoomSlug]) {
-          projectorIncluded =
-            backlineConfig.rooms[normalizedRoomSlug].includes_projector ||
-            false;
+        if (
+          backlineConfig &&
+          backlineConfig.rooms &&
+          backlineConfig.rooms[normalizedRoomSlug]
+        ) {
+          const roomConfig = backlineConfig.rooms?.[normalizedRoomSlug];
+          projectorIncluded = roomConfig?.includes_projector || false;
         }
       }
 
       for (const resource of resources) {
-        const resourceConfig = this.additionalCosts.resources.find(
+        const resourceConfig = this.additionalCosts?.resources.find(
           (r) => r.id === resource
         );
 
@@ -447,7 +485,8 @@ export default class PricingRules {
 
           switch (resource) {
             case "backline":
-              const roomSpecificCost = resourceConfig.rooms[normalizedRoomSlug];
+              const roomSpecificCost =
+                resourceConfig.rooms?.[normalizedRoomSlug];
               if (roomSpecificCost) {
                 cost = roomSpecificCost.cost;
                 description = roomSpecificCost.description || description;
@@ -463,7 +502,12 @@ export default class PricingRules {
                 subDescription = "Comped for large private event";
               } else {
                 const hours = differenceInHours(parseISO(end), parseISO(start));
-                cost = resourceConfig.cost * hours;
+                if (
+                  typeof resourceConfig?.cost === "number" &&
+                  typeof hours === "number"
+                ) {
+                  cost = resourceConfig.cost * hours;
+                }
               }
               break;
 
@@ -475,7 +519,7 @@ export default class PricingRules {
 
             case "audio_tech":
               const baseCost = resourceConfig.cost;
-              const overtimeConfig = this.additionalCosts.resources.find(
+              const overtimeConfig = this.additionalCosts?.resources.find(
                 (r) => r.id === "audio_tech_overtime"
               );
               const totalHours = differenceInHours(
@@ -494,10 +538,12 @@ export default class PricingRules {
 
               // Calculate overtime if there are any overtime hours
               if (overtimeHours > 0 && overtimeConfig) {
+                const overtimeCost =
+                  Number(overtimeConfig.cost) * Number(overtimeHours);
                 additionalCosts.push({
                   roomSlug,
                   description: `Audio Technician Overtime (Overtime: ${overtimeHours} hours)`,
-                  cost: overtimeConfig.cost * overtimeHours,
+                  cost: overtimeCost,
                 });
               }
               continue;
@@ -510,7 +556,12 @@ export default class PricingRules {
             default:
               if (resourceConfig.type === "hourly") {
                 const hours = differenceInHours(parseISO(end), parseISO(start));
-                cost = resourceConfig.cost * hours;
+                if (
+                  typeof resourceConfig?.cost === "number" &&
+                  typeof hours === "number"
+                ) {
+                  cost = resourceConfig.cost * hours;
+                }
               }
           }
 
@@ -528,14 +579,14 @@ export default class PricingRules {
   }
 
   // Helper method to determine if a given time is during evening hours
-  isEveningTime(time) {
+  isEveningTime(time: Date) {
     const hour = time.getHours();
     return hour >= 17 || hour < 5;
   }
 
   // Helper methods remain the same
   // Helper method to determine the end of the current pricing period
-  getPeriodEnd(currentTime, endTime) {
+  getPeriodEnd(currentTime: Date, endTime: Date) {
     const eveningStart = new Date(currentTime);
     eveningStart.setHours(17, 0, 0, 0);
     const nextDayStart = new Date(currentTime);
@@ -553,7 +604,12 @@ export default class PricingRules {
 
   // Helper method to determine if a given time is during evening hours
 
-  calculatePeriodPrice(startTime, endTime, rules, isPrivate) {
+  calculatePeriodPrice(
+    startTime: Date,
+    endTime: Date,
+    rules: any,
+    isPrivate: boolean
+  ) {
     const isEvening = this.isEveningTime(startTime);
     const periodRules = isEvening ? rules.evening : rules.daytime;
 
@@ -565,7 +621,7 @@ export default class PricingRules {
 
     const rate = periodRules[isPrivate ? "private" : "public"];
     const hours = Math.min(
-      (endTime - startTime) / 3600000,
+      (Number(endTime) - Number(startTime)) / 3600000,
       isEvening ? 12 : 24 - new Date(startTime).getHours()
     );
 
@@ -582,7 +638,7 @@ export default class PricingRules {
   }
 }
 
-function dateTimeToISOString(dateTime) {
+function dateTimeToISOString(dateTime: Date): string {
   if (!isValid(dateTime)) {
     throw new Error("Invalid date passed to dateTimeToISOString");
   }
