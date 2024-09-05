@@ -1,5 +1,6 @@
 // src/index.ts
-import * as useRoomMapping from "./composables/useRoomMapping";
+export { useRoomMapping } from "./composables/useRoomMapping";
+
 import * as costEstimateSchema from "./models/costEstimate.schema";
 import {
   getTimePeriodModel,
@@ -10,7 +11,6 @@ import {
 import PricingRules from "./pricingRules";
 
 export {
-  useRoomMapping,
   costEstimateSchema,
   getTimePeriodModel, // Explicitly export individual model functions
   getPricingRuleModel,
