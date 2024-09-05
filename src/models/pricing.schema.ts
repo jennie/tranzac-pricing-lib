@@ -42,11 +42,11 @@ declare global {
 
 let mongoose: Mongoose | null = null;
 
-// Lazy-load mongoose only on the server side
 if (typeof process !== "undefined" && process.server) {
-  mongoose = require("mongoose");
+  import("mongoose").then((mongooseModule) => {
+    mongoose = mongooseModule;
+  });
 }
-
 // Define schemas as plain objects
 const TimePeriodSchema: Record<keyof ITimePeriod, any> = {
   name: { type: String, required: true },
