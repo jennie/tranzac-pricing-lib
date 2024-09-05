@@ -5,12 +5,14 @@ import {
   getTimePeriodModel,
   getAdditionalCostModel,
 } from "./models/pricing.schema";
+
 import { AdditionalCosts } from "./models/additionalCosts.schema"; // Import the interface
 
 // Initialize models using the factory functions
-const PricingRule = getPricingRuleModel(mongoose);
+const PricingRule = getPricingRuleModel(mongoose); // This ensures you're using the correct instance
 const TimePeriod = getTimePeriodModel(mongoose);
 const AdditionalCost = getAdditionalCostModel(mongoose);
+console.log("PRICING RULE", PricingRule); // This should not be undefined or null
 
 import { formatISO, parseISO, isValid, differenceInHours } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";

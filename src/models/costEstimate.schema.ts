@@ -1,165 +1,92 @@
-import mongoose, { Schema, Model, Document } from "mongoose";
-interface IStatusHistory {
-  status: "draft" | "sent" | "approved" | "rejected" | "accepted";
-  timestamp: Date;
-  changedBy: string;
-}
+import type { Document, Model } from "mongoose";
+
 interface ICostEstimateVersion {
   version: number;
   label: string;
   costEstimates: Array<{
     id: string;
     date: Date;
-    start: Date;
-    end: Date;
-    estimates: Array<{
-      roomSlug: string;
-      basePrice: number;
-      daytimeHours: number;
-      eveningHours: number;
-      daytimePrice: number;
-      eveningPrice: number;
-      fullDayPrice: number;
-      daytimeRate: number;
-      daytimeRateType: string;
-      eveningRate: number;
-      eveningRateType: string;
-      additionalCosts: Array<{
-        description: string;
-        subDescription: string;
-        cost: number;
-      }>;
-      totalCost: number;
-      rateDescription: string;
-      rateSubDescription: string;
-      minimumHours: number;
-      totalBookingHours: number;
-      isFullDay: boolean;
-    }>;
-    perSlotCosts: Array<{
-      description: string;
-      cost: number;
-    }>;
-    slotTotal: number;
+    roomSlug: string;
+    basePrice: number;
+    daytimeHours: number;
+    eveningHours: number;
+    daytimePrice: number;
+    eveningPrice: number;
+    fullDayPrice: number;
+    daytimeRate: number;
+    daytimeRateType: string;
+    eveningRate: number;
+    eveningRateType: string;
   }>;
-  totalCost: number;
-  statusHistory: IStatusHistory[]; // Array of status history entries
-  createdAt: Date;
 }
 
-interface ICostEstimate extends Document {
-  rentalRequestId: string;
+interface IStatusHistory {
+  status: string;
+  timestamp: Date;
+  changedBy: string;
+}
+
+export interface ICostEstimate extends Document {
+  projectId: string;
   versions: ICostEstimateVersion[];
-  currentVersion: number;
-  status: "draft" | "sent" | "approved" | "rejected";
-  stripeEstimateId?: string;
-  updatedAt: Date;
+  statusHistory: IStatusHistory[];
 }
-interface DayRules {
-  fullDay?: {
-    type: "flat" | "hourly";
-    private: number;
-    public: number;
-    minimumHours?: number;
-  };
-  daytime?: {
-    type: "flat" | "hourly";
-    private: number;
-    public: number;
-    crossoverRate?: number;
-  };
-  evening?: {
-    type: "flat" | "hourly";
-    private: number;
-    public: number;
-  };
-  minimumHours?: number;
-}
-const StatusHistorySchema = new Schema<IStatusHistory>({
-  status: {
-    type: String,
-    enum: ["draft", "sent", "approved", "rejected", "accepted"],
-    required: true,
-  },
-  timestamp: { type: Date, default: Date.now, required: true },
-  changedBy: { type: String, required: true },
-});
 
-const CostEstimateVersionSchema = new Schema<ICostEstimateVersion>({
-  version: { type: Number, required: true },
-  label: { type: String, required: true },
-  costEstimates: [
+export const CostEstimateSchemaDefinition = {
+  projectId: { type: String, required: true },
+  versions: [
     {
-      id: { type: String, required: true },
-      date: { type: Date, required: true },
-      start: { type: Date, required: true },
-      end: { type: Date, required: true },
-      estimates: [
+      version: { type: Number, required: true },
+      label: { type: String, required: true },
+      costEstimates: [
         {
+          id: { type: String, required: true },
+          date: { type: Date, required: true },
           roomSlug: { type: String, required: true },
           basePrice: { type: Number, required: true },
-          daytimeHours: { type: Number },
-          eveningHours: { type: Number },
-          daytimePrice: { type: Number },
-          eveningPrice: { type: Number },
-          fullDayPrice: { type: Number },
-          daytimeRate: { type: Number },
-          daytimeRateType: { type: String },
-          eveningRate: { type: Number },
-          eveningRateType: { type: String },
-          additionalCosts: [
-            {
-              description: { type: String, required: true },
-              subDescription: { type: String },
-              cost: { type: Number, required: true },
-            },
-          ],
-          totalCost: { type: Number, required: true },
-          rateDescription: { type: String },
-          rateSubDescription: { type: String },
-          minimumHours: { type: Number },
-          totalBookingHours: { type: Number, required: true },
-          isFullDay: { type: Boolean, required: true },
+          daytimeHours: { type: Number, required: true },
+          eveningHours: { type: Number, required: true },
+          daytimePrice: { type: Number, required: true },
+          eveningPrice: { type: Number, required: true },
+          fullDayPrice: { type: Number, required: true },
+          daytimeRate: { type: Number, required: true },
+          daytimeRateType: { type: String, required: true },
+          eveningRate: { type: Number, required: true },
+          eveningRateType: { type: String, required: true },
         },
       ],
-      perSlotCosts: [
-        {
-          description: { type: String, required: true },
-          cost: { type: Number, required: true },
-        },
-      ],
-      slotTotal: { type: Number, required: true },
     },
   ],
-  totalCost: { type: Number, required: true },
-  statusHistory: [StatusHistorySchema], // Array of status history entries
+  statusHistory: [
+    {
+      status: { type: String, required: true },
+      timestamp: { type: Date, required: true },
+      changedBy: { type: String, required: true },
+    },
+  ],
+};
 
-  createdAt: { type: Date, default: Date.now },
-});
+let CostEstimateModel: Model<ICostEstimate> | null = null;
 
-const CostEstimateSchema = new Schema<ICostEstimate>({
-  rentalRequestId: { type: String, required: true },
-  versions: [CostEstimateVersionSchema] as unknown as ICostEstimateVersion[],
-  currentVersion: { type: Number, default: 0 },
-  status: {
-    type: String,
-    enum: ["draft", "sent", "approved", "rejected"],
-    default: "draft",
-  },
-  stripeEstimateId: { type: String },
-  updatedAt: { type: Date, default: Date.now },
-});
-
-export const CostEstimate = mongoose.model<ICostEstimate>(
-  "CostEstimate",
-  CostEstimateSchema
-);
-
-export function getCostEstimateModel(
-  connection: mongoose.Connection
-): Model<ICostEstimate> {
-  if (!connection) {
-    throw new Error("No connection provided to getCostEstimateModel");
+export const getCostEstimateModel = async (): Promise<Model<ICostEstimate>> => {
+  if (typeof window !== "undefined") {
+    throw new Error("This model is only available on the server side");
   }
-  return connection.model<ICostEstimate>("CostEstimate", CostEstimateSchema);
-}
+
+  if (CostEstimateModel) {
+    return CostEstimateModel;
+  }
+
+  const mongoose = await import("mongoose");
+
+  if (mongoose.models.CostEstimate) {
+    CostEstimateModel = mongoose.models.CostEstimate as Model<ICostEstimate>;
+  } else {
+    const schema = new mongoose.Schema<ICostEstimate>(
+      CostEstimateSchemaDefinition
+    );
+    CostEstimateModel = mongoose.model<ICostEstimate>("CostEstimate", schema);
+  }
+
+  return CostEstimateModel;
+};

@@ -5,5 +5,3 @@ export {
   getAdditionalCostModel,
   getResourceModel,
 } from "./pricing.schema";
-
-export { getCostEstimateModel } from "./costEstimate.schema";

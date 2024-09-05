@@ -1,4 +1,6 @@
-import mongoose, { Schema, model, Model } from "mongoose";
+// pricing.schema.ts
+
+import type { Model, Mongoose, Schema } from "mongoose";
 
 export interface ITimePeriod {
   name: string;
@@ -29,23 +31,41 @@ export interface IResource {
   value: string;
 }
 
-const TimePeriodSchema = new Schema<ITimePeriod>({
+// Declare a module augmentation for the global Process interface
+declare global {
+  namespace NodeJS {
+    interface Process {
+      server?: boolean;
+    }
+  }
+}
+
+let mongoose: Mongoose | null = null;
+
+// Lazy-load mongoose only on the server side
+if (typeof process !== "undefined" && process.server) {
+  mongoose = require("mongoose");
+}
+
+// Define schemas as plain objects
+const TimePeriodSchema: Record<keyof ITimePeriod, any> = {
   name: { type: String, required: true },
   startTime: { type: Number, required: true },
   endTime: { type: Number, required: true },
-});
+};
 
-const PricingRuleSchema = new Schema<IPricingRule>({
+const PricingRuleSchema: Record<keyof IPricingRule, any> = {
   roomSlug: { type: String, required: true },
+  pricing: { type: "Mixed", required: true },
   day: { type: String, required: true },
   timePeriod: { type: String, enum: ["daytime", "evening"], required: true },
   isPrivate: { type: Boolean, required: true },
   rate: { type: Number, required: true },
   type: { type: String, enum: ["hourly", "flat"], required: true },
   minimumHours: { type: Number },
-});
+};
 
-const AdditionalCostSchema = new Schema<IAdditionalCost>({
+const AdditionalCostSchema: Record<keyof IAdditionalCost, any> = {
   name: { type: String, required: true },
   cost: { type: Number, required: true },
   type: {
@@ -54,45 +74,66 @@ const AdditionalCostSchema = new Schema<IAdditionalCost>({
     required: true,
   },
   description: { type: String },
-});
+};
 
-const ResourceSchema = new Schema<IResource>({
+const ResourceSchema: Record<keyof IResource, any> = {
   label: { type: String, required: true },
   value: { type: String, required: true },
-});
+};
 
 // Factory functions to create models
 export function getTimePeriodModel(
-  mongoose: mongoose.Mongoose
+  mongooseInstance: Mongoose
 ): Model<ITimePeriod> {
   return (
-    mongoose.models.TimePeriod ||
-    model<ITimePeriod>("TimePeriod", TimePeriodSchema)
+    mongooseInstance.models.TimePeriod ||
+    mongooseInstance.model<ITimePeriod>(
+      "TimePeriod",
+      new mongooseInstance.Schema(TimePeriodSchema)
+    )
   );
 }
 
 export function getPricingRuleModel(
-  mongoose: mongoose.Mongoose
+  mongooseInstance: Mongoose
 ): Model<IPricingRule> {
   return (
-    mongoose.models.PricingRule ||
-    model<IPricingRule>("PricingRule", PricingRuleSchema)
+    mongooseInstance.models.PricingRule ||
+    mongooseInstance.model<IPricingRule>(
+      "PricingRule",
+      new mongooseInstance.Schema(PricingRuleSchema)
+    )
   );
 }
 
 export function getAdditionalCostModel(
-  mongoose: mongoose.Mongoose
+  mongooseInstance: Mongoose
 ): Model<IAdditionalCost> {
   return (
-    mongoose.models.AdditionalCost ||
-    model<IAdditionalCost>("AdditionalCost", AdditionalCostSchema)
+    mongooseInstance.models.AdditionalCost ||
+    mongooseInstance.model<IAdditionalCost>(
+      "AdditionalCost",
+      new mongooseInstance.Schema(AdditionalCostSchema)
+    )
   );
 }
 
-export function getResourceModel(
-  mongoose: mongoose.Mongoose
-): Model<IResource> {
+export function getResourceModel(mongooseInstance: Mongoose): Model<IResource> {
   return (
-    mongoose.models.Resource || model<IResource>("Resource", ResourceSchema)
+    mongooseInstance.models.Resource ||
+    mongooseInstance.model<IResource>(
+      "Resource",
+      new mongooseInstance.Schema(ResourceSchema)
+    )
   );
+}
+
+// Export a function to get all models
+export function getModels(mongooseInstance: Mongoose) {
+  return {
+    TimePeriod: getTimePeriodModel(mongooseInstance),
+    PricingRule: getPricingRuleModel(mongooseInstance),
+    AdditionalCost: getAdditionalCostModel(mongooseInstance),
+    Resource: getResourceModel(mongooseInstance),
+  };
 }
