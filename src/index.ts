@@ -1,5 +1,4 @@
 // src/index.ts
-export { useRoomMapping } from "./composables/useRoomMapping";
 
 import * as costEstimateSchema from "./models/costEstimate.schema";
 import {
