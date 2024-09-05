@@ -6,4 +6,4 @@ export {
   getResourceModel,
 } from "./pricing.schema";
 
-export { getCostEstimateModel } from "./costEstimate.schema";
+export * from "./costEstimate.schema";
