@@ -82,9 +82,11 @@ const ResourceSchema: Record<keyof IResource, any> = {
 };
 
 // Factory functions to create models
-export function getTimePeriodModel(
+// pricing.schema.ts
+
+export const getTimePeriodModel = (
   mongooseInstance: Mongoose
-): Model<ITimePeriod> {
+): Model<ITimePeriod> => {
   return (
     mongooseInstance.models.TimePeriod ||
     mongooseInstance.model<ITimePeriod>(
@@ -92,11 +94,11 @@ export function getTimePeriodModel(
       new mongooseInstance.Schema(TimePeriodSchema)
     )
   );
-}
+};
 
-export function getPricingRuleModel(
+export const getPricingRuleModel = (
   mongooseInstance: Mongoose
-): Model<IPricingRule> {
+): Model<IPricingRule> => {
   return (
     mongooseInstance.models.PricingRule ||
     mongooseInstance.model<IPricingRule>(
@@ -104,11 +106,11 @@ export function getPricingRuleModel(
       new mongooseInstance.Schema(PricingRuleSchema)
     )
   );
-}
+};
 
-export function getAdditionalCostModel(
+export const getAdditionalCostModel = (
   mongooseInstance: Mongoose
-): Model<IAdditionalCost> {
+): Model<IAdditionalCost> => {
   return (
     mongooseInstance.models.AdditionalCost ||
     mongooseInstance.model<IAdditionalCost>(
@@ -116,9 +118,11 @@ export function getAdditionalCostModel(
       new mongooseInstance.Schema(AdditionalCostSchema)
     )
   );
-}
+};
 
-export function getResourceModel(mongooseInstance: Mongoose): Model<IResource> {
+export const getResourceModel = (
+  mongooseInstance: Mongoose
+): Model<IResource> => {
   return (
     mongooseInstance.models.Resource ||
     mongooseInstance.model<IResource>(
@@ -126,14 +130,4 @@ export function getResourceModel(mongooseInstance: Mongoose): Model<IResource> {
       new mongooseInstance.Schema(ResourceSchema)
     )
   );
-}
-
-// Export a function to get all models
-export function getModels(mongooseInstance: Mongoose) {
-  return {
-    TimePeriod: getTimePeriodModel(mongooseInstance),
-    PricingRule: getPricingRuleModel(mongooseInstance),
-    AdditionalCost: getAdditionalCostModel(mongooseInstance),
-    Resource: getResourceModel(mongooseInstance),
-  };
-}
+};
