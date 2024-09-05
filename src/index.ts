@@ -1,15 +1,21 @@
 // src/index.ts
 import * as useRoomMapping from "./composables/useRoomMapping";
 import * as costEstimateSchema from "./models/costEstimate.schema";
-import * as pricingSchema from "./models/pricing.schema";
-import * as models from "./models/index";
+import {
+  getTimePeriodModel,
+  getPricingRuleModel,
+  getAdditionalCostModel,
+  getResourceModel,
+} from "./models/pricing.schema"; // Import the individual model functions
 import PricingRules from "./pricingRules";
 
 export {
   useRoomMapping,
   costEstimateSchema,
-  pricingSchema,
-  models,
+  getTimePeriodModel, // Explicitly export individual model functions
+  getPricingRuleModel,
+  getAdditionalCostModel,
+  getResourceModel,
   PricingRules,
 };
 export default PricingRules;
