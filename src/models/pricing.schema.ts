@@ -1,5 +1,3 @@
-// pricing.schema.ts
-
 import type { Model, Mongoose, Schema } from "mongoose";
 
 export interface ITimePeriod {
@@ -40,13 +38,10 @@ declare global {
   }
 }
 
-let mongoose: Mongoose | null = null;
+let mongoosePromise: Promise<typeof import("mongoose")> | null = null;
 
-if (typeof process !== "undefined" && process.server) {
-  import("mongoose").then((mongooseModule) => {
-    mongoose = mongooseModule;
-  });
-}
+mongoosePromise = import("mongoose");
+
 // Define schemas as plain objects
 const TimePeriodSchema: Record<keyof ITimePeriod, any> = {
   name: { type: String, required: true },
@@ -82,52 +77,53 @@ const ResourceSchema: Record<keyof IResource, any> = {
 };
 
 // Factory functions to create models
-// pricing.schema.ts
+async function getMongoose(): Promise<Mongoose> {
+  if (!mongoosePromise) {
+    throw new Error("Mongoose is not initialized");
+  }
+  const { default: mongoose } = await mongoosePromise;
+  return mongoose;
+}
 
-export const getTimePeriodModel = (
-  mongooseInstance: Mongoose
-): Model<ITimePeriod> => {
+export const getTimePeriodModel = async (): Promise<Model<ITimePeriod>> => {
+  const mongoose = await getMongoose();
   return (
-    mongooseInstance.models.TimePeriod ||
-    mongooseInstance.model<ITimePeriod>(
+    mongoose.models.TimePeriod ||
+    mongoose.model<ITimePeriod>(
       "TimePeriod",
-      new mongooseInstance.Schema(TimePeriodSchema)
+      new mongoose.Schema(TimePeriodSchema)
     )
   );
 };
 
-export const getPricingRuleModel = (
-  mongooseInstance: Mongoose
-): Model<IPricingRule> => {
+export const getPricingRuleModel = async (): Promise<Model<IPricingRule>> => {
+  const mongoose = await getMongoose();
   return (
-    mongooseInstance.models.PricingRule ||
-    mongooseInstance.model<IPricingRule>(
+    mongoose.models.PricingRule ||
+    mongoose.model<IPricingRule>(
       "PricingRule",
-      new mongooseInstance.Schema(PricingRuleSchema)
+      new mongoose.Schema(PricingRuleSchema)
     )
   );
 };
 
-export const getAdditionalCostModel = (
-  mongooseInstance: Mongoose
-): Model<IAdditionalCost> => {
+export const getAdditionalCostModel = async (): Promise<
+  Model<IAdditionalCost>
+> => {
+  const mongoose = await getMongoose();
   return (
-    mongooseInstance.models.AdditionalCost ||
-    mongooseInstance.model<IAdditionalCost>(
+    mongoose.models.AdditionalCost ||
+    mongoose.model<IAdditionalCost>(
       "AdditionalCost",
-      new mongooseInstance.Schema(AdditionalCostSchema)
+      new mongoose.Schema(AdditionalCostSchema)
     )
   );
 };
 
-export const getResourceModel = (
-  mongooseInstance: Mongoose
-): Model<IResource> => {
+export const getResourceModel = async (): Promise<Model<IResource>> => {
+  const mongoose = await getMongoose();
   return (
-    mongooseInstance.models.Resource ||
-    mongooseInstance.model<IResource>(
-      "Resource",
-      new mongooseInstance.Schema(ResourceSchema)
-    )
+    mongoose.models.Resource ||
+    mongoose.model<IResource>("Resource", new mongoose.Schema(ResourceSchema))
   );
 };

@@ -1,32 +1,11 @@
-import type { Mongoose } from "mongoose"; // Import the type
-let mongoose: Mongoose | null = null; // Explicitly type mongoose as Mongoose or null
-
-async function loadMongoose(): Promise<Mongoose> {
-  // Dynamically load mongoose only on the server side
-  if (!mongoose && process.server) {
-    mongoose = (await import("mongoose")).default;
-  }
-  if (!mongoose) {
-    throw new Error("Mongoose instance is not initialized");
-  }
-  return mongoose;
-}
+// pricing-lib/src/pricingRules.js
+import mongoose from "mongoose";
 
 import {
   getPricingRuleModel,
   getTimePeriodModel,
   getAdditionalCostModel,
 } from "./models/pricing.schema";
-
-async function loadModels() {
-  const mongooseInstance = await loadMongoose();
-
-  const PricingRule = getPricingRuleModel(mongooseInstance);
-  const TimePeriod = getTimePeriodModel(mongooseInstance);
-  const AdditionalCost = getAdditionalCostModel(mongooseInstance);
-
-  return { PricingRule, TimePeriod, AdditionalCost };
-}
 
 import { AdditionalCosts } from "./models/additionalCosts.schema"; // Import the interface
 
@@ -65,19 +44,18 @@ export default class PricingRules {
     if (!this.rules) {
       const maxRetries = 3;
       let retries = 0;
-
       while (retries < maxRetries) {
         try {
           console.log(
             `Attempting to fetch pricing rules (Attempt ${retries + 1})`
           );
+          const PricingRuleModel = await getPricingRuleModel();
+          const TimePeriodModel = await getTimePeriodModel();
+          const AdditionalCostModel = await getAdditionalCostModel();
 
-          // Load models after ensuring mongoose is initialized
-          const { PricingRule, TimePeriod, AdditionalCost } =
-            await loadModels();
-
-          // Fetch pricing rules from DB
-          const rulesFromDB = await PricingRule.find().lean().maxTimeMS(30000);
+          const rulesFromDB = await PricingRuleModel.find()
+            .lean()
+            .maxTimeMS(30000); // Increase timeout to 30 seconds
           this.rules = rulesFromDB.reduce<Record<string, any>>(
             (acc, rule: any) => {
               acc[rule.roomSlug] = rule.pricing;
@@ -86,8 +64,10 @@ export default class PricingRules {
             {}
           );
 
-          this.timePeriods = await TimePeriod.find().lean().maxTimeMS(30000);
-          this.additionalCosts = (await AdditionalCost.findOne()
+          this.timePeriods = await TimePeriodModel.find()
+            .lean()
+            .maxTimeMS(30000);
+          this.additionalCosts = (await AdditionalCostModel.findOne()
             .lean()
             .maxTimeMS(30000)) as unknown as AdditionalCosts;
 
@@ -99,13 +79,11 @@ export default class PricingRules {
             error
           );
           retries++;
-
           if (retries >= maxRetries) {
             throw new Error(
               `Failed to fetch pricing data after ${maxRetries} attempts: ${error.message}`
             );
           }
-
           await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds before retrying
         }
       }
