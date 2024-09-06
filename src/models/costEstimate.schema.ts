@@ -5,6 +5,7 @@ let mongoosePromise: Promise<typeof import("mongoose")> | null = null;
 mongoosePromise = import("mongoose");
 
 interface ICostEstimateVersion {
+  rentalRequestId: string;
   version: number;
   label: string;
   estimates: Array<{
