@@ -44,8 +44,8 @@ export const CostEstimateSchemaDefinition = {
         {
           id: { type: String, required: true },
           date: { type: Date, required: true },
-          roomSlug: { type: String, required: true },
-          basePrice: { type: Number, required: true },
+          roomSlug: { type: String },
+          basePrice: { type: Number },
           daytimeHours: { type: Number, default: 0 }, // Default to 0
           eveningHours: { type: Number, default: 0 },
           daytimePrice: { type: Number, default: 0 },
