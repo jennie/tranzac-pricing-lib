@@ -1,4 +1,8 @@
-import type { Document, Model } from "mongoose";
+import type { Document, Model, Mongoose, Schema } from "mongoose";
+
+let mongoosePromise: Promise<typeof import("mongoose")> | null = null;
+
+mongoosePromise = import("mongoose");
 
 interface ICostEstimateVersion {
   version: number;
@@ -66,27 +70,43 @@ export const CostEstimateSchemaDefinition = {
   ],
 };
 
+// Factory functions to create models
+async function getMongoose(): Promise<Mongoose> {
+  if (!mongoosePromise) {
+    throw new Error("Mongoose is not initialized");
+  }
+  const { default: mongoose } = await mongoosePromise;
+  return mongoose;
+}
+
 let CostEstimateModel: Model<ICostEstimate> | null = null;
 
 export const getCostEstimateModel = async (): Promise<Model<ICostEstimate>> => {
-  if (typeof window !== "undefined") {
-    throw new Error("This model is only available on the server side");
-  }
-
-  if (CostEstimateModel) {
-    return CostEstimateModel;
-  }
-
-  const mongoose = await import("mongoose");
-
-  if (mongoose.models.CostEstimate) {
-    CostEstimateModel = mongoose.models.CostEstimate as Model<ICostEstimate>;
-  } else {
-    const schema = new mongoose.Schema<ICostEstimate>(
-      CostEstimateSchemaDefinition
-    );
-    CostEstimateModel = mongoose.model<ICostEstimate>("CostEstimate", schema);
-  }
-
-  return CostEstimateModel;
+  const mongoose = await getMongoose();
+  return (
+    mongoose.models.PricingRule ||
+    mongoose.model<ICostEstimate>(
+      "PricingRule",
+      new mongoose.Schema(CostEstimateSchemaDefinition)
+    )
+  );
 };
+
+// export const getCostEstimateModel = async (): Promise<Model<ICostEstimate>> => {
+//   if (CostEstimateModel) {
+//     return CostEstimateModel;
+//   }
+
+//   const mongoose = await import("mongoose");
+
+//   if (mongoose.models.CostEstimate) {
+//     CostEstimateModel = mongoose.models.CostEstimate as Model<ICostEstimate>;
+//   } else {
+//     const schema = new mongoose.Schema<ICostEstimate>(
+//       CostEstimateSchemaDefinition
+//     );
+//     CostEstimateModel = mongoose.model<ICostEstimate>("CostEstimate", schema);
+//   }
+
+//   return CostEstimateModel;
+// };

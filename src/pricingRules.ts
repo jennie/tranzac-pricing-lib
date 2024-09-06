@@ -12,22 +12,6 @@ import { AdditionalCosts } from "./models/additionalCosts.schema"; // Import the
 import { formatISO, parseISO, isValid, differenceInHours } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
 
-// Helper constants and functions (no "this" required)
-const TORONTO_TIMEZONE = "America/Toronto";
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat("en-CA", {
-    style: "currency",
-    currency: "CAD",
-  }).format(amount);
-}
-
-function dateTimeToISOString(dateTime: Date): string {
-  if (!isValid(dateTime)) {
-    throw new Error("Invalid date passed to dateTimeToISOString");
-  }
-  return formatISO(dateTime);
-}
-// Define the Booking interface at the top
 interface Booking {
   resources?: string[];
   private?: boolean;
@@ -37,14 +21,20 @@ interface Booking {
   end: string;
 }
 
-// The class remains as it was, with "this" only within the class methods
+const TORONTO_TIMEZONE = "America/Toronto";
+function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat("en-CA", {
+    style: "currency",
+    currency: "CAD",
+  }).format(amount);
+}
+
 export default class PricingRules {
   private additionalCosts: AdditionalCosts | null = null;
   private rules: Record<string, any> | null = null;
   private timePeriods: any[] | null = null;
 
   constructor() {
-    // No need to reinitialize "this" in the constructor if already initialized in the class declaration
     this.timePeriods = null;
     this.rules = null;
     this.additionalCosts = null;
@@ -211,10 +201,10 @@ export default class PricingRules {
     let estimates = [];
     let perSlotCosts = [];
 
-    const startTime = toZonedTime(parseISO(start), TORONTO_TIMEZONE);
-    const endTime = toZonedTime(parseISO(end), TORONTO_TIMEZONE);
+    const startTime = toZonedTime(parseISO(start), "America/Toronto");
+    const endTime = toZonedTime(parseISO(end), "America/Toronto");
     const currentDay = format(startTime, "EEEE", {
-      timeZone: TORONTO_TIMEZONE,
+      timeZone: "America/Toronto",
     });
 
     // Fetch additional costs related to the booking
@@ -598,4 +588,70 @@ export default class PricingRules {
 
     return { perSlotCosts, additionalCosts };
   }
+
+  // Helper method to determine if a given time is during evening hours
+  isEveningTime(time: Date) {
+    const hour = time.getHours();
+    return hour >= 17 || hour < 5;
+  }
+
+  // Helper methods remain the same
+  // Helper method to determine the end of the current pricing period
+  getPeriodEnd(currentTime: Date, endTime: Date) {
+    const eveningStart = new Date(currentTime);
+    eveningStart.setHours(17, 0, 0, 0);
+    const nextDayStart = new Date(currentTime);
+    nextDayStart.setDate(nextDayStart.getDate() + 1);
+    nextDayStart.setHours(5, 0, 0, 0);
+
+    if (currentTime < eveningStart && eveningStart < endTime) {
+      return eveningStart;
+    } else if (currentTime >= eveningStart && nextDayStart < endTime) {
+      return nextDayStart;
+    } else {
+      return endTime;
+    }
+  }
+
+  // Helper method to determine if a given time is during evening hours
+
+  calculatePeriodPrice(
+    startTime: Date,
+    endTime: Date,
+    rules: any,
+    isPrivate: boolean
+  ) {
+    const isEvening = this.isEveningTime(startTime);
+    const periodRules = isEvening ? rules.evening : rules.daytime;
+
+    if (!periodRules) {
+      throw new Error(
+        `No rules found for ${isEvening ? "evening" : "daytime"} period`
+      );
+    }
+
+    const rate = periodRules[isPrivate ? "private" : "public"];
+    const hours = Math.min(
+      (Number(endTime) - Number(startTime)) / 3600000,
+      isEvening ? 12 : 24 - new Date(startTime).getHours()
+    );
+
+    if (periodRules.type === "flat") {
+      return { price: rate, hours };
+    } else if (periodRules.type === "hourly") {
+      const effectiveHours = Math.max(hours, periodRules.minimumHours || 0);
+      return { price: effectiveHours * rate, hours };
+    }
+
+    throw new Error(
+      `Invalid pricing type for ${isEvening ? "evening" : "daytime"} period`
+    );
+  }
+}
+
+function dateTimeToISOString(dateTime: Date): string {
+  if (!isValid(dateTime)) {
+    throw new Error("Invalid date passed to dateTimeToISOString");
+  }
+  return formatISO(dateTime);
 }
