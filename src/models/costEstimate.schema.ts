@@ -12,15 +12,15 @@ interface ICostEstimateVersion {
     date: Date;
     roomSlug: string;
     basePrice: number;
-    daytimeHours: number;
-    eveningHours: number;
-    daytimePrice: number;
-    eveningPrice: number;
-    fullDayPrice: number;
-    daytimeRate: number;
-    daytimeRateType: string;
-    eveningRate: number;
-    eveningRateType: string;
+    daytimeHours?: number; // Optional fields, if not always present
+    eveningHours?: number;
+    daytimePrice?: number;
+    eveningPrice?: number;
+    fullDayPrice?: number;
+    daytimeRate?: number;
+    daytimeRateType?: string;
+    eveningRate?: number;
+    eveningRateType?: string;
   }>;
 }
 
@@ -46,15 +46,15 @@ export const CostEstimateSchemaDefinition = {
           date: { type: Date, required: true },
           roomSlug: { type: String, required: true },
           basePrice: { type: Number, required: true },
-          daytimeHours: { type: Number },
-          eveningHours: { type: Number },
-          daytimePrice: { type: Number },
-          eveningPrice: { type: Number },
-          fullDayPrice: { type: Number },
-          daytimeRate: { type: Number },
-          daytimeRateType: { type: String },
-          eveningRate: { type: Number },
-          eveningRateType: { type: String },
+          daytimeHours: { type: Number, default: 0 }, // Default to 0
+          eveningHours: { type: Number, default: 0 },
+          daytimePrice: { type: Number, default: 0 },
+          eveningPrice: { type: Number, default: 0 },
+          fullDayPrice: { type: Number, default: 0 },
+          daytimeRate: { type: Number, default: null }, // Optional fields, default to null
+          daytimeRateType: { type: String, default: null },
+          eveningRate: { type: Number, default: null },
+          eveningRateType: { type: String, default: null },
         },
       ],
     },
