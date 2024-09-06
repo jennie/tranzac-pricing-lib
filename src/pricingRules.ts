@@ -164,7 +164,7 @@ export default class PricingRules {
     roomSlugs: string[];
   }) {
     const { start, end, roomSlugs } = booking;
-
+    console.log("Booking data:", booking);
     if (!roomSlugs || roomSlugs.length === 0) {
       throw new Error("Room slugs are undefined or empty in booking");
     }
