@@ -7,7 +7,7 @@ mongoosePromise = import("mongoose");
 interface ICostEstimateVersion {
   version: number;
   label: string;
-  costEstimates: Array<{
+  estimates: Array<{
     id: string;
     date: Date;
     roomSlug: string;
@@ -40,7 +40,7 @@ export const CostEstimateSchemaDefinition = {
     {
       version: { type: Number, required: true },
       label: { type: String, required: true },
-      costEstimates: [
+      estimates: [
         {
           id: { type: String, required: true },
           date: { type: Date, required: true },
