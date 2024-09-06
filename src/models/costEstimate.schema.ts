@@ -84,9 +84,9 @@ let CostEstimateModel: Model<ICostEstimate> | null = null;
 export const getCostEstimateModel = async (): Promise<Model<ICostEstimate>> => {
   const mongoose = await getMongoose();
   return (
-    mongoose.models.PricingRule ||
+    mongoose.models.CostEstimate ||
     mongoose.model<ICostEstimate>(
-      "PricingRule",
+      "CostEstimate",
       new mongoose.Schema(CostEstimateSchemaDefinition)
     )
   );
