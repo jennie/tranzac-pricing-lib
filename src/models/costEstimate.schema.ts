@@ -79,8 +79,6 @@ async function getMongoose(): Promise<Mongoose> {
   return mongoose;
 }
 
-let CostEstimateModel: Model<ICostEstimate> | null = null;
-
 export const getCostEstimateModel = async (): Promise<Model<ICostEstimate>> => {
   const mongoose = await getMongoose();
   return (
@@ -91,22 +89,3 @@ export const getCostEstimateModel = async (): Promise<Model<ICostEstimate>> => {
     )
   );
 };
-
-// export const getCostEstimateModel = async (): Promise<Model<ICostEstimate>> => {
-//   if (CostEstimateModel) {
-//     return CostEstimateModel;
-//   }
-
-//   const mongoose = await import("mongoose");
-
-//   if (mongoose.models.CostEstimate) {
-//     CostEstimateModel = mongoose.models.CostEstimate as Model<ICostEstimate>;
-//   } else {
-//     const schema = new mongoose.Schema<ICostEstimate>(
-//       CostEstimateSchemaDefinition
-//     );
-//     CostEstimateModel = mongoose.model<ICostEstimate>("CostEstimate", schema);
-//   }
-
-//   return CostEstimateModel;
-// };
