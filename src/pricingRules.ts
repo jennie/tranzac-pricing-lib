@@ -99,7 +99,11 @@ export default class PricingRules {
       let grandTotal = 0;
 
       for (const [date, bookings] of Object.entries(data.rentalDates)) {
+        console.log(`Processing bookings for date: ${date}`);
+
         for (const booking of bookings as any[]) {
+          console.log(`Processing booking:`, JSON.stringify(booking, null, 2));
+
           try {
             const preparedBooking: Booking =
               this.prepareBookingForPricing(booking);
@@ -129,6 +133,11 @@ export default class PricingRules {
               `Error calculating price for booking ${booking.id}:`,
               error
             );
+            console.error(
+              `Problematic booking data:`,
+              JSON.stringify(booking, null, 2)
+            );
+
             costEstimates.push({
               id: booking.id,
               date,
@@ -144,6 +153,7 @@ export default class PricingRules {
       return { costEstimates, grandTotal };
     } catch (error: any) {
       console.error("Error in getPrice method:", error);
+
       return { costEstimates: [], grandTotal: 0 };
     }
   }
