@@ -1,6 +1,6 @@
 // src/index.ts
 
-import * as costEstimateSchema from "./models/costEstimate.schema";
+import { getCostEstimateModel } from "./models/costEstimate.schema";
 import {
   getTimePeriodModel,
   getPricingRuleModel,
@@ -10,7 +10,7 @@ import {
 import PricingRules from "./pricingRules";
 
 export {
-  costEstimateSchema,
+  getCostEstimateModel,
   getTimePeriodModel, // Explicitly export individual model functions
   getPricingRuleModel,
   getAdditionalCostModel,
