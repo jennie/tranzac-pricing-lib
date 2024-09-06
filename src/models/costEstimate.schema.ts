@@ -31,13 +31,11 @@ interface IStatusHistory {
 }
 
 export interface ICostEstimate extends Document {
-  projectId: string;
   versions: ICostEstimateVersion[];
   statusHistory: IStatusHistory[];
 }
 
 export const CostEstimateSchemaDefinition = {
-  projectId: { type: String, required: true },
   versions: [
     {
       version: { type: Number, required: true },
@@ -48,15 +46,15 @@ export const CostEstimateSchemaDefinition = {
           date: { type: Date, required: true },
           roomSlug: { type: String, required: true },
           basePrice: { type: Number, required: true },
-          daytimeHours: { type: Number, required: true },
-          eveningHours: { type: Number, required: true },
-          daytimePrice: { type: Number, required: true },
-          eveningPrice: { type: Number, required: true },
-          fullDayPrice: { type: Number, required: true },
-          daytimeRate: { type: Number, required: true },
-          daytimeRateType: { type: String, required: true },
-          eveningRate: { type: Number, required: true },
-          eveningRateType: { type: String, required: true },
+          daytimeHours: { type: Number },
+          eveningHours: { type: Number },
+          daytimePrice: { type: Number },
+          eveningPrice: { type: Number },
+          fullDayPrice: { type: Number },
+          daytimeRate: { type: Number },
+          daytimeRateType: { type: String },
+          eveningRate: { type: Number },
+          eveningRateType: { type: String },
         },
       ],
     },
