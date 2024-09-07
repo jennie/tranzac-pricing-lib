@@ -543,7 +543,7 @@ export default class PricingRules {
               // Calculate base cost for 7 hours
               additionalCosts.push({
                 roomSlug,
-                description: `Audio Technician (Base: ${regularHours} hours)`,
+                description: `Audio Technician (Base: 7 hours)`,
                 cost: baseCost, // Base cost for up to 7 hours is fixed at $275
               });
 
