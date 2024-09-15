@@ -155,8 +155,14 @@ export default class PricingRules {
         }
       }
 
-      const tax = grandTotal * HST_RATE;
-      const totalWithTax = grandTotal + tax;
+      const tax = Number((grandTotal * HST_RATE).toFixed(2));
+      const totalWithTax = Number((grandTotal + tax).toFixed(2));
+
+      console.log("Tax calculation:");
+      console.log("Grand Total:", grandTotal);
+      console.log("Tax Rate:", HST_RATE);
+      console.log("Calculated Tax:", tax);
+      console.log("Total with Tax:", totalWithTax);
 
       return { costEstimates, grandTotal, tax, totalWithTax };
     } catch (error: any) {
