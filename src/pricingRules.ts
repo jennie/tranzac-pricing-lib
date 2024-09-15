@@ -523,6 +523,8 @@ export default class PricingRules {
                 subDescription: resourceConfig.subDescription, // Ensure this is included
                 cost: resourceConfig.cost,
               });
+              break;
+
             case "backline":
               const roomSpecificCost =
                 resourceConfig.rooms?.[normalizedRoomSlug];
@@ -533,6 +535,12 @@ export default class PricingRules {
                 // If there's no room-specific cost, use the default cost
                 cost = resourceConfig.cost;
               }
+              additionalCosts.push({
+                roomSlug,
+                description,
+                subDescription: resourceConfig.subDescription,
+                cost,
+              });
               break;
 
             case "bartender":
@@ -548,12 +556,24 @@ export default class PricingRules {
                   cost = resourceConfig.cost * hours;
                 }
               }
+              additionalCosts.push({
+                roomSlug,
+                description: resourceConfig.description,
+                subDescription,
+                cost,
+              });
               break;
 
             case "projector":
               if (projectorIncluded) {
-                continue; // Skip if projector is already included in backline
+                break; // Skip if projector is already included in backline
               }
+              additionalCosts.push({
+                roomSlug,
+                description: resourceConfig.description,
+                subDescription: resourceConfig.subDescription,
+                cost: resourceConfig.cost,
+              });
               break;
 
             case "audio_tech":
@@ -587,7 +607,7 @@ export default class PricingRules {
                   cost: overtimeCost,
                 });
               }
-              continue;
+              break;
 
             default:
               if (resourceConfig.type === "hourly") {
@@ -599,14 +619,14 @@ export default class PricingRules {
                   cost = resourceConfig.cost * hours;
                 }
               }
+              additionalCosts.push({
+                roomSlug,
+                description: resourceConfig.description,
+                subDescription: resourceConfig.subDescription,
+                cost: typeof cost === "number" ? cost : 0,
+              });
+              break;
           }
-
-          additionalCosts.push({
-            roomSlug,
-            description,
-            subDescription,
-            cost: typeof cost === "number" ? cost : 0,
-          });
         }
       }
     }
