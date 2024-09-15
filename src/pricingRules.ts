@@ -22,6 +22,8 @@ interface Booking {
 }
 
 const TORONTO_TIMEZONE = "America/Toronto";
+const HST_RATE = 0.13; // 13% HST rate
+
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
     style: "currency",
@@ -90,9 +92,12 @@ export default class PricingRules {
     }
   }
 
-  async getPrice(
-    data: any
-  ): Promise<{ costEstimates: any[]; grandTotal: number }> {
+  async getPrice(data: any): Promise<{
+    costEstimates: any[];
+    grandTotal: number;
+    tax: number;
+    totalWithTax: number;
+  }> {
     try {
       await this.initialize();
       const costEstimates = [];
@@ -150,11 +155,14 @@ export default class PricingRules {
         }
       }
 
-      return { costEstimates, grandTotal };
+      const tax = grandTotal * HST_RATE;
+      const totalWithTax = grandTotal + tax;
+
+      return { costEstimates, grandTotal, tax, totalWithTax };
     } catch (error: any) {
       console.error("Error in getPrice method:", error);
 
-      return { costEstimates: [], grandTotal: 0 };
+      return { costEstimates: [], grandTotal: 0, tax: 0, totalWithTax: 0 };
     }
   }
 
