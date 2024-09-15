@@ -444,11 +444,11 @@ export default class PricingRules {
       }
     }
 
-    if (roomSlugs.includes("parking-lot") || resources.includes("security")) {
+    if (roomSlugs.includes("parking-lot")) {
       perSlotCosts.push({
         description: "Security",
         subDescription: "Required – will be quoted separately",
-        cost: 0,
+        cost: "–",
       });
     }
 
