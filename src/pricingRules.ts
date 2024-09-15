@@ -522,6 +522,7 @@ export default class PricingRules {
                 cost: resourceConfig.cost,
               });
               break;
+
             case "backline":
               const roomSpecificCost =
                 resourceConfig.rooms?.[normalizedRoomSlug];
