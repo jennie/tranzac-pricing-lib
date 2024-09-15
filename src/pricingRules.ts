@@ -513,6 +513,7 @@ export default class PricingRules {
           let description = resourceConfig.description;
           let subDescription = "";
 
+          console.log("Cleaning resource config:", resourceConfig);
           switch (resource) {
             case "food":
               additionalCosts.push({
