@@ -451,20 +451,6 @@ export default class PricingRules {
         cost: 0,
       });
     }
-    if (resources.includes("food")) {
-      const cleaningConfig = this.additionalCosts?.resources?.find(
-        (r) => r.id === "food"
-      );
-      if (cleaningConfig) {
-        additionalCosts.push({
-          roomSlugs,
-          description:
-            cleaningConfig.description ||
-            "Cleaning (required when food is served)",
-          cost: cleaningConfig.cost,
-        });
-      }
-    }
 
     // Add Door Staff to per-slot costs
     if (resources.includes("door_staff")) {
@@ -514,6 +500,20 @@ export default class PricingRules {
         ) {
           const roomConfig = backlineConfig.rooms?.[normalizedRoomSlug];
           projectorIncluded = roomConfig?.includes_projector || false;
+        }
+      }
+      if (resources.includes("food")) {
+        const cleaningConfig = this.additionalCosts?.resources?.find(
+          (r) => r.id === "food"
+        );
+        if (cleaningConfig) {
+          additionalCosts.push({
+            roomSlugs,
+            description:
+              cleaningConfig.description ||
+              "Cleaning (required when food is served)",
+            cost: cleaningConfig.cost,
+          });
         }
       }
 
