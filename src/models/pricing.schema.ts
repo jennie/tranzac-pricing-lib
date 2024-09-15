@@ -22,6 +22,7 @@ export interface IAdditionalCost {
   cost: number;
   type: "flat" | "hourly" | "base" | "custom";
   description?: string;
+  subDescription?: string;
 }
 
 export interface IResource {
@@ -69,6 +70,7 @@ const AdditionalCostSchema: Record<keyof IAdditionalCost, any> = {
     required: true,
   },
   description: { type: String },
+  subDescription: { type: String },
 };
 
 const ResourceSchema: Record<keyof IResource, any> = {

@@ -1,4 +1,12 @@
 // src/models/additionalCosts.ts
+import { Schema, model, Document } from "mongoose";
+
+interface IAdditionalCost extends Document {
+  roomSlugs: string[];
+  description: string;
+  subDescription?: string; // Define subDescription as an optional field
+  cost: number;
+}
 
 export interface Room {
   cost: number;
@@ -31,3 +39,12 @@ export interface AdditionalCosts {
   resources: Resource[];
   conditions: Condition[];
 }
+
+const AdditionalCostSchema = new Schema<IAdditionalCost>({
+  roomSlugs: { type: [String], required: true },
+  description: { type: String, required: true },
+  subDescription: { type: String }, // Add subDescription to the schema
+  cost: { type: Number, required: true },
+});
+
+export default model<IAdditionalCost>("AdditionalCost", AdditionalCostSchema);

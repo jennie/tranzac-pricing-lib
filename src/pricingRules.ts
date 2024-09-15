@@ -514,16 +514,15 @@ export default class PricingRules {
           let subDescription = "";
 
           console.log("Cleaning resource config:", resourceConfig);
-          switch (resource) {
-            case "food":
-              additionalCosts.push({
-                roomSlugs,
-                description: resourceConfig.description,
-                subDescription: resourceConfig.subDescription,
-                cost: resourceConfig.cost,
-              });
-              break;
 
+          additionalCosts.push({
+            roomSlug,
+            description: resourceConfig.description,
+            subDescription: resourceConfig.subDescription, // Ensure this is included
+            cost: resourceConfig.cost,
+          });
+
+          switch (resource) {
             case "backline":
               const roomSpecificCost =
                 resourceConfig.rooms?.[normalizedRoomSlug];
