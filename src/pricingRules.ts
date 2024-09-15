@@ -447,7 +447,7 @@ export default class PricingRules {
     if (roomSlugs.includes("parking-lot") || resources.includes("security")) {
       perSlotCosts.push({
         description: "Security",
-        subDescription: "Will be quoted separately",
+        subDescription: "Required – will be quoted separately",
         cost: 0,
       });
     }
@@ -515,14 +515,14 @@ export default class PricingRules {
 
           console.log("Cleaning resource config:", resourceConfig);
 
-          additionalCosts.push({
-            roomSlug,
-            description: resourceConfig.description,
-            subDescription: resourceConfig.subDescription, // Ensure this is included
-            cost: resourceConfig.cost,
-          });
-
           switch (resource) {
+            case "food":
+              additionalCosts.push({
+                roomSlug,
+                description: resourceConfig.description,
+                subDescription: resourceConfig.subDescription, // Ensure this is included
+                cost: resourceConfig.cost,
+              });
             case "backline":
               const roomSpecificCost =
                 resourceConfig.rooms?.[normalizedRoomSlug];
@@ -587,11 +587,6 @@ export default class PricingRules {
                   cost: overtimeCost,
                 });
               }
-              continue;
-
-            case "door_staff":
-            case "piano_tuning":
-              // Skip these as they're now handled as per-slot costs
               continue;
 
             default:
