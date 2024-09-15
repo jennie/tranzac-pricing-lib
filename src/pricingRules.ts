@@ -602,8 +602,7 @@ export default class PricingRules {
                   Number(overtimeConfig.cost) * Number(overtimeHours);
                 additionalCosts.push({
                   roomSlug,
-                  description: resourceConfig.description,
-                  subDescription: resourceConfig.subDescription,
+                  description: "Audio Tech Overtime",
                   cost: overtimeCost,
                 });
               }
