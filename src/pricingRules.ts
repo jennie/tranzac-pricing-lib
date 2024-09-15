@@ -444,18 +444,14 @@ export default class PricingRules {
       }
     }
 
-    // if (roomSlugs.includes("parking-lot")) {
-    //   // console.log(console.log("Parking Lot Booking Detected"););
-    //   perSlotCosts.push({
-    //     description: `
-    //       <span>
-    //         Security <UBadge type="info" text="Required" />
-    //       </span>
-    //     `,
-    //     subDescription: "Required – will be quoted separately",
-    //     cost: 0,
-    //   });
-    // }
+    if (roomSlugs.includes("parking-lot")) {
+      // console.log(console.log("Parking Lot Booking Detected"););
+      perSlotCosts.push({
+        description: "Security (required)",
+        subDescription: "Will quote separately",
+        cost: 0,
+      });
+    }
 
     // Add Door Staff to per-slot costs
     if (resources.includes("door_staff")) {
