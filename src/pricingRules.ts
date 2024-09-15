@@ -616,6 +616,7 @@ export default class PricingRules {
         }
       }
     }
+    console.log("Additional Costs:", additionalCosts); // << Add this here
 
     return { perSlotCosts, additionalCosts };
   }
