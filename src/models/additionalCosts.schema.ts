@@ -12,6 +12,7 @@ export interface Resource {
   cost: number | string; // Can be a number or "Will quote separately"
   type: "flat" | "hourly" | "custom" | "base";
   description: string;
+  subDescription?: string;
   rooms?: {
     [roomSlug: string]: Room; // Rooms as an object with room slugs as keys
   };
