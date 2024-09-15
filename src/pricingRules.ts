@@ -262,7 +262,7 @@ export default class PricingRules {
       let totalPrice = 0;
       let daytimePrice = 0;
       let eveningPrice = 0;
-      let fullDayPrice = 0; // Variable to store full-day price if applicable
+      let fullDayPrice = 0;
       let daytimeHours = 0;
       let eveningHours = 0;
       let rateDescription = "";
@@ -306,43 +306,48 @@ export default class PricingRules {
           daytimeHours = differenceInHours(daytimeEndTime, startTime);
 
           let daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
+          let effectiveDaytimeHours = daytimeHours;
+          let minimumApplied = false;
 
-          // Only apply crossover rate if there is a flat evening rate
           if (
             bookingCrossesEveningThreshold &&
-            dayRules.evening &&
-            dayRules.evening.type === "flat"
+            dayRules.daytime.crossoverRate
           ) {
-            if (dayRules.daytime.crossoverRate) {
-              daytimeRate = dayRules.daytime.crossoverRate;
-              rateSubDescription = "Crossover rate applied";
-            }
+            daytimeRate = dayRules.daytime.crossoverRate;
+            rateSubDescription = "Crossover rate applied";
+          } else {
+            // Only apply minimum hours if not using crossover rate
+            const minimumHours = dayRules.daytime.minimumHours || 0;
+            effectiveDaytimeHours = Math.max(daytimeHours, minimumHours);
+            minimumApplied = effectiveDaytimeHours > daytimeHours;
           }
 
           if (dayRules.daytime.type === "hourly") {
-            daytimePrice = daytimeRate * daytimeHours;
+            daytimePrice = daytimeRate * effectiveDaytimeHours;
             rateDescription = `Daytime: $${daytimeRate}/hour`;
+            if (minimumApplied) {
+              rateSubDescription += rateSubDescription ? ", " : "";
+              rateSubDescription += `${dayRules.daytime.minimumHours}-hour minimum applied`;
+            }
           } else if (dayRules.daytime.type === "flat") {
             daytimePrice = daytimeRate;
             rateDescription = "Flat Daytime Rate";
           }
         }
 
-        // Evening Calculation
+        // Evening Calculation (keep as is, but ensure it uses the correct evening hours)
         if (endTime > eveningStartTime && dayRules.evening) {
           eveningHours = differenceInHours(endTime, eveningStartTime);
           let eveningRate = dayRules.evening[isPrivate ? "private" : "public"];
 
           if (dayRules.evening.type === "flat") {
             eveningPrice = eveningRate;
-            rateDescription += rateDescription
-              ? " + Evening (flat rate)"
-              : "Evening (flat rate)";
+            rateDescription += rateDescription ? " + " : "";
+            rateDescription += "Evening (flat rate)";
           } else if (dayRules.evening.type === "hourly") {
             eveningPrice = eveningRate * eveningHours;
-            rateDescription += rateDescription
-              ? ` + Evening: $${eveningRate}/hour`
-              : `Evening: $${eveningRate}/hour`;
+            rateDescription += rateDescription ? " + " : "";
+            rateDescription += `Evening: $${eveningRate}/hour`;
           }
         }
 
