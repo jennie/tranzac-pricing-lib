@@ -446,9 +446,13 @@ export default class PricingRules {
 
     if (roomSlugs.includes("parking-lot")) {
       perSlotCosts.push({
-        description: "Security",
+        description: `
+          <span>
+            Security <UBadge type="info" text="Required" />
+          </span>
+        `,
         subDescription: "Required – will be quoted separately",
-        cost: "–",
+        cost: 0,
       });
     }
 
