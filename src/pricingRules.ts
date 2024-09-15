@@ -73,7 +73,7 @@ export default class PricingRules {
             .lean()
             .maxTimeMS(30000)) as unknown as AdditionalCosts;
 
-          console.log("Successfully fetched pricing rules");
+          // console.log(console.log("Successfully fetched pricing rules"););
           return; // Exit the function if successful
         } catch (error: any) {
           console.error(
@@ -104,10 +104,10 @@ export default class PricingRules {
       let grandTotal = 0;
 
       for (const [date, bookings] of Object.entries(data.rentalDates)) {
-        console.log(`Processing bookings for date: ${date}`);
+        // console.log(console.log(`Processing bookings for date: ${date}`););
 
         for (const booking of bookings as any[]) {
-          console.log(`Processing booking:`, JSON.stringify(booking, null, 2));
+          // console.log(console.log(`Processing booking:`, JSON.stringify(booking, null, 2)););
 
           try {
             const preparedBooking: Booking =
@@ -158,11 +158,11 @@ export default class PricingRules {
       const tax = Number((grandTotal * HST_RATE).toFixed(2));
       const totalWithTax = Number((grandTotal + tax).toFixed(2));
 
-      console.log("Tax calculation:");
-      console.log("Grand Total:", grandTotal);
-      console.log("Tax Rate:", HST_RATE);
-      console.log("Calculated Tax:", tax);
-      console.log("Total with Tax:", totalWithTax);
+      // console.log(console.log("Tax calculation:"););
+      // console.log(console.log("Grand Total:", grandTotal););
+      // console.log(console.log("Tax Rate:", HST_RATE););
+      // console.log(console.log("Calculated Tax:", tax););
+      // console.log(console.log("Total with Tax:", totalWithTax););
 
       return { costEstimates, grandTotal, tax, totalWithTax };
     } catch (error: any) {
@@ -178,7 +178,7 @@ export default class PricingRules {
     roomSlugs: string[];
   }) {
     const { start, end, roomSlugs } = booking;
-    console.log("Booking data:", booking);
+    // console.log(console.log("Booking data:", booking););
     if (!roomSlugs || roomSlugs.length === 0) {
       throw new Error("Room slugs are undefined or empty in booking");
     }
@@ -444,17 +444,18 @@ export default class PricingRules {
       }
     }
 
-    if (roomSlugs.includes("parking-lot")) {
-      perSlotCosts.push({
-        description: `
-          <span>
-            Security <UBadge type="info" text="Required" />
-          </span>
-        `,
-        subDescription: "Required – will be quoted separately",
-        cost: 0,
-      });
-    }
+    // if (roomSlugs.includes("parking-lot")) {
+    //   // console.log(console.log("Parking Lot Booking Detected"););
+    //   perSlotCosts.push({
+    //     description: `
+    //       <span>
+    //         Security <UBadge type="info" text="Required" />
+    //       </span>
+    //     `,
+    //     subDescription: "Required – will be quoted separately",
+    //     cost: 0,
+    //   });
+    // }
 
     // Add Door Staff to per-slot costs
     if (resources.includes("door_staff")) {
@@ -517,7 +518,7 @@ export default class PricingRules {
           let description = resourceConfig.description;
           let subDescription = "";
 
-          console.log("Cleaning resource config:", resourceConfig);
+          // console.log(console.log("Cleaning resource config:", resourceConfig););
 
           switch (resource) {
             case "food":
@@ -634,7 +635,7 @@ export default class PricingRules {
         }
       }
     }
-    console.log("Additional Costs:", additionalCosts); // << Add this here
+    // console.log(console.log("Additional Costs:", additionalCosts);); // << Add this here
 
     return { perSlotCosts, additionalCosts };
   }
