@@ -502,20 +502,6 @@ export default class PricingRules {
           projectorIncluded = roomConfig?.includes_projector || false;
         }
       }
-      if (resources.includes("food")) {
-        const cleaningConfig = this.additionalCosts?.resources?.find(
-          (r) => r.id === "food"
-        );
-        if (cleaningConfig) {
-          additionalCosts.push({
-            roomSlugs,
-            description:
-              cleaningConfig.description ||
-              "Cleaning (required when food is served)",
-            cost: cleaningConfig.cost,
-          });
-        }
-      }
 
       for (const resource of resources) {
         const resourceConfig = this.additionalCosts?.resources.find(
@@ -528,6 +514,15 @@ export default class PricingRules {
           let subDescription = "";
 
           switch (resource) {
+            case "food":
+              additionalCosts.push({
+                roomSlugs,
+                description:
+                  resourceConfig.description ||
+                  "Cleaning (required when food is served)",
+                cost: resourceConfig.cost,
+              });
+              break;
             case "backline":
               const roomSpecificCost =
                 resourceConfig.rooms?.[normalizedRoomSlug];
