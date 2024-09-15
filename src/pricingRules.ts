@@ -517,9 +517,8 @@ export default class PricingRules {
             case "food":
               additionalCosts.push({
                 roomSlugs,
-                description:
-                  resourceConfig.description ||
-                  "Cleaning (required when food is served)",
+                description: resourceConfig.description,
+                subDescription: resourceConfig.subDescription,
                 cost: resourceConfig.cost,
               });
               break;
@@ -571,7 +570,8 @@ export default class PricingRules {
               // Calculate base cost for 7 hours
               additionalCosts.push({
                 roomSlug,
-                description: `Audio Technician (Base: 7 hours)`,
+                description: resourceConfig.description,
+                subDescription: resourceConfig.subDescription,
                 cost: baseCost, // Base cost for up to 7 hours is fixed at $275
               });
 
@@ -581,7 +581,8 @@ export default class PricingRules {
                   Number(overtimeConfig.cost) * Number(overtimeHours);
                 additionalCosts.push({
                   roomSlug,
-                  description: `Audio Technician Overtime (Overtime: ${overtimeHours} hours)`,
+                  description: resourceConfig.description,
+                  subDescription: resourceConfig.subDescription,
                   cost: overtimeCost,
                 });
               }
