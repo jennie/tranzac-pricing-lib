@@ -92,6 +92,15 @@ export default class PricingRules {
     }
   }
 
+  calculateTax(grandTotal: number): number {
+    return Number((grandTotal * HST_RATE).toFixed(2));
+  }
+
+  calculateTotalWithTax(grandTotal: number): number {
+    const tax = this.calculateTax(grandTotal);
+    return Number((grandTotal + tax).toFixed(2));
+  }
+
   async getPrice(data: any): Promise<{
     costEstimates: any[];
     grandTotal: number;
@@ -104,11 +113,7 @@ export default class PricingRules {
       let grandTotal = 0;
 
       for (const [date, bookings] of Object.entries(data.rentalDates)) {
-        // console.log(console.log(`Processing bookings for date: ${date}`););
-
         for (const booking of bookings as any[]) {
-          // console.log(console.log(`Processing booking:`, JSON.stringify(booking, null, 2)););
-
           try {
             const preparedBooking: Booking =
               this.prepareBookingForPricing(booking);
@@ -138,11 +143,6 @@ export default class PricingRules {
               `Error calculating price for booking ${booking.id}:`,
               error
             );
-            console.error(
-              `Problematic booking data:`,
-              JSON.stringify(booking, null, 2)
-            );
-
             costEstimates.push({
               id: booking.id,
               date,
@@ -155,19 +155,12 @@ export default class PricingRules {
         }
       }
 
-      const tax = Number((grandTotal * HST_RATE).toFixed(2));
-      const totalWithTax = Number((grandTotal + tax).toFixed(2));
-
-      // console.log(console.log("Tax calculation:"););
-      // console.log(console.log("Grand Total:", grandTotal););
-      // console.log(console.log("Tax Rate:", HST_RATE););
-      // console.log(console.log("Calculated Tax:", tax););
-      // console.log(console.log("Total with Tax:", totalWithTax););
+      const tax = this.calculateTax(grandTotal);
+      const totalWithTax = this.calculateTotalWithTax(grandTotal);
 
       return { costEstimates, grandTotal, tax, totalWithTax };
     } catch (error: any) {
       console.error("Error in getPrice method:", error);
-
       return { costEstimates: [], grandTotal: 0, tax: 0, totalWithTax: 0 };
     }
   }
