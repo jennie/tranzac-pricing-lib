@@ -13,7 +13,7 @@ interface ICostEstimateVersion {
     date: Date;
     roomSlug: string;
     basePrice: number;
-    daytimeHours?: number; // Optional fields, if not always present
+    daytimeHours?: number;
     eveningHours?: number;
     daytimePrice?: number;
     eveningPrice?: number;
@@ -23,6 +23,7 @@ interface ICostEstimateVersion {
     eveningRate?: number;
     eveningRateType?: string;
   }>;
+  statusHistory: IStatusHistory[];
 }
 
 interface IStatusHistory {
@@ -87,7 +88,7 @@ const CostEstimateSchemaDefinition = {
           timestamp: { type: Date, required: true },
           changedBy: { type: String, required: true },
         },
-      ],
+      ], // <-- Ensure this is inside each version
     },
   ],
   currentVersion: { type: Number, required: true },
