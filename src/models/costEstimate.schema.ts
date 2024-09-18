@@ -48,7 +48,7 @@ const CostEstimateSchemaDefinition = {
           date: { type: Date, required: true },
           start: { type: Date, required: true },
           end: { type: Date, required: true },
-          costEstimates: [
+          estimates: [
             {
               roomSlug: { type: String, required: true },
               basePrice: { type: Number, required: true },
