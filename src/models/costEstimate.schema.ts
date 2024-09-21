@@ -41,6 +41,7 @@ interface IStatusHistory {
 export interface ICostEstimate extends Document {
   versions: ICostEstimateVersion[];
   statusHistory: IStatusHistory[];
+  rentalRequestId: string;
 }
 
 const CostEstimateSchemaDefinition = {
