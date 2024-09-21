@@ -36,8 +36,8 @@ export interface ICostEstimate extends Document {
   versions: ICostEstimateVersion[];
   statusHistory: IStatusHistory[];
   contractPdf: {
-    type: Object;
-    default: null;
+    data: Buffer;
+    contentType: string;
   };
 }
 
@@ -98,8 +98,8 @@ const CostEstimateSchemaDefinition = {
   currentVersion: { type: Number, required: true },
   status: { type: String, required: true },
   contractPdf: {
-    type: Object,
-    default: null,
+    data: Buffer,
+    contentType: String,
   },
 };
 
