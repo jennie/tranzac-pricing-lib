@@ -24,6 +24,12 @@ interface ICostEstimateVersion {
     eveningRateType?: string;
   }>;
   statusHistory: IStatusHistory[];
+  contractPdf: {
+    data: Buffer;
+    contentType: string;
+  };
+  depositInvoiceUrl: string;
+  balanceInvoiceUrl: string;
 }
 
 interface IStatusHistory {
@@ -35,12 +41,6 @@ interface IStatusHistory {
 export interface ICostEstimate extends Document {
   versions: ICostEstimateVersion[];
   statusHistory: IStatusHistory[];
-  contractPdf: {
-    data: Buffer;
-    contentType: string;
-  };
-  depositInvoiceUrl: string;
-  balanceInvoiceUrl: string;
 }
 
 const CostEstimateSchemaDefinition = {
@@ -88,6 +88,12 @@ const CostEstimateSchemaDefinition = {
       ],
       totalCost: { type: Number, required: true },
       createdAt: { type: Date, required: true },
+      depositInvoiceUrl: { type: String, default: null },
+      balanceInvoiceUrl: { type: String, default: null },
+      contractPdf: {
+        data: Buffer,
+        contentType: String,
+      },
       statusHistory: [
         {
           status: { type: String, required: true },
