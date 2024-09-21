@@ -35,6 +35,10 @@ interface IStatusHistory {
 export interface ICostEstimate extends Document {
   versions: ICostEstimateVersion[];
   statusHistory: IStatusHistory[];
+  contractPdf: {
+    type: Object;
+    default: null;
+  };
 }
 
 const CostEstimateSchemaDefinition = {
