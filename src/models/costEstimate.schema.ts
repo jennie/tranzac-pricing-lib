@@ -39,6 +39,8 @@ export interface ICostEstimate extends Document {
     data: Buffer;
     contentType: string;
   };
+  depositInvoiceUrl: string;
+  balanceInvoiceUrl: string;
 }
 
 const CostEstimateSchemaDefinition = {
@@ -100,6 +102,14 @@ const CostEstimateSchemaDefinition = {
   contractPdf: {
     data: Buffer,
     contentType: String,
+  },
+  depositInvoiceUrl: {
+    type: String,
+    default: null,
+  },
+  balanceInvoiceUrl: {
+    type: String,
+    default: null,
   },
 };
 
