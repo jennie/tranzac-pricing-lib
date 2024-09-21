@@ -1,4 +1,4 @@
-import type { Document, Model, Mongoose, Schema } from "mongoose";
+import { Document, Model, Mongoose, Schema } from "mongoose";
 
 let mongoosePromise: Promise<typeof import("mongoose")> | null = null;
 
@@ -91,8 +91,8 @@ const CostEstimateSchemaDefinition = {
       depositInvoiceUrl: { type: String, default: null },
       balanceInvoiceUrl: { type: String, default: null },
       contractPdf: {
-        data: Buffer,
-        contentType: String,
+        data: { type: Schema.Types.Buffer },
+        contentType: { type: String },
       },
       statusHistory: [
         {
@@ -105,18 +105,6 @@ const CostEstimateSchemaDefinition = {
   ],
   currentVersion: { type: Number, required: true },
   status: { type: String, required: true },
-  contractPdf: {
-    data: Buffer,
-    contentType: String,
-  },
-  depositInvoiceUrl: {
-    type: String,
-    default: null,
-  },
-  balanceInvoiceUrl: {
-    type: String,
-    default: null,
-  },
 };
 
 // Factory functions to create models
