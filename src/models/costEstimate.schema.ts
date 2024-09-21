@@ -85,14 +85,18 @@ const CostEstimateSchemaDefinition = {
       statusHistory: [
         {
           status: { type: String, required: true },
-          timestamp: { type: Date, required: true },
           changedBy: { type: String, required: true },
+          timestamp: { type: Date, default: Date.now },
         },
       ], // <-- Ensure this is inside each version
     },
   ],
   currentVersion: { type: Number, required: true },
   status: { type: String, required: true },
+  contractPdf: {
+    type: Object,
+    default: null,
+  },
 };
 
 // Factory functions to create models
