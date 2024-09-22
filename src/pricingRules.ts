@@ -1,10 +1,24 @@
 // pricing-lib/src/pricingRules.js
 
+import { Model } from "mongoose";
 import {
-  getPricingRuleModel,
-  getTimePeriodModel,
-  getAdditionalCostModel,
+  IPricingRule,
+  ITimePeriod,
+  IAdditionalCost,
 } from "./models/pricing.schema";
+
+let getPricingRuleModel: () => Promise<Model<IPricingRule>>,
+  getTimePeriodModel: () => Promise<Model<ITimePeriod>>,
+  getAdditionalCostModel: () => Promise<Model<IAdditionalCost>>;
+
+if (typeof window === "undefined") {
+  // Ensures this only runs on the server
+  ({
+    getPricingRuleModel,
+    getTimePeriodModel,
+    getAdditionalCostModel,
+  } = require("./models/pricing.schema"));
+}
 
 import { AdditionalCosts } from "./models/additionalCosts.schema"; // Import the interface
 
@@ -50,6 +64,7 @@ export default class PricingRules {
           console.log(
             `Attempting to fetch pricing rules (Attempt ${retries + 1})`
           );
+
           const PricingRuleModel = await getPricingRuleModel();
           const TimePeriodModel = await getTimePeriodModel();
           const AdditionalCostModel = await getAdditionalCostModel();
@@ -58,7 +73,7 @@ export default class PricingRules {
             .lean()
             .maxTimeMS(30000); // Increase timeout to 30 seconds
           this.rules = rulesFromDB.reduce<Record<string, any>>(
-            (acc, rule: any) => {
+            (acc: { [x: string]: any }, rule: any) => {
               acc[rule.roomSlug] = rule.pricing;
               return acc;
             },
