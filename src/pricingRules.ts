@@ -1,5 +1,4 @@
 // pricing-lib/src/pricingRules.js
-import mongoose from "mongoose";
 
 import {
   getPricingRuleModel,
