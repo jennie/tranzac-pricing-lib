@@ -226,6 +226,12 @@ export default class PricingRules {
       let grandTotal = 0;
 
       for (const booking of data.rentalDates) {
+        let bookingTotal = 0;
+        const { estimates } = await this.calculatePrice(booking);
+        for (const estimate of estimates) {
+          bookingTotal += estimate.totalCost;
+        }
+
         try {
           const preparedBooking: Booking =
             this.prepareBookingForPricing(booking);
@@ -286,7 +292,11 @@ export default class PricingRules {
           );
 
           const totalForThisBooking = estimateTotal + perSlotCostsTotal;
+          for (const costItem of booking.costItems) {
+            bookingTotal += costItem.cost;
+          }
 
+          grandTotal += bookingTotal;
           costEstimates.push({
             id: booking.id || uuidv4(),
             date: new Date(booking.date),
@@ -294,6 +304,7 @@ export default class PricingRules {
             end: new Date(booking.end),
             estimates: formattedEstimates,
             perSlotCosts: formattedPerSlotCosts,
+            costItems: booking.costItems,
             slotTotal: totalForThisBooking,
             roomSlugs: booking.roomSlugs,
             isPrivate: booking.isPrivate,
