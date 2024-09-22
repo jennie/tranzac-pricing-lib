@@ -1,5 +1,5 @@
 // pricing-lib/src/pricingRules.js
-import mongoose from "mongoose";
+import { v4 as uuidv4 } from "uuid";
 
 import {
   getPricingRuleModel,
@@ -626,8 +626,10 @@ export default class PricingRules {
         }
       }
     }
-    // console.log(console.log("Additional Costs:", additionalCosts);); // << Add this here
-
+    perSlotCosts = perSlotCosts.map((cost) => ({
+      id: uuidv4(), // Add a unique id to each per-slot cost
+      ...cost,
+    }));
     return { perSlotCosts, additionalCosts };
   }
 
