@@ -171,7 +171,6 @@ export default class PricingRules {
     roomSlugs: string[];
   }) {
     const { start, end, roomSlugs } = booking;
-    console.log(console.log("Booking data:", booking));
     if (!roomSlugs || roomSlugs.length === 0) {
       throw new Error("Room slugs are undefined or empty in booking");
     }
@@ -204,6 +203,7 @@ export default class PricingRules {
       expectedAttendance,
       resources,
       date,
+      rooms,
     } = booking;
     let estimates = [];
     let perSlotCosts = [];
@@ -220,6 +220,8 @@ export default class PricingRules {
         roomSlugs,
         start,
         end,
+        date,
+        rooms,
         isPrivate,
         expectedAttendance,
         resources,
