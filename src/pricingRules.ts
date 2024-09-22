@@ -101,6 +101,119 @@ export default class PricingRules {
     return Number((grandTotal + tax).toFixed(2));
   }
 
+  // async getPrice(data: any): Promise<{
+  //   costEstimates: any[];
+  //   grandTotal: number;
+  //   tax: number;
+  //   totalWithTax: number;
+  // }> {
+  //   try {
+  //     await this.initialize();
+  //     const costEstimates = [];
+  //     let grandTotal = 0;
+
+  //     for (const [date, bookings] of Object.entries(data.rentalDates)) {
+  //       for (const booking of bookings as any[]) {
+  //         try {
+  //           const preparedBooking: Booking =
+  //             this.prepareBookingForPricing(booking);
+  //           const { estimates, perSlotCosts, slotTotal } =
+  //             await this.calculatePrice({
+  //               ...preparedBooking,
+  //               date,
+  //               resources: preparedBooking.resources || [],
+  //               isPrivate: preparedBooking.private || false,
+  //               expectedAttendance:
+  //                 Number(preparedBooking.expectedAttendance) || 0,
+  //             });
+
+  //           const formattedEstimates = estimates.map((estimate) => ({
+  //             roomSlug: estimate.roomSlug,
+  //             basePrice: estimate.basePrice,
+  //             daytimeHours: estimate.daytimeHours || 0,
+  //             eveningHours: estimate.eveningHours || 0,
+  //             daytimePrice: estimate.daytimePrice || 0,
+  //             eveningPrice: estimate.eveningPrice || 0,
+  //             fullDayPrice: estimate.fullDayPrice || 0,
+  //             daytimeRate: estimate.daytimeRate,
+  //             daytimeRateType: estimate.daytimeRateType,
+  //             eveningRate: estimate.eveningRate,
+  //             eveningRateType: estimate.eveningRateType,
+  //             additionalCosts: (estimate.additionalCosts || []).map((cost) => ({
+  //               description: cost.description,
+  //               subDescription: cost.subDescription,
+  //               cost: cost.cost,
+  //             })),
+  //             totalCost: estimate.totalCost,
+  //             rateDescription: estimate.rateDescription,
+  //             rateSubDescription: estimate.rateSubDescription,
+  //             totalBookingHours: estimate.totalBookingHours,
+  //             isFullDay: estimate.isFullDay,
+  //           }));
+
+  //           const formattedPerSlotCosts = perSlotCosts.map((cost) => ({
+  //             description: cost.description,
+  //             subDescription: cost.subDescription,
+  //             cost: cost.cost,
+  //           }));
+
+  //           const estimateTotal = formattedEstimates.reduce(
+  //             (total, estimate) => {
+  //               const additionalCostsTotal = estimate.additionalCosts.reduce(
+  //                 (sum, cost) => sum + cost.cost,
+  //                 0
+  //               );
+  //               return total + estimate.totalCost + additionalCostsTotal;
+  //             },
+  //             0
+  //           );
+
+  //           const perSlotCostsTotal = formattedPerSlotCosts.reduce(
+  //             (total, cost) => total + cost.cost,
+  //             0
+  //           );
+
+  //           const totalForThisBooking = estimateTotal + perSlotCostsTotal;
+
+  //           costEstimates.push({
+  //             id: uuidv4(),
+  //             date: new Date(date),
+  //             start: new Date(preparedBooking.start),
+  //             end: new Date(preparedBooking.end),
+  //             estimates: formattedEstimates,
+  //             perSlotCosts: formattedPerSlotCosts,
+  //             slotTotal: totalForThisBooking,
+  //           });
+
+  //           grandTotal += totalForThisBooking;
+  //         } catch (error: any) {
+  //           console.error(
+  //             `Error calculating price for booking ${booking.id}:`,
+  //             error
+  //           );
+  //           costEstimates.push({
+  //             id: uuidv4(),
+  //             date: new Date(date),
+  //             start: new Date(booking.start),
+  //             end: new Date(booking.end),
+  //             estimates: [],
+  //             perSlotCosts: [],
+  //             slotTotal: 0,
+  //             error: error.message,
+  //           });
+  //         }
+  //       }
+  //     }
+
+  //     const tax = this.calculateTax(grandTotal);
+  //     const totalWithTax = this.calculateTotalWithTax(grandTotal);
+
+  //     return { costEstimates, grandTotal, tax, totalWithTax };
+  //   } catch (error: any) {
+  //     console.error("Error in getPrice method:", error);
+  //     return { costEstimates: [], grandTotal: 0, tax: 0, totalWithTax: 0 };
+  //   }
+  // }
   async getPrice(data: any): Promise<{
     costEstimates: any[];
     grandTotal: number;
@@ -112,78 +225,98 @@ export default class PricingRules {
       const costEstimates = [];
       let grandTotal = 0;
 
-      for (const [date, bookings] of Object.entries(data.rentalDates)) {
-        for (const booking of bookings as any[]) {
-          try {
-            const preparedBooking: Booking =
-              this.prepareBookingForPricing(booking);
-            const { estimates, perSlotCosts, slotTotal } =
-              await this.calculatePrice({
-                ...preparedBooking,
-                date,
-                resources: preparedBooking.resources || [],
-                isPrivate: preparedBooking.private || false,
-                expectedAttendance:
-                  Number(preparedBooking.expectedAttendance) || 0,
-              });
+      for (const booking of data.rentalDates) {
+        try {
+          const preparedBooking: Booking =
+            this.prepareBookingForPricing(booking);
+          const { estimates, perSlotCosts, slotTotal } =
+            await this.calculatePrice({
+              ...preparedBooking,
+              date: booking.date,
+              resources: preparedBooking.resources || [],
+              isPrivate: preparedBooking.private || false,
+              expectedAttendance:
+                Number(preparedBooking.expectedAttendance) || 0,
+            });
 
-            const formattedEstimates = estimates.map((estimate) => ({
-              roomSlug: estimate.roomSlug,
-              basePrice: estimate.basePrice,
-              daytimeHours: estimate.daytimeHours || 0,
-              eveningHours: estimate.eveningHours || 0,
-              daytimePrice: estimate.daytimePrice || 0,
-              eveningPrice: estimate.eveningPrice || 0,
-              fullDayPrice: estimate.fullDayPrice || 0,
-              daytimeRate: estimate.daytimeRate,
-              daytimeRateType: estimate.daytimeRateType,
-              eveningRate: estimate.eveningRate,
-              eveningRateType: estimate.eveningRateType,
-              additionalCosts: (estimate.additionalCosts || []).map((cost) => ({
-                description: cost.description,
-                subDescription: cost.subDescription,
-                cost: cost.cost,
-              })),
-              totalCost: estimate.totalCost,
-              rateDescription: estimate.rateDescription,
-              rateSubDescription: estimate.rateSubDescription,
-              totalBookingHours: estimate.totalBookingHours,
-              isFullDay: estimate.isFullDay,
-            }));
-
-            const formattedPerSlotCosts = perSlotCosts.map((cost) => ({
+          const formattedEstimates = estimates.map((estimate) => ({
+            roomSlug: estimate.roomSlug,
+            basePrice: estimate.basePrice,
+            daytimeHours: estimate.daytimeHours || 0,
+            eveningHours: estimate.eveningHours || 0,
+            daytimePrice: estimate.daytimePrice || 0,
+            eveningPrice: estimate.eveningPrice || 0,
+            fullDayPrice: estimate.fullDayPrice || 0,
+            daytimeRate: estimate.daytimeRate,
+            daytimeRateType: estimate.daytimeRateType,
+            eveningRate: estimate.eveningRate,
+            eveningRateType: estimate.eveningRateType,
+            additionalCosts: (estimate.additionalCosts || []).map((cost) => ({
               description: cost.description,
               subDescription: cost.subDescription,
               cost: cost.cost,
-            }));
+            })),
+            totalCost: estimate.totalCost,
+            rateDescription: estimate.rateDescription,
+            rateSubDescription: estimate.rateSubDescription,
+            totalBookingHours: estimate.totalBookingHours,
+            isFullDay: estimate.isFullDay,
+          }));
 
-            costEstimates.push({
-              id: uuidv4(),
-              date: new Date(date),
-              start: new Date(preparedBooking.start),
-              end: new Date(preparedBooking.end),
-              estimates: formattedEstimates,
-              perSlotCosts: formattedPerSlotCosts,
-              slotTotal,
-            });
+          const formattedPerSlotCosts = booking.costItems.map(
+            (cost: { description: any; subDescription: any; cost: any }) => ({
+              description: cost.description,
+              subDescription: cost.subDescription,
+              cost: cost.cost,
+            })
+          );
 
-            grandTotal += slotTotal;
-          } catch (error: any) {
-            console.error(
-              `Error calculating price for booking ${booking.id}:`,
-              error
+          const estimateTotal = formattedEstimates.reduce((total, estimate) => {
+            const additionalCostsTotal = estimate.additionalCosts.reduce(
+              (sum, cost) =>
+                sum + (typeof cost.cost === "number" ? cost.cost : 0),
+              0
             );
-            costEstimates.push({
-              id: uuidv4(),
-              date: new Date(date),
-              start: new Date(booking.start),
-              end: new Date(booking.end),
-              estimates: [],
-              perSlotCosts: [],
-              slotTotal: 0,
-              error: error.message,
-            });
-          }
+            return total + estimate.totalCost + additionalCostsTotal;
+          }, 0);
+
+          const perSlotCostsTotal = formattedPerSlotCosts.reduce(
+            (total: any, cost: { cost: any }) => total + cost.cost,
+            0
+          );
+
+          const totalForThisBooking = estimateTotal + perSlotCostsTotal;
+
+          costEstimates.push({
+            id: booking.id || uuidv4(),
+            date: new Date(booking.date),
+            start: new Date(booking.start),
+            end: new Date(booking.end),
+            estimates: formattedEstimates,
+            perSlotCosts: formattedPerSlotCosts,
+            slotTotal: totalForThisBooking,
+            roomSlugs: booking.roomSlugs,
+            isPrivate: booking.isPrivate,
+            resources: booking.resources,
+            expectedAttendance: booking.expectedAttendance,
+          });
+
+          grandTotal += totalForThisBooking;
+        } catch (error: any) {
+          console.error(
+            `Error calculating price for booking ${booking.id}:`,
+            error
+          );
+          costEstimates.push({
+            id: booking.id || uuidv4(),
+            date: new Date(booking.date),
+            start: new Date(booking.start),
+            end: new Date(booking.end),
+            estimates: [],
+            perSlotCosts: [],
+            slotTotal: 0,
+            error: error.message,
+          });
         }
       }
 
@@ -196,7 +329,6 @@ export default class PricingRules {
       return { costEstimates: [], grandTotal: 0, tax: 0, totalWithTax: 0 };
     }
   }
-
   prepareBookingForPricing(booking: {
     start: string;
     end: string;
