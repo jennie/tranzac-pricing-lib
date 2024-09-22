@@ -1,24 +1,11 @@
 // pricing-lib/src/pricingRules.js
+import mongoose from "mongoose";
 
-import { Model } from "mongoose";
 import {
-  IPricingRule,
-  ITimePeriod,
-  IAdditionalCost,
+  getPricingRuleModel,
+  getTimePeriodModel,
+  getAdditionalCostModel,
 } from "./models/pricing.schema";
-
-let getPricingRuleModel: () => Promise<Model<IPricingRule>>,
-  getTimePeriodModel: () => Promise<Model<ITimePeriod>>,
-  getAdditionalCostModel: () => Promise<Model<IAdditionalCost>>;
-
-if (typeof window === "undefined") {
-  // Ensures this only runs on the server
-  ({
-    getPricingRuleModel,
-    getTimePeriodModel,
-    getAdditionalCostModel,
-  } = require("./models/pricing.schema"));
-}
 
 import { AdditionalCosts } from "./models/additionalCosts.schema"; // Import the interface
 
@@ -64,7 +51,6 @@ export default class PricingRules {
           console.log(
             `Attempting to fetch pricing rules (Attempt ${retries + 1})`
           );
-
           const PricingRuleModel = await getPricingRuleModel();
           const TimePeriodModel = await getTimePeriodModel();
           const AdditionalCostModel = await getAdditionalCostModel();
@@ -73,7 +59,7 @@ export default class PricingRules {
             .lean()
             .maxTimeMS(30000); // Increase timeout to 30 seconds
           this.rules = rulesFromDB.reduce<Record<string, any>>(
-            (acc: { [x: string]: any }, rule: any) => {
+            (acc, rule: any) => {
               acc[rule.roomSlug] = rule.pricing;
               return acc;
             },
@@ -648,104 +634,6 @@ export default class PricingRules {
     const hour = time.getHours();
     return hour >= 17 || hour < 5;
   }
-  // hasFullDayRate(
-  //   roomSlug: string,
-  //   currentDay: string,
-  //   isPrivate: boolean
-  // ): boolean {
-  //   const roomRules = this.rules?.[roomSlug];
-  //   if (!roomRules) return false;
-
-  //   const dayRules = roomRules[currentDay.toLowerCase()] || roomRules["all"];
-  //   if (!dayRules || !dayRules.fullDay) return false;
-
-  //   return !!dayRules.fullDay[isPrivate ? "private" : "public"];
-  // }
-  // getFullDayRate(
-  //   roomSlug: string,
-  //   currentDay: string,
-  //   isPrivate: boolean
-  // ): number | null {
-  //   const roomRules = this.rules?.[roomSlug];
-  //   if (!roomRules) return null;
-
-  //   const dayRules = roomRules[currentDay.toLowerCase()] || roomRules["all"];
-  //   if (!dayRules || !dayRules.fullDay) return null;
-
-  //   return dayRules.fullDay[isPrivate ? "private" : "public"];
-  // }
-  // hasDaytimeRate(
-  //   roomSlug: string,
-  //   currentDay: string,
-  //   isPrivate: boolean
-  // ): boolean {
-  //   const roomRules = this.rules?.[roomSlug];
-  //   if (!roomRules) return false;
-
-  //   const dayRules = roomRules[currentDay.toLowerCase()] || roomRules["all"];
-  //   if (!dayRules || !dayRules.daytime) return false;
-
-  //   return !!dayRules.daytime[isPrivate ? "private" : "public"];
-  // }
-  // getDaytimeRate(
-  //   roomSlug: string,
-  //   currentDay: string,
-  //   isPrivate: boolean
-  // ): number | null {
-  //   const roomRules = this.rules?.[roomSlug];
-  //   if (!roomRules) return null;
-
-  //   const dayRules = roomRules[currentDay.toLowerCase()] || roomRules["all"];
-  //   if (!dayRules || !dayRules.daytime) return null;
-
-  //   return dayRules.daytime[isPrivate ? "private" : "public"];
-  // }
-  // hasEveningRate(
-  //   roomSlug: string,
-  //   currentDay: string,
-  //   isPrivate: boolean
-  // ): boolean {
-  //   const roomRules = this.rules?.[roomSlug];
-  //   if (!roomRules) return false;
-
-  //   const dayRules = roomRules[currentDay.toLowerCase()] || roomRules["all"];
-  //   if (!dayRules || !dayRules.evening) return false;
-
-  //   return !!dayRules.evening[isPrivate ? "private" : "public"];
-  // }
-  // getEveningRate(
-  //   roomSlug: string,
-  //   currentDay: string,
-  //   isPrivate: boolean
-  // ): number | null {
-  //   const roomRules = this.rules?.[roomSlug];
-  //   if (!roomRules) return null;
-
-  //   const dayRules = roomRules[currentDay.toLowerCase()] || roomRules["all"];
-  //   if (!dayRules || !dayRules.evening) return null;
-
-  //   return dayRules.evening[isPrivate ? "private" : "public"];
-  // }
-  // calculateFullDayPrice(
-  //   roomSlug: string,
-  //   currentDay: string,
-  //   totalBookingHours: number,
-  //   isPrivate: boolean
-  // ): number {
-  //   const fullDayRate = this.getFullDayRate(roomSlug, currentDay, isPrivate);
-  //   if (!fullDayRate) return 0;
-
-  //   const roomRules = this.rules?.[roomSlug];
-  //   const dayRules = roomRules[currentDay.toLowerCase()] || roomRules["all"];
-
-  //   if (dayRules?.fullDay?.type === "hourly") {
-  //     const minimumHours = dayRules.fullDay?.minimumHours || 0;
-  //     const effectiveHours = Math.max(totalBookingHours, minimumHours);
-  //     return fullDayRate * effectiveHours;
-  //   }
-
-  //   return fullDayRate;
-  // }
 
   // Helper methods remain the same
   // Helper method to determine the end of the current pricing period
