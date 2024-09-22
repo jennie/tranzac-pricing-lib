@@ -1,4 +1,4 @@
-import { Document, Model, Mongoose, Schema } from "mongoose";
+import { Document, Model, Mongoose } from "mongoose";
 
 let mongoosePromise: Promise<typeof import("mongoose")> | null = null;
 
@@ -92,7 +92,7 @@ const CostEstimateSchemaDefinition = {
       depositInvoiceUrl: { type: String, default: null },
       balanceInvoiceUrl: { type: String, default: null },
       contractPdf: {
-        data: { type: Schema.Types.Buffer },
+        data: { type: Buffer },
         contentType: { type: String },
       },
       statusHistory: [
