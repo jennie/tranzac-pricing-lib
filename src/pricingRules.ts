@@ -127,14 +127,44 @@ export default class PricingRules {
                   Number(preparedBooking.expectedAttendance) || 0,
               });
 
+            const formattedEstimates = estimates.map((estimate) => ({
+              roomSlug: estimate.roomSlug,
+              basePrice: estimate.basePrice,
+              daytimeHours: estimate.daytimeHours || 0,
+              eveningHours: estimate.eveningHours || 0,
+              daytimePrice: estimate.daytimePrice || 0,
+              eveningPrice: estimate.eveningPrice || 0,
+              fullDayPrice: estimate.fullDayPrice || 0,
+              daytimeRate: estimate.daytimeRate,
+              daytimeRateType: estimate.daytimeRateType,
+              eveningRate: estimate.eveningRate,
+              eveningRateType: estimate.eveningRateType,
+              additionalCosts: (estimate.additionalCosts || []).map((cost) => ({
+                description: cost.description,
+                subDescription: cost.subDescription,
+                cost: cost.cost,
+              })),
+              totalCost: estimate.totalCost,
+              rateDescription: estimate.rateDescription,
+              rateSubDescription: estimate.rateSubDescription,
+              totalBookingHours: estimate.totalBookingHours,
+              isFullDay: estimate.isFullDay,
+            }));
+
+            const formattedPerSlotCosts = perSlotCosts.map((cost) => ({
+              description: cost.description,
+              subDescription: cost.subDescription,
+              cost: cost.cost,
+            }));
+
             costEstimates.push({
-              id: booking.id,
-              date,
-              estimates,
-              perSlotCosts,
+              id: uuidv4(),
+              date: new Date(date),
+              start: new Date(preparedBooking.start),
+              end: new Date(preparedBooking.end),
+              estimates: formattedEstimates,
+              perSlotCosts: formattedPerSlotCosts,
               slotTotal,
-              start: preparedBooking.start,
-              end: preparedBooking.end,
             });
 
             grandTotal += slotTotal;
@@ -144,12 +174,14 @@ export default class PricingRules {
               error
             );
             costEstimates.push({
-              id: booking.id,
-              date,
-              error: error.message,
-              start: booking.start,
-              end: booking.end,
+              id: uuidv4(),
+              date: new Date(date),
+              start: new Date(booking.start),
+              end: new Date(booking.end),
+              estimates: [],
+              perSlotCosts: [],
               slotTotal: 0,
+              error: error.message,
             });
           }
         }

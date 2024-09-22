@@ -1,10 +1,11 @@
-// src/models/additionalCosts.ts
+import { v4 as uuidv4 } from "uuid";
 import { Schema, model, Document } from "mongoose";
 
 interface IAdditionalCost extends Document {
+  id: string;
   roomSlugs: string[];
   description: string;
-  subDescription?: string; // Define subDescription as an optional field
+  subDescription?: string;
   cost: number;
 }
 
@@ -12,39 +13,102 @@ export interface Room {
   cost: number;
   type: "flat" | "hourly" | "custom" | "base";
   description: string;
-  includes_projector?: boolean; // Optional property
+  includes_projector?: boolean;
 }
 
 export interface Resource {
   id: string;
-  cost: number | string; // Can be a number or "Will quote separately"
+  cost: number | string;
   type: "flat" | "hourly" | "custom" | "base";
   description: string;
   subDescription?: string;
   rooms?: {
-    [roomSlug: string]: Room; // Rooms as an object with room slugs as keys
+    [roomSlug: string]: Room;
   };
 }
 
 export interface Condition {
+  id: string;
   condition: string;
-  cost?: number; // Optional, since not all conditions have a cost
-  type?: "flat" | "hourly" | "custom"; // Optional, since not all conditions have a type
-  attendeeThreshold?: number; // Optional, for conditions like privateEventBar
+  cost?: number;
+  type?: "flat" | "hourly" | "custom";
+  attendeeThreshold?: number;
   description: string;
 }
 
-export interface AdditionalCosts {
+export interface AdditionalCosts extends Document {
   _id: string;
   resources: Resource[];
   conditions: Condition[];
 }
 
+const ConditionSchema = new Schema<Condition>({
+  id: {
+    type: String,
+    required: true,
+    default: () => uuidv4(),
+    unique: true,
+  },
+  condition: { type: String, required: true },
+  cost: { type: Number },
+  type: { type: String, enum: ["flat", "hourly", "custom"] },
+  attendeeThreshold: { type: Number },
+  description: { type: String, required: true },
+});
+
+const ResourceSchema = new Schema<Resource>({
+  id: {
+    type: String,
+    required: true,
+    default: () => uuidv4(),
+    unique: true,
+  },
+  cost: { type: Schema.Types.Mixed, required: true },
+  type: {
+    type: String,
+    enum: ["flat", "hourly", "custom", "base"],
+    required: true,
+  },
+  description: { type: String, required: true },
+  subDescription: { type: String },
+  rooms: {
+    type: Map,
+    of: new Schema<Room>({
+      cost: { type: Number, required: true },
+      type: {
+        type: String,
+        enum: ["flat", "hourly", "custom", "base"],
+        required: true,
+      },
+      description: { type: String, required: true },
+      includes_projector: { type: Boolean },
+    }),
+  },
+});
+
 const AdditionalCostSchema = new Schema<IAdditionalCost>({
+  id: {
+    type: String,
+    required: true,
+    default: () => uuidv4(),
+    unique: true,
+  },
   roomSlugs: { type: [String], required: true },
   description: { type: String, required: true },
-  subDescription: { type: String }, // Add subDescription to the schema
+  subDescription: { type: String },
   cost: { type: Number, required: true },
 });
 
-export default model<IAdditionalCost>("AdditionalCost", AdditionalCostSchema);
+const AdditionalCostsSchema = new Schema<AdditionalCosts>({
+  resources: [ResourceSchema],
+  conditions: [ConditionSchema],
+});
+
+export const AdditionalCost = model<IAdditionalCost>(
+  "AdditionalCost",
+  AdditionalCostSchema
+);
+export const AdditionalCosts = model<AdditionalCosts>(
+  "AdditionalCosts",
+  AdditionalCostsSchema
+);
