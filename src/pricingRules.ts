@@ -224,6 +224,7 @@ export default class PricingRules {
       await this.initialize();
       const costEstimates = [];
       let grandTotal = 0;
+      console.log("Data received in getPrice:", JSON.stringify(data, null, 2));
 
       for (const booking of data.rentalDates) {
         let bookingTotal = 0;
@@ -345,6 +346,8 @@ export default class PricingRules {
     roomSlugs: string[];
   }) {
     const { start, end, roomSlugs } = booking;
+    console.log("Booking in prepareBookingForPricing:", booking);
+
     if (!roomSlugs || roomSlugs.length === 0) {
       throw new Error("Room slugs are undefined or empty in booking");
     }
