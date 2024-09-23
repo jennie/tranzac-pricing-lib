@@ -296,7 +296,6 @@ export default class PricingRules {
             bookingTotal += costItem.cost;
           }
 
-          grandTotal += bookingTotal;
           costEstimates.push({
             id: booking.id || uuidv4(),
             date: new Date(booking.date),
