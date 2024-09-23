@@ -20,16 +20,7 @@ interface Booking {
   start: string;
   end: string;
 }
-interface DayRules {
-  fullDay?: { [key: string]: any };
-  daytime?: { [key: string]: any };
-  evening?: { [key: string]: any };
-  minimumHours?: number;
-}
 
-interface RoomRules {
-  [day: string]: DayRules;
-}
 const TORONTO_TIMEZONE = "America/Toronto";
 const HST_RATE = 0.13; // 13% HST rate
 
@@ -42,12 +33,12 @@ function formatCurrency(amount: number): string {
 
 export default class PricingRules {
   private additionalCosts: AdditionalCosts | null = null;
-  private rules: Record<string, RoomRules> = {};
+  private rules: Record<string, any> | null = null;
   private timePeriods: any[] | null = null;
 
   constructor() {
     this.timePeriods = null;
-    this.rules = {};
+    this.rules = null;
     this.additionalCosts = null;
   }
 
@@ -387,6 +378,7 @@ export default class PricingRules {
       expectedAttendance,
       resources,
       date,
+      rooms,
     } = booking;
     let estimates = [];
     let perSlotCosts = [];
@@ -404,17 +396,17 @@ export default class PricingRules {
         start,
         end,
         date,
+        rooms,
         isPrivate,
         expectedAttendance,
         resources,
       });
 
     perSlotCosts = calculatedPerSlotCosts;
-    const uniqueRoomSlugs = [...new Set(roomSlugs)];
 
-    for (const roomSlug of uniqueRoomSlugs) {
+    for (const roomSlug of roomSlugs) {
       if (!this.rules) throw new Error("Rules are not initialized");
-      const roomRules = this.rules![roomSlug as keyof typeof this.rules];
+      const roomRules = this.rules[roomSlug];
       if (!roomRules) {
         throw new Error(`No pricing rules found for room: ${roomSlug}`);
       }
