@@ -229,23 +229,6 @@ export default class PricingRules {
       for (const booking of data.rentalDates) {
         let bookingTotal = 0;
         const { estimates } = await this.calculatePrice(booking);
-        const formattedEstimates = estimates.map((estimate) => {
-          const roomData = booking.rooms.find(
-            (room: { roomSlug: any }) => room.roomSlug === estimate.roomSlug
-          );
-          const roomAdditionalCosts = roomData?.additionalCosts || [];
-
-          return {
-            ...estimate,
-            additionalCosts: roomAdditionalCosts,
-            totalCost:
-              estimate.totalCost +
-              roomAdditionalCosts.reduce(
-                (sum: any, cost: { cost: any }) => sum + cost.cost,
-                0
-              ),
-          };
-        });
         for (const estimate of estimates) {
           bookingTotal += estimate.totalCost;
         }
@@ -287,14 +270,13 @@ export default class PricingRules {
             isFullDay: estimate.isFullDay,
           }));
 
-          const formattedPerSlotCosts = [
-            ...perSlotCosts,
-            ...(booking.costItems || []),
-          ].map((cost) => ({
-            description: cost.description,
-            subDescription: cost.subDescription,
-            cost: cost.cost,
-          }));
+          const formattedPerSlotCosts = booking.costItems.map(
+            (cost: { description: any; subDescription: any; cost: any }) => ({
+              description: cost.description,
+              subDescription: cost.subDescription,
+              cost: cost.cost,
+            })
+          );
 
           const estimateTotal = formattedEstimates.reduce((total, estimate) => {
             const additionalCostsTotal = estimate.additionalCosts.reduce(
