@@ -229,6 +229,23 @@ export default class PricingRules {
       for (const booking of data.rentalDates) {
         let bookingTotal = 0;
         const { estimates } = await this.calculatePrice(booking);
+        const formattedEstimates = estimates.map((estimate) => {
+          const roomData = booking.rooms.find(
+            (room: { roomSlug: any }) => room.roomSlug === estimate.roomSlug
+          );
+          const roomAdditionalCosts = roomData?.additionalCosts || [];
+
+          return {
+            ...estimate,
+            additionalCosts: roomAdditionalCosts,
+            totalCost:
+              estimate.totalCost +
+              roomAdditionalCosts.reduce(
+                (sum: any, cost: { cost: any }) => sum + cost.cost,
+                0
+              ),
+          };
+        });
         for (const estimate of estimates) {
           bookingTotal += estimate.totalCost;
         }
