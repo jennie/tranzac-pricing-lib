@@ -404,7 +404,7 @@ export default class PricingRules {
         resources,
       });
 
-    perSlotCosts = [...calculatedPerSlotCosts];
+    perSlotCosts = calculatedPerSlotCosts;
 
     for (const roomSlug of roomSlugs) {
       if (!this.rules) throw new Error("Rules are not initialized");
