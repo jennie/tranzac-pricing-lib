@@ -270,13 +270,14 @@ export default class PricingRules {
             isFullDay: estimate.isFullDay,
           }));
 
-          const formattedPerSlotCosts = booking.costItems.map(
-            (cost: { description: any; subDescription: any; cost: any }) => ({
-              description: cost.description,
-              subDescription: cost.subDescription,
-              cost: cost.cost,
-            })
-          );
+          const formattedPerSlotCosts = [
+            ...perSlotCosts,
+            ...(booking.costItems || []),
+          ].map((cost) => ({
+            description: cost.description,
+            subDescription: cost.subDescription,
+            cost: cost.cost,
+          }));
 
           const estimateTotal = formattedEstimates.reduce((total, estimate) => {
             const additionalCostsTotal = estimate.additionalCosts.reduce(
@@ -404,7 +405,7 @@ export default class PricingRules {
         resources,
       });
 
-    perSlotCosts = calculatedPerSlotCosts;
+    perSlotCosts = [...calculatedPerSlotCosts];
 
     for (const roomSlug of roomSlugs) {
       if (!this.rules) throw new Error("Rules are not initialized");
