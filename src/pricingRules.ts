@@ -702,7 +702,7 @@ export default class PricingRules {
         if (resourceConfig) {
           let cost = resourceConfig.cost;
           let description = resourceConfig.description;
-          let subDescription = "";
+          let subDescription = resourceConfig.subDescription || "";
 
           // console.log(console.log("Cleaning resource config:", resourceConfig););
 
@@ -799,7 +799,8 @@ export default class PricingRules {
                 });
               }
               break;
-
+            case "door_staff":
+              break;
             default:
               if (resourceConfig.type === "hourly") {
                 const hours = differenceInHours(parseISO(end), parseISO(start));
