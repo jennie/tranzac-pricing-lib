@@ -286,13 +286,11 @@ export default class PricingRules {
               isFullDay: estimate.isFullDay || false,
             }));
 
-            const formattedPerSlotCosts = (booking.costItems || []).map(
-              (cost: { description: any; subDescription: any; cost: any }) => ({
-                description: cost.description,
-                subDescription: cost.subDescription,
-                cost: cost.cost,
-              })
-            );
+            const formattedPerSlotCosts = perSlotCosts.map((cost) => ({
+              description: cost.description,
+              subDescription: cost.subDescription,
+              cost: cost.cost,
+            }));
 
             const estimateTotal = formattedEstimates.reduce(
               (total, estimate) => {
