@@ -860,6 +860,13 @@ export default class PricingRules {
       id: uuidv4(), // Add a unique id to each per-slot cost
       ...cost,
     }));
+    console.log("Booking Data:", booking);
+    console.log("Room Slugs:", roomSlugs);
+    console.log("Final Costs:", {
+      perSlotCosts: perSlotCosts || [],
+      additionalCosts: additionalCosts || [],
+    });
+
     return {
       perSlotCosts: perSlotCosts || [],
       additionalCosts: additionalCosts || [],
