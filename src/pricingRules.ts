@@ -230,27 +230,31 @@ export default class PricingRules {
         if (isNaN(new Date(date).getTime())) {
           console.warn("Invalid date found in rentalDates:", date);
         }
+
         for (const booking of bookings as any[]) {
           console.log("Booking in getPrice:", booking);
-          // for (const booking of data.rentalDates) {
           let bookingTotal = 0;
+
+          // Calculate price using the original booking
           const { estimates } = await this.calculatePrice(booking);
           for (const estimate of estimates) {
             console.log("Estimate additionalCosts:", estimate.additionalCosts);
-
             bookingTotal += estimate.totalCost;
           }
 
           try {
+            // Use preparedBooking for validated and adjusted data
             const preparedBooking: Booking =
               this.prepareBookingForPricing(booking);
             console.log("Booking before calculatePrice:", booking);
+
+            // Calculate price using preparedBooking
             const { estimates, perSlotCosts, slotTotal } =
               await this.calculatePrice({
                 ...preparedBooking,
                 date,
                 resources: preparedBooking.resources || [],
-                isPrivate: preparedBooking.private || false,
+                isPrivate: booking.private || false, // Use original booking's isPrivate
                 expectedAttendance:
                   Number(preparedBooking.expectedAttendance) || 0,
               });
@@ -275,7 +279,6 @@ export default class PricingRules {
                     cost: cost.cost || 0,
                   }))
                 : [],
-
               totalCost: estimate.totalCost || 0,
               rateDescription: estimate.rateDescription || "",
               rateSubDescription: estimate.rateSubDescription || "",
@@ -283,7 +286,7 @@ export default class PricingRules {
               isFullDay: estimate.isFullDay || false,
             }));
 
-            const formattedPerSlotCosts = booking.costItems.map(
+            const formattedPerSlotCosts = (booking.costItems || []).map(
               (cost: { description: any; subDescription: any; cost: any }) => ({
                 description: cost.description,
                 subDescription: cost.subDescription,
@@ -309,23 +312,26 @@ export default class PricingRules {
             );
 
             const totalForThisBooking = estimateTotal + perSlotCostsTotal;
-            for (const costItem of booking.costItems) {
+
+            // Accumulate the booking total
+            for (const costItem of booking.costItems || []) {
               bookingTotal += costItem.cost;
             }
 
+            // Push to costEstimates
             costEstimates.push({
-              id: booking.id || uuidv4(),
-              date: new Date(booking.date),
-              start: new Date(booking.start),
-              end: new Date(booking.end),
+              id: booking.id || uuidv4(), // Use original booking id
+              date: new Date(date), // Use `date` derived from `rentalDates` key
+              start: new Date(preparedBooking.start),
+              end: new Date(preparedBooking.end),
               estimates: formattedEstimates,
               perSlotCosts: formattedPerSlotCosts,
-              costItems: booking.costItems,
+              costItems: booking.costItems || [], // Use costItems from original booking
               slotTotal: totalForThisBooking,
-              roomSlugs: booking.roomSlugs,
-              isPrivate: booking.isPrivate,
-              resources: booking.resources,
-              expectedAttendance: booking.expectedAttendance,
+              roomSlugs: preparedBooking.roomSlugs,
+              isPrivate: booking.private, // Use `isPrivate` from original booking
+              resources: preparedBooking.resources,
+              expectedAttendance: preparedBooking.expectedAttendance,
             });
 
             grandTotal += totalForThisBooking;
@@ -336,7 +342,7 @@ export default class PricingRules {
             );
             costEstimates.push({
               id: booking.id || uuidv4(),
-              date: new Date(booking.date),
+              date: new Date(date),
               start: new Date(booking.start),
               end: new Date(booking.end),
               estimates: [],
@@ -361,21 +367,35 @@ export default class PricingRules {
       return { costEstimates: [], grandTotal: 0, tax: 0, totalWithTax: 0 };
     }
   }
+
   prepareBookingForPricing(booking: {
     start: string;
     end: string;
     roomSlugs: string[];
+    resources?: string[];
+    expectedAttendance?: number;
+    private?: boolean;
   }) {
-    const { start, end, roomSlugs } = booking;
+    const {
+      start,
+      end,
+      roomSlugs,
+      resources = [],
+      expectedAttendance = 0,
+      private: isPrivate = false,
+    } = booking;
     console.log("Booking in prepareBookingForPricing:", booking);
 
+    // Validate `roomSlugs`
     if (!roomSlugs || roomSlugs.length === 0) {
       throw new Error("Room slugs are undefined or empty in booking");
     }
 
+    // Parse `start` and `end` times into proper date objects
     const startDateTime = toZonedTime(parseISO(start), TORONTO_TIMEZONE);
     const endDateTime = toZonedTime(parseISO(end), TORONTO_TIMEZONE);
 
+    // Validate `startDateTime` and `endDateTime`
     if (!isValid(startDateTime) || !isValid(endDateTime)) {
       console.error("Invalid start or end time in booking data:", {
         start,
@@ -387,6 +407,9 @@ export default class PricingRules {
     return {
       ...booking,
       roomSlugs,
+      resources,
+      expectedAttendance,
+      isPrivate, // Align `private` field as `isPrivate`
       start: dateTimeToISOString(startDateTime),
       end: dateTimeToISOString(endDateTime),
     };
