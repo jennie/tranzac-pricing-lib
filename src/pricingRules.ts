@@ -232,6 +232,8 @@ export default class PricingRules {
           let bookingTotal = 0;
           const { estimates } = await this.calculatePrice(booking);
           for (const estimate of estimates) {
+            console.log("Estimate additionalCosts:", estimate.additionalCosts);
+
             bookingTotal += estimate.totalCost;
           }
 
@@ -267,6 +269,7 @@ export default class PricingRules {
                     cost: cost.cost || 0,
                   }))
                 : [],
+
               totalCost: estimate.totalCost || 0,
               rateDescription: estimate.rateDescription || "",
               rateSubDescription: estimate.rateSubDescription || "",
@@ -341,6 +344,10 @@ export default class PricingRules {
 
       const tax = this.calculateTax(grandTotal);
       const totalWithTax = this.calculateTotalWithTax(grandTotal);
+      console.log(
+        "Cost estimates before returning from getPrice:",
+        costEstimates
+      );
 
       return { costEstimates, grandTotal, tax, totalWithTax };
     } catch (error: any) {
