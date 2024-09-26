@@ -228,6 +228,7 @@ export default class PricingRules {
 
       for (const [date, bookings] of Object.entries(data.rentalDates)) {
         for (const booking of bookings as any[]) {
+          console.log("Booking in getPrice:", booking);
           // for (const booking of data.rentalDates) {
           let bookingTotal = 0;
           const { estimates } = await this.calculatePrice(booking);
