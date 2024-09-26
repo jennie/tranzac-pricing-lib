@@ -261,15 +261,15 @@ export default class PricingRules {
               eveningRate: estimate.eveningRate,
               eveningRateType: estimate.eveningRateType,
               additionalCosts: (estimate.additionalCosts || []).map((cost) => ({
-                description: cost.description,
-                subDescription: cost.subDescription,
-                cost: cost.cost,
+                description: cost.description || "",
+                subDescription: cost.subDescription || "",
+                cost: cost.cost || 0,
               })),
-              totalCost: estimate.totalCost,
-              rateDescription: estimate.rateDescription,
-              rateSubDescription: estimate.rateSubDescription,
-              totalBookingHours: estimate.totalBookingHours,
-              isFullDay: estimate.isFullDay,
+              totalCost: estimate.totalCost || 0,
+              rateDescription: estimate.rateDescription || "",
+              rateSubDescription: estimate.rateSubDescription || "",
+              totalBookingHours: estimate.totalBookingHours || 0,
+              isFullDay: estimate.isFullDay || false,
             }));
 
             const formattedPerSlotCosts = booking.costItems.map(
@@ -814,7 +814,10 @@ export default class PricingRules {
       id: uuidv4(), // Add a unique id to each per-slot cost
       ...cost,
     }));
-    return { perSlotCosts, additionalCosts: additionalCosts || [] };
+    return {
+      perSlotCosts: perSlotCosts || [],
+      additionalCosts: additionalCosts || [],
+    };
   }
 
   // Helper method to determine if a given time is during evening hours
