@@ -317,6 +317,7 @@ export default class PricingRules {
             for (const costItem of booking.costItems || []) {
               bookingTotal += costItem.cost;
             }
+            console.log("Formatted perSlotCosts:", formattedPerSlotCosts);
 
             // Push to costEstimates
             costEstimates.push({
@@ -372,6 +373,11 @@ export default class PricingRules {
     start: string;
     end: string;
     roomSlugs: string[];
+    costItems?: Array<{
+      description: string;
+      subDescription?: string;
+      cost: number;
+    }>;
     resources?: string[];
     expectedAttendance?: number;
     private?: boolean;
@@ -383,6 +389,7 @@ export default class PricingRules {
       resources = [],
       expectedAttendance = 0,
       private: isPrivate = false,
+      costItems = [],
     } = booking;
     console.log("Booking in prepareBookingForPricing:", booking);
 
@@ -407,6 +414,7 @@ export default class PricingRules {
     return {
       ...booking,
       roomSlugs,
+      costItems,
       resources,
       expectedAttendance,
       isPrivate, // Align `private` field as `isPrivate`
