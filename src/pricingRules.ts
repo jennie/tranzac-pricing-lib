@@ -227,6 +227,9 @@ export default class PricingRules {
       console.log("Data received in getPrice:", JSON.stringify(data, null, 2));
 
       for (const [date, bookings] of Object.entries(data.rentalDates)) {
+        if (isNaN(new Date(date).getTime())) {
+          console.warn("Invalid date found in rentalDates:", date);
+        }
         for (const booking of bookings as any[]) {
           console.log("Booking in getPrice:", booking);
           // for (const booking of data.rentalDates) {
@@ -241,15 +244,17 @@ export default class PricingRules {
           try {
             const preparedBooking: Booking =
               this.prepareBookingForPricing(booking);
+            console.log("Booking before calculatePrice:", booking);
             const { estimates, perSlotCosts, slotTotal } =
               await this.calculatePrice({
                 ...preparedBooking,
-                date: booking.date,
+                date,
                 resources: preparedBooking.resources || [],
                 isPrivate: preparedBooking.private || false,
                 expectedAttendance:
                   Number(preparedBooking.expectedAttendance) || 0,
               });
+            console.log("Estimates after calculatePrice:", estimates);
 
             const formattedEstimates = estimates.map((estimate) => ({
               roomSlug: estimate.roomSlug || "",
