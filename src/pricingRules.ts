@@ -398,6 +398,7 @@ export default class PricingRules {
     });
 
     // Fetch additional costs related to the booking
+
     const { perSlotCosts: calculatedPerSlotCosts, additionalCosts = [] } =
       await this.calculateAdditionalCosts({
         roomSlugs,
@@ -813,7 +814,7 @@ export default class PricingRules {
       id: uuidv4(), // Add a unique id to each per-slot cost
       ...cost,
     }));
-    return { perSlotCosts, additionalCosts };
+    return { perSlotCosts, additionalCosts: additionalCosts || [] };
   }
 
   // Helper method to determine if a given time is during evening hours
