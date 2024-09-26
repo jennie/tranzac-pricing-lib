@@ -226,113 +226,108 @@ export default class PricingRules {
       let grandTotal = 0;
       console.log("Data received in getPrice:", JSON.stringify(data, null, 2));
 
-      for (const [date, bookings] of Object.entries(data.rentalDates)) {
-        for (const booking of bookings as any[]) {
-          let bookingTotal = 0;
-          const { estimates } = await this.calculatePrice(booking);
-          for (const estimate of estimates) {
-            bookingTotal += estimate.totalCost;
-          }
+      for (const booking of data.rentalDates) {
+        let bookingTotal = 0;
+        const { estimates } = await this.calculatePrice(booking);
+        for (const estimate of estimates) {
+          bookingTotal += estimate.totalCost;
+        }
 
-          try {
-            const preparedBooking: Booking =
-              this.prepareBookingForPricing(booking);
-            const { estimates, perSlotCosts, slotTotal } =
-              await this.calculatePrice({
-                ...preparedBooking,
-                date: booking.date,
-                resources: preparedBooking.resources || [],
-                isPrivate: preparedBooking.private || false,
-                expectedAttendance:
-                  Number(preparedBooking.expectedAttendance) || 0,
-              });
-
-            const formattedEstimates = estimates.map((estimate) => ({
-              roomSlug: estimate.roomSlug,
-              basePrice: estimate.basePrice,
-              daytimeHours: estimate.daytimeHours || 0,
-              eveningHours: estimate.eveningHours || 0,
-              daytimePrice: estimate.daytimePrice || 0,
-              eveningPrice: estimate.eveningPrice || 0,
-              fullDayPrice: estimate.fullDayPrice || 0,
-              daytimeRate: estimate.daytimeRate,
-              daytimeRateType: estimate.daytimeRateType,
-              eveningRate: estimate.eveningRate,
-              eveningRateType: estimate.eveningRateType,
-              additionalCosts: (estimate.additionalCosts || []).map((cost) => ({
-                description: cost.description,
-                subDescription: cost.subDescription,
-                cost: cost.cost,
-              })),
-              totalCost: estimate.totalCost,
-              rateDescription: estimate.rateDescription,
-              rateSubDescription: estimate.rateSubDescription,
-              totalBookingHours: estimate.totalBookingHours,
-              isFullDay: estimate.isFullDay,
-            }));
-
-            const formattedPerSlotCosts = booking.costItems.map(
-              (cost: { description: any; subDescription: any; cost: any }) => ({
-                description: cost.description,
-                subDescription: cost.subDescription,
-                cost: cost.cost,
-              })
-            );
-
-            const estimateTotal = formattedEstimates.reduce(
-              (total, estimate) => {
-                const additionalCostsTotal = estimate.additionalCosts.reduce(
-                  (sum, cost) =>
-                    sum + (typeof cost.cost === "number" ? cost.cost : 0),
-                  0
-                );
-                return total + estimate.totalCost + additionalCostsTotal;
-              },
-              0
-            );
-
-            const perSlotCostsTotal = formattedPerSlotCosts.reduce(
-              (total: any, cost: { cost: any }) => total + cost.cost,
-              0
-            );
-
-            const totalForThisBooking = estimateTotal + perSlotCostsTotal;
-            for (const costItem of booking.costItems) {
-              bookingTotal += costItem.cost;
-            }
-
-            costEstimates.push({
-              id: booking.id || uuidv4(),
-              date: new Date(booking.date),
-              start: new Date(booking.start),
-              end: new Date(booking.end),
-              estimates: formattedEstimates,
-              perSlotCosts: formattedPerSlotCosts,
-              costItems: booking.costItems,
-              slotTotal: totalForThisBooking,
-              roomSlugs: booking.roomSlugs,
-              isPrivate: booking.isPrivate,
-              resources: booking.resources,
-              expectedAttendance: booking.expectedAttendance,
+        try {
+          const preparedBooking: Booking =
+            this.prepareBookingForPricing(booking);
+          const { estimates, perSlotCosts, slotTotal } =
+            await this.calculatePrice({
+              ...preparedBooking,
+              date: booking.date,
+              resources: preparedBooking.resources || [],
+              isPrivate: preparedBooking.private || false,
+              expectedAttendance:
+                Number(preparedBooking.expectedAttendance) || 0,
             });
 
-            grandTotal += totalForThisBooking;
-          } catch (error: any) {
-            console.error(
-              `Error calculating price for booking ${booking.id}:`,
-              error
+          const formattedEstimates = estimates.map((estimate) => ({
+            roomSlug: estimate.roomSlug,
+            basePrice: estimate.basePrice,
+            daytimeHours: estimate.daytimeHours || 0,
+            eveningHours: estimate.eveningHours || 0,
+            daytimePrice: estimate.daytimePrice || 0,
+            eveningPrice: estimate.eveningPrice || 0,
+            fullDayPrice: estimate.fullDayPrice || 0,
+            daytimeRate: estimate.daytimeRate,
+            daytimeRateType: estimate.daytimeRateType,
+            eveningRate: estimate.eveningRate,
+            eveningRateType: estimate.eveningRateType,
+            additionalCosts: (estimate.additionalCosts || []).map((cost) => ({
+              description: cost.description,
+              subDescription: cost.subDescription,
+              cost: cost.cost,
+            })),
+            totalCost: estimate.totalCost,
+            rateDescription: estimate.rateDescription,
+            rateSubDescription: estimate.rateSubDescription,
+            totalBookingHours: estimate.totalBookingHours,
+            isFullDay: estimate.isFullDay,
+          }));
+
+          const formattedPerSlotCosts = booking.costItems.map(
+            (cost: { description: any; subDescription: any; cost: any }) => ({
+              description: cost.description,
+              subDescription: cost.subDescription,
+              cost: cost.cost,
+            })
+          );
+
+          const estimateTotal = formattedEstimates.reduce((total, estimate) => {
+            const additionalCostsTotal = estimate.additionalCosts.reduce(
+              (sum, cost) =>
+                sum + (typeof cost.cost === "number" ? cost.cost : 0),
+              0
             );
-            costEstimates.push({
-              id: booking.id || uuidv4(),
-              date: new Date(booking.date),
-              start: new Date(booking.start),
-              end: new Date(booking.end),
-              estimates: [],
-              perSlotCosts: [],
-              slotTotal: 0,
-              error: error.message,
-            });
+            return total + estimate.totalCost + additionalCostsTotal;
+          }, 0);
+
+          const perSlotCostsTotal = formattedPerSlotCosts.reduce(
+            (total: any, cost: { cost: any }) => total + cost.cost,
+            0
+          );
+
+          const totalForThisBooking = estimateTotal + perSlotCostsTotal;
+          for (const costItem of booking.costItems) {
+            bookingTotal += costItem.cost;
           }
+
+          costEstimates.push({
+            id: booking.id || uuidv4(),
+            date: new Date(booking.date),
+            start: new Date(booking.start),
+            end: new Date(booking.end),
+            estimates: formattedEstimates,
+            perSlotCosts: formattedPerSlotCosts,
+            costItems: booking.costItems,
+            slotTotal: totalForThisBooking,
+            roomSlugs: booking.roomSlugs,
+            isPrivate: booking.isPrivate,
+            resources: booking.resources,
+            expectedAttendance: booking.expectedAttendance,
+          });
+
+          grandTotal += totalForThisBooking;
+        } catch (error: any) {
+          console.error(
+            `Error calculating price for booking ${booking.id}:`,
+            error
+          );
+          costEstimates.push({
+            id: booking.id || uuidv4(),
+            date: new Date(booking.date),
+            start: new Date(booking.start),
+            end: new Date(booking.end),
+            estimates: [],
+            perSlotCosts: [],
+            slotTotal: 0,
+            error: error.message,
+          });
         }
       }
 
