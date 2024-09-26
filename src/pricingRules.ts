@@ -249,22 +249,24 @@ export default class PricingRules {
               });
 
             const formattedEstimates = estimates.map((estimate) => ({
-              roomSlug: estimate.roomSlug,
-              basePrice: estimate.basePrice,
+              roomSlug: estimate.roomSlug || "",
+              basePrice: estimate.basePrice || 0,
               daytimeHours: estimate.daytimeHours || 0,
               eveningHours: estimate.eveningHours || 0,
               daytimePrice: estimate.daytimePrice || 0,
               eveningPrice: estimate.eveningPrice || 0,
               fullDayPrice: estimate.fullDayPrice || 0,
-              daytimeRate: estimate.daytimeRate,
-              daytimeRateType: estimate.daytimeRateType,
-              eveningRate: estimate.eveningRate,
-              eveningRateType: estimate.eveningRateType,
-              additionalCosts: (estimate.additionalCosts || []).map((cost) => ({
-                description: cost.description || "",
-                subDescription: cost.subDescription || "",
-                cost: cost.cost || 0,
-              })),
+              daytimeRate: estimate.daytimeRate || 0,
+              daytimeRateType: estimate.daytimeRateType || "",
+              eveningRate: estimate.eveningRate || 0,
+              eveningRateType: estimate.eveningRateType || "",
+              additionalCosts: Array.isArray(estimate.additionalCosts)
+                ? estimate.additionalCosts.map((cost) => ({
+                    description: cost.description || "",
+                    subDescription: cost.subDescription || "",
+                    cost: cost.cost || 0,
+                  }))
+                : [],
               totalCost: estimate.totalCost || 0,
               rateDescription: estimate.rateDescription || "",
               rateSubDescription: estimate.rateSubDescription || "",
