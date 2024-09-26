@@ -398,7 +398,7 @@ export default class PricingRules {
     });
 
     // Fetch additional costs related to the booking
-    const { perSlotCosts: calculatedPerSlotCosts, additionalCosts } =
+    const { perSlotCosts: calculatedPerSlotCosts, additionalCosts = [] } =
       await this.calculateAdditionalCosts({
         roomSlugs,
         start,
@@ -556,7 +556,7 @@ export default class PricingRules {
         }
       }
 
-      const roomAdditionalCosts = additionalCosts.filter(
+      const roomAdditionalCosts = (additionalCosts || []).filter(
         (cost) => cost.roomSlug === roomSlug
       );
       const roomAdditionalCostTotal = roomAdditionalCosts.reduce(
