@@ -251,7 +251,8 @@ export default class PricingRules {
             booking.rooms[0].additionalCosts
           );
 
-          const { estimates } = await this.calculatePrice(booking);
+          const { estimates, perSlotCosts, slotTotal } =
+            await this.calculatePrice(booking);
           for (const estimate of estimates) {
             console.log("Estimate additionalCosts:", estimate.additionalCosts);
             bookingTotal += estimate.totalCost;
@@ -346,14 +347,15 @@ export default class PricingRules {
               estimates: formattedEstimates,
               perSlotCosts: formattedPerSlotCosts,
               costItems: booking.costItems || [], // Use costItems from original booking
-              slotTotal: totalForThisBooking,
+              slotTotal: slotTotal,
+              // slotTotal: totalForThisBooking,
               roomSlugs: preparedBooking.roomSlugs,
               isPrivate: booking.private, // Use `isPrivate` from original booking
               resources: preparedBooking.resources,
               expectedAttendance: preparedBooking.expectedAttendance,
             });
 
-            grandTotal += totalForThisBooking;
+            grandTotal += slotTotal;
           } catch (error: any) {
             console.error(
               `Error calculating price for booking ${booking.id}:`,
