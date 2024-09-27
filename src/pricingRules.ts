@@ -251,7 +251,11 @@ export default class PricingRules {
             booking.rooms[0].additionalCosts
           );
 
-          // Calculate price using the original booking
+          console.log(
+            "Before calculatePrice - additionalCosts:",
+            booking.rooms[0].additionalCosts
+          );
+
           const { estimates } = await this.calculatePrice(booking);
           for (const estimate of estimates) {
             console.log("Estimate additionalCosts:", estimate.additionalCosts);
@@ -262,13 +266,11 @@ export default class PricingRules {
             // Use preparedBooking for validated and adjusted data
             const preparedBooking: Booking =
               this.prepareBookingForPricing(booking);
-            console.log("Booking before calculatePrice:", booking);
-            console.log(
-              "Prepared booking additionalCosts:",
-              preparedBooking.rooms?.[0]?.additionalCosts ?? []
-            );
 
-            // Calculate price using preparedBooking
+            console.log(
+              "Prepared booking for pricing:",
+              preparedBooking.rooms?.[0]?.additionalCosts
+            );
             const { estimates, perSlotCosts, slotTotal } =
               await this.calculatePrice({
                 ...preparedBooking,
@@ -305,7 +307,7 @@ export default class PricingRules {
               totalBookingHours: estimate.totalBookingHours || 0,
               isFullDay: estimate.isFullDay || false,
             }));
-
+            console.log("Formatted estimates:", formattedEstimates);
             const formattedPerSlotCosts = perSlotCosts.map((cost) => ({
               description: cost.description,
               subDescription: cost.subDescription,
