@@ -624,17 +624,16 @@ export default class PricingRules {
         }
       }
       console.log("All additional costs:", additionalCosts);
-
-      const roomAdditionalCosts = (additionalCosts || []).filter(
-        (cost) => cost.roomSlug === roomSlug
+      const roomDetails = rooms.find(
+        (room: { roomSlug: any }) => room.roomSlug === roomSlug
       );
-      console.log("Filtered room additional costs:", roomAdditionalCosts);
+      const roomAdditionalCosts = roomDetails.additionalCosts || [];
 
       const roomAdditionalCostTotal = roomAdditionalCosts.reduce(
-        (sum, cost) => sum + (typeof cost.cost === "number" ? cost.cost : 0),
+        (sum: any, cost: { cost: any }) =>
+          sum + (typeof cost.cost === "number" ? cost.cost : 0),
         0
       );
-
       estimates.push({
         roomSlug,
         basePrice: totalPrice,
@@ -642,12 +641,12 @@ export default class PricingRules {
         eveningHours,
         daytimePrice,
         eveningPrice,
-        fullDayPrice, // Include full-day price in the estimate
+        fullDayPrice,
         daytimeRate: dayRules.daytime?.[isPrivate ? "private" : "public"],
-        daytimeRateType: dayRules.daytime?.type || null, // Include rate type in the estimate
+        daytimeRateType: dayRules.daytime?.type || null,
         eveningRate: dayRules.evening?.[isPrivate ? "private" : "public"],
-        eveningRateType: dayRules.evening?.type || null, // Include rate type in the estimate
-        additionalCosts: roomAdditionalCosts,
+        eveningRateType: dayRules.evening?.type || null,
+        additionalCosts: roomAdditionalCosts, // Ensure this line is included
         totalCost: totalPrice + roomAdditionalCostTotal,
         rateDescription,
         rateSubDescription,
@@ -675,10 +674,8 @@ export default class PricingRules {
 
     let perSlotCosts = [];
     let additionalCosts = [];
-
-    // Calculate per-slot costs
     const venueOpeningTime = new Date(start);
-    venueOpeningTime.setHours(18, 0, 0, 0); // Assuming Tranzac opens at 6 PM
+    venueOpeningTime.setHours(18, 0, 0, 0);
     const bookingStartTime = new Date(start);
 
     if (bookingStartTime < venueOpeningTime) {
