@@ -665,7 +665,10 @@ export default class PricingRules {
 
     const slotTotal =
       estimates.reduce((sum, estimate) => sum + estimate.totalCost, 0) +
-      perSlotCostTotal;
+      perSlotCosts.reduce(
+        (sum, cost) => sum + (typeof cost.cost === "number" ? cost.cost : 0),
+        0
+      );
 
     return { estimates, perSlotCosts, slotTotal };
   }
