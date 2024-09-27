@@ -251,11 +251,6 @@ export default class PricingRules {
             booking.rooms[0].additionalCosts
           );
 
-          console.log(
-            "Before calculatePrice - additionalCosts:",
-            booking.rooms[0].additionalCosts
-          );
-
           const { estimates } = await this.calculatePrice(booking);
           for (const estimate of estimates) {
             console.log("Estimate additionalCosts:", estimate.additionalCosts);
@@ -478,6 +473,11 @@ export default class PricingRules {
         resources,
       });
 
+    console.log(
+      "Additional costs returned from calculateAdditionalCosts:",
+      additionalCosts
+    );
+
     perSlotCosts = calculatedPerSlotCosts;
 
     for (const roomSlug of roomSlugs) {
@@ -623,10 +623,13 @@ export default class PricingRules {
           }
         }
       }
+      console.log("All additional costs:", additionalCosts);
 
       const roomAdditionalCosts = (additionalCosts || []).filter(
         (cost) => cost.roomSlug === roomSlug
       );
+      console.log("Filtered room additional costs:", roomAdditionalCosts);
+
       const roomAdditionalCostTotal = roomAdditionalCosts.reduce(
         (sum, cost) => sum + (typeof cost.cost === "number" ? cost.cost : 0),
         0
