@@ -245,6 +245,10 @@ export default class PricingRules {
         for (const booking of bookings as any[]) {
           console.log("Booking in getPrice:", booking);
           let bookingTotal = 0;
+          console.log(
+            "Inside getPrice - additionalCosts:",
+            booking.rooms[0].additionalCosts
+          );
 
           // Calculate price using the original booking
           const { estimates } = await this.calculatePrice(booking);
