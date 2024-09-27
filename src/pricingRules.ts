@@ -311,11 +311,14 @@ export default class PricingRules {
 
             const estimateTotal = formattedEstimates.reduce(
               (total, estimate) => {
+                console.log(`Estimate:`, estimate);
+
                 const additionalCostsTotal = estimate.additionalCosts.reduce(
                   (sum, cost) =>
                     sum + (typeof cost.cost === "number" ? cost.cost : 0),
                   0
                 );
+
                 return total + estimate.totalCost + additionalCostsTotal;
               },
               0
@@ -623,7 +626,6 @@ export default class PricingRules {
           }
         }
       }
-      console.log("All additional costs:", additionalCosts);
       const roomDetails = rooms.find(
         (room: { roomSlug: any }) => room.roomSlug === roomSlug
       );
