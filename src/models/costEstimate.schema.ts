@@ -23,6 +23,8 @@ interface ICostEstimateVersion {
     eveningRate?: number;
     eveningRateType?: string;
   }>;
+  tax: number;
+  totalWithTax: number;
   statusHistory: IStatusHistory[];
   contractPdf: {
     data: Buffer;
@@ -101,7 +103,7 @@ const CostEstimateSchemaDefinition = {
           changedBy: { type: String, required: true },
           timestamp: { type: Date, default: Date.now },
         },
-      ], // <-- Ensure this is inside each version
+      ],
     },
   ],
   currentVersion: { type: Number, required: true },
