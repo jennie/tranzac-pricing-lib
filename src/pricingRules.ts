@@ -516,6 +516,7 @@ export default class PricingRules {
       let eveningHours = 0;
       let rateDescription = "";
       let rateSubDescription = "";
+      let slotTotal = 0;
 
       const eveningStartTime = new Date(startTime);
       eveningStartTime.setHours(17, 0, 0, 0);
@@ -626,16 +627,21 @@ export default class PricingRules {
           }
         }
       }
-      const roomDetails = rooms.find(
-        (room: { roomSlug: any }) => room.roomSlug === roomSlug
+
+      const roomAdditionalCosts = additionalCosts.filter(
+        (cost) => cost.roomSlug === roomSlug
       );
-      const roomAdditionalCosts = roomDetails.additionalCosts || [];
 
       const roomAdditionalCostTotal = roomAdditionalCosts.reduce(
         (sum: any, cost: { cost: any }) =>
           sum + (typeof cost.cost === "number" ? cost.cost : 0),
         0
       );
+      slotTotal += roomAdditionalCosts.reduce(
+        (sum, cost) => sum + (Number(cost.cost) || 0),
+        0
+      );
+
       estimates.push({
         roomSlug,
         basePrice: totalPrice,
@@ -649,7 +655,12 @@ export default class PricingRules {
         eveningRate: dayRules.evening?.[isPrivate ? "private" : "public"],
         eveningRateType: dayRules.evening?.type || null,
         additionalCosts: roomAdditionalCosts, // Ensure this line is included
-        totalCost: totalPrice + roomAdditionalCostTotal,
+        totalCost:
+          totalPrice +
+          roomAdditionalCosts.reduce(
+            (sum, cost) => sum + (Number(cost.cost) || 0),
+            0
+          ),
         rateDescription,
         rateSubDescription,
         minimumHours: dayRules.minimumHours || dayRules.fullDay?.minimumHours,
@@ -657,19 +668,16 @@ export default class PricingRules {
         isFullDay: !!dayRules.fullDay,
       });
     }
+    let slotTotal = 0;
+    slotTotal += perSlotCosts.reduce(
+      (sum, cost) => sum + (Number(cost.cost) || 0),
+      0
+    );
 
     const perSlotCostTotal = perSlotCosts.reduce(
       (sum, cost) => sum + (typeof cost.cost === "number" ? cost.cost : 0),
       0
     );
-
-    const slotTotal =
-      estimates.reduce((sum, estimate) => sum + estimate.totalCost, 0) +
-      perSlotCosts.reduce(
-        (sum, cost) => sum + (typeof cost.cost === "number" ? cost.cost : 0),
-        0
-      );
-
     return { estimates, perSlotCosts, slotTotal };
   }
 
