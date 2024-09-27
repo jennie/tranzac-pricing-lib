@@ -17,6 +17,7 @@ interface Booking {
   private?: boolean;
   expectedAttendance?: number;
   roomSlugs: string[];
+  rooms?: any[];
   start: string;
   end: string;
 }
@@ -262,6 +263,10 @@ export default class PricingRules {
             const preparedBooking: Booking =
               this.prepareBookingForPricing(booking);
             console.log("Booking before calculatePrice:", booking);
+            console.log(
+              "Prepared booking additionalCosts:",
+              preparedBooking.rooms?.[0]?.additionalCosts ?? []
+            );
 
             // Calculate price using preparedBooking
             const { estimates, perSlotCosts, slotTotal } =
@@ -386,6 +391,7 @@ export default class PricingRules {
     start: string;
     end: string;
     roomSlugs: string[];
+    rooms?: any[];
     costItems?: Array<{
       description: string;
       subDescription?: string;
