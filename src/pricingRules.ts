@@ -232,7 +232,6 @@ export default class PricingRules {
               perSlotCosts: formattedPerSlotCosts,
               costItems: booking.costItems || [], // Use costItems from original booking
               slotTotal: slotTotal,
-              // slotTotal: totalForThisBooking,
               roomSlugs: preparedBooking.roomSlugs,
               isPrivate: booking.private, // Use `isPrivate` from original booking
               resources: preparedBooking.resources,
@@ -369,7 +368,6 @@ export default class PricingRules {
       rooms,
     } = booking;
     let estimates = [];
-    let perSlotCosts = [];
 
     const startTime = toZonedTime(parseISO(start), "America/Toronto");
     const endTime = toZonedTime(parseISO(end), "America/Toronto");
@@ -377,24 +375,12 @@ export default class PricingRules {
       timeZone: "America/Toronto",
     });
 
-    const { perSlotCosts: calculatedPerSlotCosts, additionalCosts = [] } =
-      await this.calculateAdditionalCosts({
-        roomSlugs,
-        start,
-        end,
-        date,
-        rooms,
-        isPrivate,
-        expectedAttendance,
-        resources,
-      });
-
+    const { perSlotCosts, additionalCosts } =
+      await this.calculateAdditionalCosts(booking);
     console.log(
       "calculatePrice - After calculateAdditionalCosts:",
-      JSON.stringify({ calculatedPerSlotCosts, additionalCosts }, null, 2)
+      JSON.stringify({ perSlotCosts, additionalCosts }, null, 2)
     );
-
-    perSlotCosts = calculatedPerSlotCosts;
 
     let slotTotal = 0;
 
@@ -547,6 +533,7 @@ export default class PricingRules {
       slotTotal += totalPrice;
 
       // Add additional costs for this room to slotTotal
+      // Add additional costs for this room to slotTotal
       const roomAdditionalCosts = additionalCosts.filter(
         (cost) => cost.roomSlug === roomSlug
       );
@@ -582,8 +569,6 @@ export default class PricingRules {
         isFullDay: !!dayRules.fullDay,
       });
     }
-
-    // Add perSlotCosts to slotTotal
     const perSlotCostsTotal = perSlotCosts.reduce(
       (sum, cost) => sum + (Number(cost.cost) || 0),
       0
