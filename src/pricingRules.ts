@@ -225,8 +225,19 @@ export default class PricingRules {
       const costEstimates = [];
       let grandTotal = 0;
       console.log("Data received in getPrice:", JSON.stringify(data, null, 2));
+      if (!data.rentalDates || typeof data.rentalDates !== "object") {
+        console.error("Invalid rentalDates structure:", data.rentalDates);
+        throw new Error("rentalDates is not defined or not an object.");
+      }
 
       for (const [date, bookings] of Object.entries(data.rentalDates)) {
+        if (!Array.isArray(bookings)) {
+          console.error(
+            `Expected an array of bookings for date ${date}, but got:`,
+            bookings
+          );
+          continue;
+        }
         if (isNaN(new Date(date).getTime())) {
           console.warn("Invalid date found in rentalDates:", date);
         }
