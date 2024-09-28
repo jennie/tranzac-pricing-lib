@@ -35,6 +35,14 @@ interface ICostEstimateVersion {
       minimumHours?: number;
       totalBookingHours?: number;
       isFullDay?: boolean;
+      daytimeCostItem?: {
+        description: string;
+        cost: number;
+      };
+      eveningCostItem?: {
+        description: string;
+        cost: number;
+      };
     }>;
     perSlotCosts: any[];
     slotTotal: number;
