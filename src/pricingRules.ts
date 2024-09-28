@@ -164,10 +164,10 @@ export default class PricingRules {
           const { estimates, perSlotCosts, slotTotal } =
             await this.calculatePrice(booking as Booking);
 
-          for (const estimate of estimates) {
-            console.log("Estimate additionalCosts:", estimate.additionalCosts);
-            bookingTotal += estimate.totalCost;
-          }
+          // for (const estimate of estimates) {
+          //   console.log("Estimate additionalCosts:", estimate.additionalCosts);
+          //   bookingTotal += estimate.totalCost;
+          // }
 
           try {
             // Use preparedBooking for validated and adjusted data`
@@ -187,7 +187,7 @@ export default class PricingRules {
                 expectedAttendance:
                   Number(preparedBooking.expectedAttendance) || 0,
               });
-            console.log("Estimates after calculatePrice:", estimates);
+            // console.log("Estimates after calculatePrice:", estimates);
 
             const formattedEstimates = estimates.map((estimate) => ({
               roomSlug: estimate.roomSlug || "",
@@ -314,7 +314,7 @@ export default class PricingRules {
       isPrivate = false,
       costItems = [],
     } = booking;
-    console.log("Booking in prepareBookingForPricing:", booking);
+    // console.log("Booking in prepareBookingForPricing:", booking);
 
     if (!roomSlugs || roomSlugs.length === 0) {
       throw new Error("Room slugs are undefined or empty in booking");
@@ -402,10 +402,10 @@ export default class PricingRules {
 
     const { perSlotCosts, additionalCosts } =
       await this.calculateAdditionalCosts(booking);
-    console.log(
-      "calculatePrice - After calculateAdditionalCosts:",
-      JSON.stringify({ perSlotCosts, additionalCosts }, null, 2)
-    );
+    // console.log(
+    //   "calculatePrice - After calculateAdditionalCosts:",
+    //   JSON.stringify({ perSlotCosts, additionalCosts }, null, 2)
+    // );
 
     let slotTotal = 0;
 
@@ -566,10 +566,10 @@ export default class PricingRules {
   }
 
   async calculateAdditionalCosts(booking: any) {
-    console.log(
-      "calculateAdditionalCosts - Input booking:",
-      JSON.stringify(booking, null, 2)
-    );
+    // console.log(
+    //   "calculateAdditionalCosts - Input booking:",
+    //   JSON.stringify(booking, null, 2)
+    // );
 
     const {
       resources,
