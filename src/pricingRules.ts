@@ -143,7 +143,7 @@ export default class PricingRules {
           }
 
           try {
-            // Use preparedBooking for validated and adjusted data
+            // Use preparedBooking for validated and adjusted data`
             const preparedBooking: Booking =
               this.prepareBookingForPricing(booking);
 
@@ -418,6 +418,8 @@ export default class PricingRules {
       let eveningRate = 0;
       let daytimeRateType = "";
       let eveningRateType = "";
+      let crossoverRateInfo = "";
+      let regularDaytimeRate = 0;
 
       const eveningStartTime = new Date(startTime);
       eveningStartTime.setHours(17, 0, 0, 0);
@@ -452,7 +454,8 @@ export default class PricingRules {
             ? eveningStartTime
             : endTime;
           daytimeHours = differenceInHours(daytimeEndTime, startTime);
-          daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
+          const regularDaytimeRate =
+            dayRules.daytime[isPrivate ? "private" : "public"];
           daytimeRateType = dayRules.daytime.type;
 
           if (
@@ -460,14 +463,16 @@ export default class PricingRules {
             dayRules.daytime.crossoverRate
           ) {
             daytimeRate = dayRules.daytime.crossoverRate;
-            rateDescription += `${daytimeHours}h Daytime @ ${formatCurrency(
-              daytimeRate
-            )}/hour (crossover rate)`;
-          } else {
-            rateDescription += `${daytimeHours}h Daytime @ ${formatCurrency(
+            crossoverRateInfo = `Crossover rate applied: ${formatCurrency(
               daytimeRate
             )}/hour`;
+          } else {
+            daytimeRate = regularDaytimeRate;
           }
+
+          rateDescription += `${daytimeHours}h Daytime @ ${formatCurrency(
+            regularDaytimeRate
+          )}/hour`;
 
           daytimePrice = daytimeRate * daytimeHours;
           basePrice += daytimePrice;
@@ -537,6 +542,8 @@ export default class PricingRules {
         eveningRateType,
         additionalCosts: roomAdditionalCosts,
         totalCost: basePrice + roomAdditionalCostsTotal,
+        crossoverRate: bookingCrossesEveningThreshold ? daytimeRate : null,
+        crossoverRateInfo,
         rateDescription,
         minimumHours: dayRules.minimumHours,
         totalBookingHours,
