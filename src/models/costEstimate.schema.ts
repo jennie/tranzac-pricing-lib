@@ -11,17 +11,33 @@ interface ICostEstimateVersion {
   estimates: Array<{
     id: string;
     date: Date;
-    roomSlug: string;
-    basePrice: number;
-    daytimeHours?: number;
-    eveningHours?: number;
-    daytimePrice?: number;
-    eveningPrice?: number;
-    fullDayPrice?: number;
-    daytimeRate?: number;
-    daytimeRateType?: string;
-    eveningRate?: number;
-    eveningRateType?: string;
+    start: Date;
+    end: Date;
+    estimates: Array<{
+      roomSlug: string;
+      basePrice: number;
+      daytimeHours?: number;
+      eveningHours?: number;
+      daytimePrice?: number;
+      eveningPrice?: number;
+      fullDayPrice?: number;
+      daytimeRate?: number;
+      daytimeRateType?: string;
+      eveningRate?: number;
+      eveningRateType?: string;
+      additionalCosts: Array<{
+        description: string;
+        subDescription?: string;
+        cost: number;
+      }>;
+      totalCost: number;
+      rateDescription?: string;
+      minimumHours?: number;
+      totalBookingHours?: number;
+      isFullDay?: boolean;
+    }>;
+    perSlotCosts: any[];
+    slotTotal: number;
   }>;
   tax: number;
   totalWithTax: number;
@@ -80,7 +96,7 @@ const CostEstimateSchemaDefinition = {
               ],
               totalCost: { type: Number, required: true },
               rateDescription: { type: String },
-              rateSubDescription: { type: String },
+              minimumHours: { type: Number },
               totalBookingHours: { type: Number },
               isFullDay: { type: Boolean },
             },

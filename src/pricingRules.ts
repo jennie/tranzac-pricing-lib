@@ -183,7 +183,6 @@ export default class PricingRules {
                 : [],
               totalCost: estimate.totalCost || 0,
               rateDescription: estimate.rateDescription || "",
-              rateSubDescription: estimate.rateSubDescription || "",
               totalBookingHours: estimate.totalBookingHours || 0,
               isFullDay: estimate.isFullDay || false,
             }));
@@ -408,15 +407,17 @@ export default class PricingRules {
           `No pricing rules found for room ${roomSlug} on ${currentDay}`
         );
       }
-
-      let totalPrice = 0;
+      let rateDescription = "";
+      let basePrice = 0;
+      let daytimeHours = 0;
+      let eveningHours = 0;
       let daytimePrice = 0;
       let eveningPrice = 0;
       let fullDayPrice = 0;
-      let daytimeHours = 0;
-      let eveningHours = 0;
-      let rateDescription = "";
-      let rateSubDescription = "";
+      let daytimeRate = 0;
+      let eveningRate = 0;
+      let daytimeRateType = "";
+      let eveningRateType = "";
 
       const eveningStartTime = new Date(startTime);
       eveningStartTime.setHours(17, 0, 0, 0);
@@ -430,23 +431,20 @@ export default class PricingRules {
         const fullDayRate = dayRules.fullDay[isPrivate ? "private" : "public"];
         if (dayRules.fullDay.type === "flat") {
           fullDayPrice = fullDayRate;
-          rateDescription = "Full Day Flat Rate";
+          basePrice = fullDayPrice;
+          rateDescription = `Full Day @ ${formatCurrency(fullDayRate)}`;
         } else if (dayRules.fullDay.type === "hourly") {
           const effectiveHours = Math.max(
             totalBookingHours,
             dayRules.fullDay.minimumHours || 0
           );
           fullDayPrice = fullDayRate * effectiveHours;
-          rateDescription = `Full Day Rate: $${fullDayRate}/hour`;
+          basePrice = fullDayPrice;
+          rateDescription = `Full Day @ ${formatCurrency(fullDayRate)}/hour`;
           if (effectiveHours > totalBookingHours) {
-            rateSubDescription = `${dayRules.fullDay.minimumHours}-hour minimum`;
+            rateDescription += ` (${dayRules.fullDay.minimumHours}-hour minimum)`;
           }
         }
-      }
-
-      // If full-day price is set, use it; otherwise, calculate daytime and evening prices
-      if (fullDayPrice > 0) {
-        totalPrice = fullDayPrice;
       } else {
         // Daytime Calculation
         if (startTime < eveningStartTime && dayRules.daytime) {
@@ -454,86 +452,66 @@ export default class PricingRules {
             ? eveningStartTime
             : endTime;
           daytimeHours = differenceInHours(daytimeEndTime, startTime);
-
-          let daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
-          let effectiveDaytimeHours = daytimeHours;
-          let minimumApplied = false;
+          daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
+          daytimeRateType = dayRules.daytime.type;
 
           if (
             bookingCrossesEveningThreshold &&
             dayRules.daytime.crossoverRate
           ) {
             daytimeRate = dayRules.daytime.crossoverRate;
-            rateSubDescription = "Crossover rate applied";
+            rateDescription += `${daytimeHours}h Daytime @ ${formatCurrency(
+              daytimeRate
+            )}/hour (crossover rate)`;
           } else {
-            const minimumHours = dayRules.daytime.minimumHours || 0;
-            effectiveDaytimeHours = Math.max(daytimeHours, minimumHours);
-            minimumApplied = effectiveDaytimeHours > daytimeHours;
+            rateDescription += `${daytimeHours}h Daytime @ ${formatCurrency(
+              daytimeRate
+            )}/hour`;
           }
 
-          if (dayRules.daytime.type === "hourly") {
-            daytimePrice = daytimeRate * effectiveDaytimeHours;
-            rateDescription = `Daytime: $${daytimeRate}/hour`;
-            if (minimumApplied) {
-              rateSubDescription += rateSubDescription ? ", " : "";
-              rateSubDescription += `${dayRules.daytime.minimumHours}-hour minimum applied`;
-            }
-          } else if (dayRules.daytime.type === "flat") {
-            daytimePrice = daytimeRate;
-            rateDescription = "Flat Daytime Rate";
-          }
+          daytimePrice = daytimeRate * daytimeHours;
+          basePrice += daytimePrice;
         }
 
         // Evening Calculation
         if (endTime > eveningStartTime && dayRules.evening) {
           eveningHours = differenceInHours(endTime, eveningStartTime);
-          let eveningRate = dayRules.evening[isPrivate ? "private" : "public"];
+          eveningRate = dayRules.evening[isPrivate ? "private" : "public"];
+          eveningRateType = dayRules.evening.type;
 
-          if (dayRules.evening.type === "flat") {
+          if (eveningRateType === "flat") {
             eveningPrice = eveningRate;
             rateDescription += rateDescription ? " + " : "";
-            rateDescription += "Evening (flat rate)";
-          } else if (dayRules.evening.type === "hourly") {
+            rateDescription += `Evening (flat rate: ${formatCurrency(
+              eveningRate
+            )})`;
+          } else if (eveningRateType === "hourly") {
             eveningPrice = eveningRate * eveningHours;
             rateDescription += rateDescription ? " + " : "";
-            rateDescription += `Evening: $${eveningRate}/hour`;
+            rateDescription += `${eveningHours}h Evening @ ${formatCurrency(
+              eveningRate
+            )}/hour`;
           }
-        }
 
-        totalPrice = daytimePrice + eveningPrice;
+          basePrice += eveningPrice;
+        }
 
         // Apply minimum hours if necessary
         if (
           dayRules.minimumHours &&
           totalBookingHours < dayRules.minimumHours
         ) {
-          const rate =
-            dayRules.daytime?.[isPrivate ? "private" : "public"] ||
-            dayRules.evening?.[isPrivate ? "private" : "public"];
-          const minimumPrice = rate * dayRules.minimumHours;
-          if (minimumPrice > totalPrice) {
-            totalPrice = minimumPrice;
-            rateSubDescription = `${dayRules.minimumHours}-hour minimum applied`;
-            // Distribute the minimum price proportionally
-            if (daytimeHours > 0 && eveningHours > 0) {
-              daytimePrice = (daytimeHours / totalBookingHours) * totalPrice;
-              eveningPrice = totalPrice - daytimePrice;
-            } else if (daytimeHours > 0) {
-              daytimePrice = totalPrice;
-            } else {
-              eveningPrice = totalPrice;
-            }
+          const minimumPrice =
+            basePrice * (dayRules.minimumHours / totalBookingHours);
+          if (minimumPrice > basePrice) {
+            basePrice = minimumPrice;
+            rateDescription += ` (${dayRules.minimumHours}-hour minimum applied)`;
           }
         }
       }
+      console.log(`calculatePrice - Room ${roomSlug} base price:`, basePrice);
+      slotTotal += basePrice;
 
-      console.log(`calculatePrice - Room ${roomSlug} base price:`, totalPrice);
-
-      // Add room price to slotTotal
-      slotTotal += totalPrice;
-
-      // Add additional costs for this room to slotTotal
-      // Add additional costs for this room to slotTotal
       const roomAdditionalCosts = additionalCosts.filter(
         (cost) => cost.roomSlug === roomSlug
       );
@@ -541,30 +519,26 @@ export default class PricingRules {
         (sum, cost) => sum + (Number(cost.cost) || 0),
         0
       );
-      slotTotal += roomAdditionalCostsTotal;
 
-      console.log(
-        `calculatePrice - Room ${roomSlug} additional costs:`,
-        roomAdditionalCostsTotal
-      );
+      console.log(`calculatePrice - Room ${roomSlug} base price:`, basePrice);
+      slotTotal += basePrice;
 
       estimates.push({
         roomSlug,
-        basePrice: totalPrice,
+        basePrice,
         daytimeHours,
         eveningHours,
         daytimePrice,
         eveningPrice,
         fullDayPrice,
-        daytimeRate: dayRules.daytime?.[isPrivate ? "private" : "public"],
-        daytimeRateType: dayRules.daytime?.type || null,
-        eveningRate: dayRules.evening?.[isPrivate ? "private" : "public"],
-        eveningRateType: dayRules.evening?.type || null,
+        daytimeRate,
+        daytimeRateType,
+        eveningRate,
+        eveningRateType,
         additionalCosts: roomAdditionalCosts,
-        totalCost: totalPrice + roomAdditionalCostsTotal,
+        totalCost: basePrice + roomAdditionalCostsTotal,
         rateDescription,
-        rateSubDescription,
-        minimumHours: dayRules.minimumHours || dayRules.fullDay?.minimumHours,
+        minimumHours: dayRules.minimumHours,
         totalBookingHours,
         isFullDay: !!dayRules.fullDay,
       });
@@ -602,6 +576,7 @@ export default class PricingRules {
     venueOpeningTime.setHours(18, 0, 0, 0);
     const bookingStartTime = new Date(start);
 
+    // Early Open Staff calculation
     if (bookingStartTime < venueOpeningTime) {
       const earlyOpenHours = Math.ceil(
         differenceInHours(venueOpeningTime, bookingStartTime)
@@ -609,6 +584,7 @@ export default class PricingRules {
       if (earlyOpenHours > 0) {
         perSlotCosts.push({
           description: `Early Open Staff (${earlyOpenHours} hours)`,
+          subDescription: "Additional staff for early opening",
           cost: earlyOpenHours * 30,
         });
       }
@@ -622,7 +598,7 @@ export default class PricingRules {
       });
     }
 
-    // Add Door Staff to per-slot costs
+    // Door Staff calculation
     if (resources.includes("door_staff")) {
       if (this.additionalCosts?.resources) {
         const doorStaffConfig = this.additionalCosts.resources.find(
@@ -633,13 +609,14 @@ export default class PricingRules {
           const doorStaffCost = Number(doorStaffConfig.cost) * Number(hours);
           perSlotCosts.push({
             description: `Door Staff (${hours} hours)`,
+            subDescription: "Dedicated staff for entrance management",
             cost: doorStaffCost,
           });
         }
       }
     }
 
-    // Add Piano Tuning to per-slot costs
+    // Piano Tuning
     if (resources.includes("piano_tuning")) {
       const pianoTuningConfig = this.additionalCosts?.resources?.find(
         (r) => r.id === "piano_tuning"
@@ -647,6 +624,7 @@ export default class PricingRules {
       if (pianoTuningConfig) {
         perSlotCosts.push({
           description: "Piano Tuning",
+          subDescription: "One-time tuning service",
           cost: pianoTuningConfig.cost,
         });
       }
@@ -655,8 +633,12 @@ export default class PricingRules {
     // Process room-specific additional costs
     for (const room of rooms) {
       if (room.additionalCosts && Array.isArray(room.additionalCosts)) {
+        // Filter out any door staff costs from room additional costs
+        const roomCosts = room.additionalCosts.filter(
+          (cost: any) => !cost.description.toLowerCase().includes("door staff")
+        );
         additionalCosts.push(
-          ...room.additionalCosts.map((cost: any) => ({
+          ...roomCosts.map((cost: any) => ({
             ...cost,
             roomSlug: room.roomSlug,
           }))
