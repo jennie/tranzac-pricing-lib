@@ -107,6 +107,14 @@ const CostEstimateSchemaDefinition = {
               minimumHours: { type: Number },
               totalBookingHours: { type: Number },
               isFullDay: { type: Boolean },
+              daytimeCostItem: {
+                description: { type: String, required: true },
+                cost: { type: Number, required: true },
+              },
+              eveningCostItem: {
+                description: { type: String, required: true },
+                cost: { type: Number, required: true },
+              },
             },
           ],
           perSlotCosts: [{ type: Object }],
