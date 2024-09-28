@@ -524,22 +524,19 @@ export default class PricingRules {
         eveningRateType,
       });
 
-      const { formattedDaytimeRate, formattedEveningRate } =
-        this.generateRateDescription({
-          daytimeHours: daytimeHours || 0,
-          daytimePrice: typeof daytimePrice === "number" ? daytimePrice : 0, // Ensure daytimePrice is a number
-          daytimeRate: daytimeRate || 0,
-          daytimeRateType: daytimeRateType || "",
-          eveningHours: eveningHours || 0,
-          eveningPrice: eveningPrice || 0,
-          eveningRate: eveningRate || 0,
-          eveningRateType: eveningRateType || "",
-          crossoverApplied: crossoverApplied || false,
-        });
+      const rateDescription = this.generateRateDescription({
+        daytimeHours: daytimeHours || 0,
+        daytimePrice: typeof daytimePrice === "number" ? daytimePrice : 0, // Ensure daytimePrice is a number
+        daytimeRate: daytimeRate || 0,
+        daytimeRateType: daytimeRateType || "",
+        eveningHours: eveningHours || 0,
+        eveningPrice: eveningPrice || 0,
+        eveningRate: eveningRate || 0,
+        eveningRateType: eveningRateType || "",
+        crossoverApplied: crossoverApplied || false,
+      });
 
-      // console.log(`calculatePrice - Room ${roomSlug} base price:`, basePrice);
       slotTotal += basePrice;
-
       const roomAdditionalCosts = additionalCosts.filter(
         (cost) => cost.roomSlug === roomSlug
       );
@@ -547,7 +544,6 @@ export default class PricingRules {
         (sum, cost) => sum + (Number(cost.cost) || 0),
         0
       );
-
       estimates.push({
         roomSlug,
         basePrice,
@@ -562,12 +558,10 @@ export default class PricingRules {
         eveningRateType,
         additionalCosts: roomAdditionalCosts,
         totalCost: basePrice + roomAdditionalCostsTotal,
-        rateDescription: formattedDaytimeRate + " + " + formattedEveningRate,
+        rateDescription,
         minimumHours: dayRules.minimumHours,
         totalBookingHours,
         isFullDay: !!dayRules.fullDay,
-        formattedDaytimeRate,
-        formattedEveningRate,
       });
     }
     const perSlotCostsTotal = perSlotCosts.reduce(
@@ -728,31 +722,24 @@ export default class PricingRules {
     eveningRate,
     eveningRateType,
     crossoverApplied,
-    label,
-  }: BookingRates): {
-    formattedDaytimeRate: string;
-    formattedEveningRate: string;
-  } {
+  }: BookingRates): string {
     // Ensure default values for missing properties
-    let formattedDaytimeRate = "";
-    let formattedEveningRate = "";
+    let rateDescription = "";
 
     if (daytimeHours > 0) {
       const hourlyRate = (daytimePrice / daytimeHours).toFixed(2);
-      formattedDaytimeRate = `$${hourlyRate}/hour`;
+      rateDescription = `$${hourlyRate}/hour`;
       if (crossoverApplied) {
-        formattedDaytimeRate += " (crossover rate)";
+        rateDescription += " (crossover rate)";
       }
-    }
-
-    if (eveningRateType === "flat") {
-      formattedEveningRate = "Flat rate";
+    } else if (eveningRateType === "flat") {
+      rateDescription = "Flat rate";
     } else if (eveningHours > 0) {
       const hourlyEveningRate = (eveningPrice / eveningHours).toFixed(2);
-      formattedEveningRate = `$${hourlyEveningRate}/hour`;
+      rateDescription = `$${hourlyEveningRate}/hour`;
     }
 
-    return { formattedDaytimeRate, formattedEveningRate };
+    return rateDescription;
   }
 }
 
