@@ -45,6 +45,7 @@ interface BookingRates {
   eveningRate: number;
   eveningRateType: string;
   crossoverApplied: boolean;
+  label?: string;
 }
 
 const TORONTO_TIMEZONE = "America/Toronto";
