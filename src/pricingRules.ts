@@ -718,7 +718,6 @@ export default class PricingRules {
     let formattedDaytimeRate = "";
     let formattedEveningRate = "";
 
-    // Daytime Rate Description
     if (daytimeHours > 0) {
       const hourlyRate = (daytimePrice / daytimeHours).toFixed(2);
       formattedDaytimeRate = `$${hourlyRate}/hour`;
@@ -727,7 +726,6 @@ export default class PricingRules {
       }
     }
 
-    // Evening Rate Description
     if (eveningRateType === "flat") {
       formattedEveningRate = "Flat rate";
     } else if (eveningHours > 0) {
