@@ -154,12 +154,12 @@ export default class PricingRules {
         }
 
         for (const booking of bookings as any[]) {
-          console.log("Booking in getPrice:", booking);
+          // console.log("Booking in getPrice:", booking);
           let bookingTotal = 0;
-          console.log(
-            "Inside getPrice - additionalCosts:",
-            booking.rooms[0].additionalCosts
-          );
+          // console.log(
+          //   "Inside getPrice - additionalCosts:",
+          //   booking.rooms[0].additionalCosts
+          // );
 
           const { estimates, perSlotCosts, slotTotal } =
             await this.calculatePrice(booking as Booking);
@@ -174,10 +174,10 @@ export default class PricingRules {
             const preparedBooking: Booking =
               this.prepareBookingForPricing(booking);
 
-            console.log(
-              "Prepared booking for pricing:",
-              preparedBooking.rooms?.[0]?.additionalCosts
-            );
+            // console.log(
+            //   "Prepared booking for pricing:",
+            //   preparedBooking.rooms?.[0]?.additionalCosts
+            // );
             const { estimates, perSlotCosts, slotTotal } =
               await this.calculatePrice({
                 ...preparedBooking,
@@ -219,7 +219,7 @@ export default class PricingRules {
               totalBookingHours: estimate.totalBookingHours || 0,
               isFullDay: estimate.isFullDay || false,
             }));
-            console.log("Formatted estimates:", formattedEstimates);
+            // console.log("Formatted estimates:", formattedEstimates);
             const formattedPerSlotCosts = perSlotCosts.map((cost) => ({
               description: cost.description,
               subDescription: cost.subDescription,
@@ -228,7 +228,7 @@ export default class PricingRules {
 
             const estimateTotal = formattedEstimates.reduce(
               (total, estimate) => {
-                console.log(`Estimate:`, estimate);
+                // console.log(`Estimate:`, estimate);
 
                 const additionalCostsTotal = estimate.additionalCosts.reduce(
                   (sum: any, cost: { cost: any }) =>
@@ -252,7 +252,7 @@ export default class PricingRules {
             for (const costItem of booking.costItems || []) {
               bookingTotal += costItem.cost;
             }
-            console.log("Formatted perSlotCosts:", formattedPerSlotCosts);
+            // console.log("Formatted perSlotCosts:", formattedPerSlotCosts);
 
             // Push to costEstimates
             costEstimates.push({
@@ -292,10 +292,10 @@ export default class PricingRules {
 
       const tax = this.calculateTax(grandTotal);
       const totalWithTax = this.calculateTotalWithTax(grandTotal);
-      console.log(
-        "Cost estimates before returning from getPrice:",
-        costEstimates
-      );
+      // console.log(
+      //   "Cost estimates before returning from getPrice:",
+      //   costEstimates
+      // );
 
       return { costEstimates, grandTotal, tax, totalWithTax };
     } catch (error: any) {
@@ -521,7 +521,7 @@ export default class PricingRules {
           crossoverApplied: crossoverApplied || false,
         });
 
-      console.log(`calculatePrice - Room ${roomSlug} base price:`, basePrice);
+      // console.log(`calculatePrice - Room ${roomSlug} base price:`, basePrice);
       slotTotal += basePrice;
 
       const roomAdditionalCosts = additionalCosts.filter(
@@ -560,7 +560,7 @@ export default class PricingRules {
     );
     slotTotal += perSlotCostsTotal;
 
-    console.log("calculatePrice - Final slotTotal:", slotTotal);
+    // console.log("calculatePrice - Final slotTotal:", slotTotal);
 
     return { estimates, perSlotCosts, slotTotal };
   }
@@ -657,10 +657,10 @@ export default class PricingRules {
       }
     }
 
-    console.log(
-      "calculateAdditionalCosts - Result:",
-      JSON.stringify({ perSlotCosts, additionalCosts }, null, 2)
-    );
+    // console.log(
+    //   "calculateAdditionalCosts - Result:",
+    //   JSON.stringify({ perSlotCosts, additionalCosts }, null, 2)
+    // );
 
     return {
       perSlotCosts: perSlotCosts.map((cost) => ({ ...cost, id: uuidv4() })),
