@@ -510,6 +510,20 @@ export default class PricingRules {
       }
 
       // Generate descriptions for rates
+      console.log("Daytime Params (in pricingRules):", {
+        daytimeHours,
+        daytimePrice,
+        daytimeRate,
+        daytimeRateType,
+        crossoverApplied,
+      });
+
+      console.log("Evening Params (in pricingRules):", {
+        eveningHours,
+        eveningRate,
+        eveningRateType,
+      });
+
       const { formattedDaytimeRate, formattedEveningRate } =
         this.generateRateDescription({
           daytimeHours: daytimeHours || 0,
