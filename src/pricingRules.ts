@@ -426,7 +426,9 @@ export default class PricingRules {
       let basePrice = 0;
       let daytimeHours = 0;
       let eveningHours = 0;
-      let daytimePrice = 0;
+      let daytimePrice = dayRules.daytime
+        ? dayRules.daytime[isPrivate ? "private" : "public"] || 0
+        : 0;
       let eveningPrice = 0;
       let fullDayPrice = 0;
       let daytimeRate = 0;
@@ -511,7 +513,7 @@ export default class PricingRules {
       const { formattedDaytimeRate, formattedEveningRate } =
         this.generateRateDescription({
           daytimeHours: daytimeHours || 0,
-          daytimePrice: daytimePrice || 0,
+          daytimePrice: typeof daytimePrice === "number" ? daytimePrice : 0, // Ensure daytimePrice is a number
           daytimeRate: daytimeRate || 0,
           daytimeRateType: daytimeRateType || "",
           eveningHours: eveningHours || 0,
