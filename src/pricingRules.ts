@@ -510,15 +510,15 @@ export default class PricingRules {
       // Generate descriptions for rates
       const { formattedDaytimeRate, formattedEveningRate } =
         this.generateRateDescription({
-          daytimeHours,
-          daytimePrice,
-          daytimeRate,
-          daytimeRateType,
-          eveningHours,
-          eveningPrice,
-          eveningRate,
-          eveningRateType,
-          crossoverApplied,
+          daytimeHours: daytimeHours || 0,
+          daytimePrice: daytimePrice || 0,
+          daytimeRate: daytimeRate || 0,
+          daytimeRateType: daytimeRateType || "",
+          eveningHours: eveningHours || 0,
+          eveningPrice: eveningPrice || 0,
+          eveningRate: eveningRate || 0,
+          eveningRateType: eveningRateType || "",
+          crossoverApplied: crossoverApplied || false,
         });
 
       console.log(`calculatePrice - Room ${roomSlug} base price:`, basePrice);
@@ -716,6 +716,7 @@ export default class PricingRules {
     formattedDaytimeRate: string;
     formattedEveningRate: string;
   } {
+    // Ensure default values for missing properties
     let formattedDaytimeRate = "";
     let formattedEveningRate = "";
 
