@@ -420,6 +420,7 @@ export default class PricingRules {
       let eveningRateType = "";
       let crossoverRateInfo = "";
       let regularDaytimeRate = 0;
+      let appliedRate = 0; // Initialize appliedRate
 
       const eveningStartTime = new Date(startTime);
       eveningStartTime.setHours(17, 0, 0, 0);
@@ -458,23 +459,23 @@ export default class PricingRules {
             dayRules.daytime[isPrivate ? "private" : "public"];
           daytimeRateType = dayRules.daytime.type;
 
+          let crossoverRateInfo = "";
+          let appliedRate = regularDaytimeRate;
           if (
             bookingCrossesEveningThreshold &&
             dayRules.daytime.crossoverRate
           ) {
-            daytimeRate = dayRules.daytime.crossoverRate;
+            appliedRate = dayRules.daytime.crossoverRate;
             crossoverRateInfo = `Crossover rate applied: ${formatCurrency(
-              daytimeRate
+              appliedRate
             )}/hour`;
-          } else {
-            daytimeRate = regularDaytimeRate;
           }
 
           rateDescription += `${daytimeHours}h Daytime @ ${formatCurrency(
             regularDaytimeRate
           )}/hour`;
 
-          daytimePrice = daytimeRate * daytimeHours;
+          daytimePrice = appliedRate * daytimeHours;
           basePrice += daytimePrice;
         }
 
@@ -532,18 +533,19 @@ export default class PricingRules {
         roomSlug,
         basePrice,
         daytimeHours,
-        eveningHours,
         daytimePrice,
+        daytimeRate: regularDaytimeRate,
+        appliedDaytimeRate: appliedRate,
+        daytimeRateType,
+        crossoverRateInfo,
+        eveningHours,
         eveningPrice,
         fullDayPrice,
-        daytimeRate,
-        daytimeRateType,
         eveningRate,
         eveningRateType,
         additionalCosts: roomAdditionalCosts,
         totalCost: basePrice + roomAdditionalCostsTotal,
         crossoverRate: bookingCrossesEveningThreshold ? daytimeRate : null,
-        crossoverRateInfo,
         rateDescription,
         minimumHours: dayRules.minimumHours,
         totalBookingHours,
