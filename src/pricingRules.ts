@@ -714,6 +714,7 @@ export default class PricingRules {
     eveningRate,
     eveningRateType,
     crossoverApplied,
+    label,
   }: BookingRates): {
     formattedDaytimeRate: string;
     formattedEveningRate: string;
