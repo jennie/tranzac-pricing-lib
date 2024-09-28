@@ -455,12 +455,11 @@ export default class PricingRules {
             ? eveningStartTime
             : endTime;
           daytimeHours = differenceInHours(daytimeEndTime, startTime);
-          const regularDaytimeRate =
+          regularDaytimeRate =
             dayRules.daytime[isPrivate ? "private" : "public"];
           daytimeRateType = dayRules.daytime.type;
 
-          let crossoverRateInfo = "";
-          let appliedRate = regularDaytimeRate;
+          appliedRate = regularDaytimeRate;
           if (
             bookingCrossesEveningThreshold &&
             dayRules.daytime.crossoverRate
@@ -471,12 +470,13 @@ export default class PricingRules {
             )}/hour`;
           }
 
-          rateDescription += `${daytimeHours}h Daytime @ ${formatCurrency(
-            regularDaytimeRate
-          )}/hour`;
-
           daytimePrice = appliedRate * daytimeHours;
           basePrice += daytimePrice;
+
+          const daytimeDescription = `${daytimeHours}h Daytime @ ${formatCurrency(
+            regularDaytimeRate
+          )}/hour`;
+          rateDescription += daytimeDescription;
         }
 
         // Evening Calculation
@@ -515,6 +515,7 @@ export default class PricingRules {
           }
         }
       }
+
       console.log(`calculatePrice - Room ${roomSlug} base price:`, basePrice);
       slotTotal += basePrice;
 
@@ -526,26 +527,22 @@ export default class PricingRules {
         0
       );
 
-      console.log(`calculatePrice - Room ${roomSlug} base price:`, basePrice);
-      slotTotal += basePrice;
-
       estimates.push({
         roomSlug,
         basePrice,
         daytimeHours,
+        eveningHours,
         daytimePrice,
+        eveningPrice,
+        fullDayPrice,
         daytimeRate: regularDaytimeRate,
         appliedDaytimeRate: appliedRate,
         daytimeRateType,
-        crossoverRateInfo,
-        eveningHours,
-        eveningPrice,
-        fullDayPrice,
         eveningRate,
         eveningRateType,
         additionalCosts: roomAdditionalCosts,
         totalCost: basePrice + roomAdditionalCostsTotal,
-        crossoverRate: bookingCrossesEveningThreshold ? daytimeRate : null,
+        crossoverRateInfo,
         rateDescription,
         minimumHours: dayRules.minimumHours,
         totalBookingHours,
