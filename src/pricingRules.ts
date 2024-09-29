@@ -71,49 +71,59 @@ export default class PricingRules {
     this.additionalCosts = null;
   }
 
+  private cache: Map<string, any> = new Map();
+
+  private async getCachedData(key: string, fetchFunction: () => Promise<any>) {
+    if (!this.cache.has(key)) {
+      const data = await fetchFunction();
+      this.cache.set(key, data);
+    }
+    return this.cache.get(key);
+  }
+  private async fetchAllPricingData() {
+    if (this.cache.has("allPricingData")) {
+      return this.cache.get("allPricingData");
+    }
+
+    const PricingRuleModel = await getPricingRuleModel();
+    const TimePeriodModel = await getTimePeriodModel();
+    const AdditionalCostModel = await getAdditionalCostModel();
+
+    const [pricingRules, timePeriods, additionalCosts] = await Promise.all([
+      PricingRuleModel.find().lean().maxTimeMS(30000),
+      TimePeriodModel.find().lean().maxTimeMS(30000),
+      AdditionalCostModel.findOne().lean().maxTimeMS(30000),
+    ]);
+
+    const formattedRules = pricingRules.reduce(
+      (acc: Record<string, any>, rule) => {
+        acc[rule.roomSlug] = rule.pricing;
+        return acc;
+      },
+      {}
+    );
+
+    const allData = {
+      rules: formattedRules,
+      timePeriods,
+      additionalCosts,
+    };
+
+    this.cache.set("allPricingData", allData);
+    return allData;
+  }
   async initialize() {
-    if (!this.rules) {
-      const maxRetries = 3;
-      let retries = 0;
-      while (retries < maxRetries) {
-        try {
-          const PricingRuleModel = await getPricingRuleModel();
-          const TimePeriodModel = await getTimePeriodModel();
-          const AdditionalCostModel = await getAdditionalCostModel();
-
-          const rulesFromDB = await PricingRuleModel.find()
-            .lean()
-            .maxTimeMS(30000); // Increase timeout to 30 seconds
-          this.rules = rulesFromDB.reduce<Record<string, any>>(
-            (acc, rule: any) => {
-              acc[rule.roomSlug] = rule.pricing;
-              return acc;
-            },
-            {}
-          );
-
-          this.timePeriods = await TimePeriodModel.find()
-            .lean()
-            .maxTimeMS(30000);
-          this.additionalCosts = (await AdditionalCostModel.findOne()
-            .lean()
-            .maxTimeMS(30000)) as unknown as AdditionalCosts;
-
-          // console.log(console.log("Successfully fetched pricing rules"););
-          return; // Exit the function if successful
-        } catch (error: any) {
-          console.error(
-            `Error fetching pricing data (Attempt ${retries + 1}):`,
-            error
-          );
-          retries++;
-          if (retries >= maxRetries) {
-            throw new Error(
-              `Failed to fetch pricing data after ${maxRetries} attempts: ${error.message}`
-            );
-          }
-          await new Promise((resolve) => setTimeout(resolve, 2000)); // Wait 2 seconds before retrying
-        }
+    try {
+      const allData = await this.fetchAllPricingData();
+      this.rules = allData.rules;
+      this.timePeriods = allData.timePeriods;
+      this.additionalCosts = allData.additionalCosts as AdditionalCosts;
+    } catch (error) {
+      console.error("Error fetching pricing data:", error);
+      if (error instanceof Error) {
+        throw new Error(`Failed to fetch pricing data: ${error.message}`);
+      } else {
+        throw new Error("Failed to fetch pricing data: Unknown error");
       }
     }
   }
@@ -374,12 +384,149 @@ export default class PricingRules {
     }
   }
 
+  private calculateRoomPrice(
+    startTime: Date,
+    endTime: Date,
+    dayRules: any,
+    isPrivate: boolean
+  ) {
+    const eveningStartTime = new Date(startTime);
+    eveningStartTime.setHours(17, 0, 0, 0);
+
+    const totalBookingHours = differenceInHours(endTime, startTime);
+    const bookingCrossesEveningThreshold =
+      startTime < eveningStartTime && endTime > eveningStartTime;
+
+    let basePrice = 0;
+    let daytimeHours = 0;
+    let eveningHours = 0;
+    let daytimePrice = 0;
+    let eveningPrice = 0;
+    let fullDayPrice = 0;
+    let daytimeRate = 0;
+    let eveningRate = 0;
+    let daytimeRateType = "";
+    let eveningRateType = "";
+    let crossoverApplied = false;
+    let isFullDay = false;
+
+    // Full Day Logic
+    if (dayRules.fullDay) {
+      isFullDay = true;
+      const fullDayRate = dayRules.fullDay[isPrivate ? "private" : "public"];
+      if (dayRules.fullDay.type === "flat") {
+        fullDayPrice = fullDayRate;
+        basePrice = fullDayPrice;
+      } else if (dayRules.fullDay.type === "hourly") {
+        const effectiveHours = Math.max(
+          totalBookingHours,
+          dayRules.fullDay.minimumHours || 0
+        );
+        fullDayPrice = fullDayRate * effectiveHours;
+        basePrice = fullDayPrice;
+      }
+    } else {
+      // Daytime Calculation
+      if (startTime < eveningStartTime && dayRules.daytime) {
+        const daytimeEndTime = bookingCrossesEveningThreshold
+          ? eveningStartTime
+          : endTime;
+        daytimeHours = differenceInHours(daytimeEndTime, startTime);
+        daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
+        daytimeRateType = dayRules.daytime.type;
+
+        // Check if a crossover rate applies
+        if (bookingCrossesEveningThreshold && dayRules.daytime.crossoverRate) {
+          daytimeRate = dayRules.daytime.crossoverRate;
+          crossoverApplied = true;
+        }
+
+        daytimePrice = daytimeRate * daytimeHours;
+        basePrice += daytimePrice;
+      }
+
+      // Evening Calculation
+      if (endTime > eveningStartTime && dayRules.evening) {
+        eveningHours = differenceInHours(endTime, eveningStartTime);
+        eveningRate = dayRules.evening[isPrivate ? "private" : "public"];
+        eveningRateType = dayRules.evening.type;
+
+        if (eveningRateType === "flat") {
+          eveningPrice = eveningRate;
+        } else if (eveningRateType === "hourly") {
+          eveningPrice = eveningRate * eveningHours;
+        }
+
+        basePrice += eveningPrice;
+      }
+
+      // Apply minimum hours if necessary
+      if (dayRules.minimumHours && totalBookingHours < dayRules.minimumHours) {
+        const minimumPrice =
+          basePrice * (dayRules.minimumHours / totalBookingHours);
+        if (minimumPrice > basePrice) {
+          basePrice = minimumPrice;
+        }
+      }
+    }
+
+    const daytimeDescription = this.generateRateDescription({
+      daytimeHours,
+      daytimePrice,
+      daytimeRate,
+      daytimeRateType,
+      crossoverApplied,
+    });
+
+    const eveningDescription = this.generateRateDescription({
+      eveningHours,
+      eveningRate,
+      eveningPrice,
+      eveningRateType,
+    });
+
+    return {
+      basePrice,
+      daytimeHours,
+      eveningHours,
+      daytimePrice,
+      eveningPrice,
+      fullDayPrice,
+      daytimeRate,
+      eveningRate,
+      daytimeRateType,
+      eveningRateType,
+      isFullDay,
+      totalBookingHours,
+      minimumHours: dayRules.minimumHours,
+      daytimeCostItem:
+        daytimePrice > 0
+          ? {
+              id: uuidv4(),
+              description: "Daytime Hours",
+              subDescription: daytimeDescription,
+              cost: daytimePrice,
+            }
+          : null,
+      eveningCostItem:
+        eveningPrice > 0
+          ? {
+              id: uuidv4(),
+              description: "Evening Hours",
+              subDescription: eveningDescription,
+              cost: eveningPrice,
+            }
+          : null,
+    };
+  }
+
   async calculatePrice(booking: Booking): Promise<{
     estimates: any[];
     perSlotCosts: any[];
     slotTotal: number;
   }> {
-    // Validate the input booking object
+    await this.initialize(); // Ensure data is loaded
+
     if (
       !booking.start ||
       !booking.end ||
@@ -389,18 +536,7 @@ export default class PricingRules {
       throw new Error("Booking data is missing required fields");
     }
 
-    const {
-      roomSlugs,
-      start,
-      end,
-      isPrivate,
-      expectedAttendance,
-      resources,
-      date,
-      rooms,
-    } = booking;
-    let estimates = [];
-
+    const { roomSlugs, start, end, isPrivate } = booking;
     const startTime = toZonedTime(parseISO(start), "America/Toronto");
     const endTime = toZonedTime(parseISO(end), "America/Toronto");
     const currentDay = format(startTime, "EEEE", {
@@ -409,186 +545,52 @@ export default class PricingRules {
 
     const { perSlotCosts, additionalCosts } =
       await this.calculateAdditionalCosts(booking);
-    // console.log(
-    //   "calculatePrice - After calculateAdditionalCosts:",
-    //   JSON.stringify({ perSlotCosts, additionalCosts }, null, 2)
-    // );
 
     let slotTotal = 0;
+    const estimates = await Promise.all(
+      roomSlugs.map(async (roomSlug) => {
+        const roomRules = this.rules?.[roomSlug];
+        if (!roomRules) {
+          throw new Error(`No pricing rules found for room: ${roomSlug}`);
+        }
 
-    for (const roomSlug of roomSlugs) {
-      if (!this.rules) throw new Error("Rules are not initialized");
-      const roomRules = this.rules[roomSlug];
-      if (!roomRules) {
-        throw new Error(`No pricing rules found for room: ${roomSlug}`);
-      }
-
-      const dayRules = roomRules[currentDay] || roomRules["all"];
-      if (!dayRules) {
-        throw new Error(
-          `No pricing rules found for room ${roomSlug} on ${currentDay}`
-        );
-      }
-
-      let basePrice = 0;
-      let daytimeHours = 0;
-      let eveningHours = 0;
-      let daytimePrice = dayRules.daytime
-        ? dayRules.daytime[isPrivate ? "private" : "public"] || 0
-        : 0;
-      let eveningPrice = 0;
-      let fullDayPrice = 0;
-      let daytimeRate = 0;
-      let eveningRate = 0;
-      let daytimeRateType = "";
-      let eveningRateType = "";
-      let crossoverApplied = false;
-
-      const eveningStartTime = new Date(startTime);
-      eveningStartTime.setHours(17, 0, 0, 0);
-
-      const totalBookingHours = differenceInHours(endTime, startTime);
-      const bookingCrossesEveningThreshold =
-        startTime < eveningStartTime && endTime > eveningStartTime;
-
-      // Full Day Logic
-      if (dayRules.fullDay) {
-        const fullDayRate = dayRules.fullDay[isPrivate ? "private" : "public"];
-        if (dayRules.fullDay.type === "flat") {
-          fullDayPrice = fullDayRate;
-          basePrice = fullDayPrice;
-        } else if (dayRules.fullDay.type === "hourly") {
-          const effectiveHours = Math.max(
-            totalBookingHours,
-            dayRules.fullDay.minimumHours || 0
+        const dayRules = roomRules[currentDay] || roomRules["all"];
+        if (!dayRules) {
+          throw new Error(
+            `No pricing rules found for room ${roomSlug} on ${currentDay}`
           );
-          fullDayPrice = fullDayRate * effectiveHours;
-          basePrice = fullDayPrice;
-        }
-      } else {
-        // Daytime Calculation
-        if (startTime < eveningStartTime && dayRules.daytime) {
-          const daytimeEndTime = bookingCrossesEveningThreshold
-            ? eveningStartTime
-            : endTime;
-          daytimeHours = differenceInHours(daytimeEndTime, startTime);
-          daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
-          daytimeRateType = dayRules.daytime.type;
-
-          // Check if a crossover rate applies
-          if (
-            bookingCrossesEveningThreshold &&
-            dayRules.daytime.crossoverRate
-          ) {
-            daytimeRate = dayRules.daytime.crossoverRate;
-            crossoverApplied = true;
-          }
-
-          daytimePrice = daytimeRate * daytimeHours;
-          basePrice += daytimePrice;
         }
 
-        // Evening Calculation
-        if (endTime > eveningStartTime && dayRules.evening) {
-          eveningHours = differenceInHours(endTime, eveningStartTime);
-          eveningRate = dayRules.evening[isPrivate ? "private" : "public"];
-          eveningRateType = dayRules.evening.type;
+        const priceEstimate = this.calculateRoomPrice(
+          startTime,
+          endTime,
+          dayRules,
+          isPrivate ?? false
+        );
+        const roomAdditionalCosts = additionalCosts.filter(
+          (cost) => cost.roomSlug === roomSlug
+        );
+        const roomAdditionalCostsTotal = roomAdditionalCosts.reduce(
+          (sum, cost) => sum + (Number(cost.cost) || 0),
+          0
+        );
 
-          if (eveningRateType === "flat") {
-            eveningPrice = eveningRate;
-          } else if (eveningRateType === "hourly") {
-            eveningPrice = eveningRate * eveningHours;
-          }
+        slotTotal += priceEstimate.basePrice + roomAdditionalCostsTotal;
 
-          basePrice += eveningPrice;
-        }
+        return {
+          roomSlug,
+          ...priceEstimate,
+          additionalCosts: roomAdditionalCosts,
+          totalCost: priceEstimate.basePrice + roomAdditionalCostsTotal,
+        };
+      })
+    );
 
-        // Apply minimum hours if necessary
-        if (
-          dayRules.minimumHours &&
-          totalBookingHours < dayRules.minimumHours
-        ) {
-          const minimumPrice =
-            basePrice * (dayRules.minimumHours / totalBookingHours);
-          if (minimumPrice > basePrice) {
-            basePrice = minimumPrice;
-          }
-        }
-      }
-
-      const formattedDaytimeDescription = this.generateRateDescription({
-        daytimeHours,
-        daytimePrice,
-        daytimeRate,
-        daytimeRateType,
-        crossoverApplied,
-      });
-
-      const formattedEveningDescription = this.generateRateDescription({
-        eveningHours,
-        eveningRate,
-        eveningPrice,
-        eveningRateType,
-      });
-
-      slotTotal += basePrice;
-      const roomAdditionalCosts = additionalCosts.filter(
-        (cost) => cost.roomSlug === roomSlug
-      );
-      const roomAdditionalCostsTotal = roomAdditionalCosts.reduce(
-        (sum, cost) => sum + (Number(cost.cost) || 0),
-        0
-      );
-      // console.log("Daytime Description:", formattedDaytimeDescription);
-      // console.log("Evening Description:", formattedEveningDescription);
-
-      estimates.push({
-        roomSlug,
-        basePrice,
-        daytimeHours,
-        eveningHours,
-        daytimePrice,
-        eveningPrice,
-        fullDayPrice,
-        daytimeRate,
-        eveningRate,
-        daytimeRateType,
-        eveningRateType,
-        additionalCosts: roomAdditionalCosts,
-        totalCost: basePrice + roomAdditionalCostsTotal,
-        daytimeCostItem:
-          daytimePrice > 0
-            ? {
-                id: uuidv4(),
-                description: "Daytime Hours",
-                subDescription: formattedDaytimeDescription || "",
-                cost: daytimePrice,
-              }
-            : null,
-        eveningCostItem:
-          eveningPrice > 0
-            ? {
-                id: uuidv4(),
-                description: "Evening Hours",
-                subDescription: formattedEveningDescription || "",
-                cost: eveningPrice,
-              }
-            : null,
-        minimumHours: dayRules.minimumHours,
-        totalBookingHours,
-        isFullDay: !!dayRules.fullDay,
-      });
-    }
     const perSlotCostsTotal = perSlotCosts.reduce(
       (sum, cost) => sum + (Number(cost.cost) || 0),
       0
     );
     slotTotal += perSlotCostsTotal;
-    // console.log("calculatePrice result:", {
-    //   estimates,
-    //   perSlotCosts,
-    //   slotTotal,
-    // });
 
     return { estimates, perSlotCosts, slotTotal };
   }
@@ -598,6 +600,7 @@ export default class PricingRules {
     //   "calculateAdditionalCosts - Input booking:",
     //   JSON.stringify(booking, null, 2)
     // );
+    await this.initialize();
 
     const {
       resources,
