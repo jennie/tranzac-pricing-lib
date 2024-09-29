@@ -550,8 +550,14 @@ export default class PricingRules {
         eveningRateType,
         additionalCosts: roomAdditionalCosts,
         totalCost: basePrice + roomAdditionalCostsTotal,
-        daytimeDescription: formattedDaytimeDescription,
-        eveningDescription: formattedEveningDescription,
+        daytimeCostItem: {
+          description: formattedDaytimeDescription, // Set the correct description
+          cost: daytimePrice,
+        },
+        eveningCostItem: {
+          description: formattedEveningDescription, // Set the correct description
+          cost: eveningPrice,
+        },
         minimumHours: dayRules.minimumHours,
         totalBookingHours,
         isFullDay: !!dayRules.fullDay,
