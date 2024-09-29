@@ -187,7 +187,7 @@ export default class PricingRules {
                 expectedAttendance:
                   Number(preparedBooking.expectedAttendance) || 0,
               });
-            // console.log("Estimates after calculatePrice:", estimates);
+            console.log("Estimates after calculatePrice:", estimates);
 
             const formattedEstimates = estimates.map((estimate) => ({
               roomSlug: estimate.roomSlug || "",
@@ -223,7 +223,7 @@ export default class PricingRules {
               daytimeCostItem: estimate.daytimeCostItem,
               eveningCostItem: estimate.eveningCostItem,
             }));
-            // console.log("Formatted estimates:", formattedEstimates);
+            console.log("Formatted estimates:", formattedEstimates);
             const formattedPerSlotCosts = perSlotCosts.map((cost) => ({
               description: cost.description,
               subDescription: cost.subDescription,
