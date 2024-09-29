@@ -553,16 +553,24 @@ export default class PricingRules {
         eveningRateType,
         additionalCosts: roomAdditionalCosts,
         totalCost: basePrice + roomAdditionalCostsTotal,
-        daytimeCostItem: {
-          id: uuidv4(),
-          description: formattedDaytimeDescription || "", // Ensure description is not empty
-          cost: daytimePrice,
-        },
-        eveningCostItem: {
-          id: uuidv4(),
-          description: formattedEveningDescription || "", // Ensure description is not empty
-          cost: eveningPrice,
-        },
+        daytimeCostItem:
+          daytimePrice > 0
+            ? {
+                id: uuidv4(),
+                description: "Daytime Hours",
+                subDescription: formattedDaytimeDescription || "",
+                cost: daytimePrice,
+              }
+            : null,
+        eveningCostItem:
+          eveningPrice > 0
+            ? {
+                id: uuidv4(),
+                description: "Evening Hours",
+                subDescription: formattedEveningDescription || "",
+                cost: eveningPrice,
+              }
+            : null,
         minimumHours: dayRules.minimumHours,
         totalBookingHours,
         isFullDay: !!dayRules.fullDay,
