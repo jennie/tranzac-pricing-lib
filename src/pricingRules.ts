@@ -220,8 +220,8 @@ export default class PricingRules {
               isFullDay: estimate.isFullDay || false,
               daytimeDescription: estimate.daytimeDescription || "",
               eveningDescription: estimate.eveningDescription || "",
-              daytimeCostItem: estimate.daytimeCostItem || null,
-              eveningCostItem: estimate.eveningCostItem || null,
+              daytimeCostItem: estimate.daytimeCostItem,
+              eveningCostItem: estimate.eveningCostItem,
             }));
             // console.log("Formatted estimates:", formattedEstimates);
             const formattedPerSlotCosts = perSlotCosts.map((cost) => ({
