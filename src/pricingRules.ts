@@ -218,6 +218,8 @@ export default class PricingRules {
               rateDescription: estimate.rateDescription || "",
               totalBookingHours: estimate.totalBookingHours || 0,
               isFullDay: estimate.isFullDay || false,
+              daytimeDescription: estimate.daytimeDescription || "",
+              eveningDescription: estimate.eveningDescription || "",
               daytimeCostItem: estimate.daytimeCostItem || null,
               eveningCostItem: estimate.eveningCostItem || null,
             }));
