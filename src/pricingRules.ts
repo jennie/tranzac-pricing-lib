@@ -223,7 +223,7 @@ export default class PricingRules {
               daytimeCostItem: estimate.daytimeCostItem,
               eveningCostItem: estimate.eveningCostItem,
             }));
-            console.log("Formatted estimates:", formattedEstimates);
+            console.log("Formatted Estimates in getPrice:", formattedEstimates);
             const formattedPerSlotCosts = perSlotCosts.map((cost) => ({
               description: cost.description,
               subDescription: cost.subDescription,
@@ -571,6 +571,11 @@ export default class PricingRules {
       0
     );
     slotTotal += perSlotCostsTotal;
+    console.log("calculatePrice result:", {
+      estimates,
+      perSlotCosts,
+      slotTotal,
+    });
 
     return { estimates, perSlotCosts, slotTotal };
   }
