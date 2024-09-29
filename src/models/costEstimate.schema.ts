@@ -36,12 +36,12 @@ interface ICostEstimateVersion {
       totalBookingHours?: number;
       isFullDay?: boolean;
       daytimeCostItem?: {
-        description: string;
-        cost: number;
+        description?: string;
+        cost?: number;
       };
       eveningCostItem?: {
-        description: string;
-        cost: number;
+        description?: string;
+        cost?: number;
       };
     }>;
     perSlotCosts: any[];
@@ -108,10 +108,12 @@ const CostEstimateSchemaDefinition = {
               totalBookingHours: { type: Number },
               isFullDay: { type: Boolean },
               daytimeCostItem: {
-                description: { type: String, required: true },
+                description: { type: String },
+                cost: { type: Number },
               },
               eveningCostItem: {
-                description: { type: String, required: true },
+                description: { type: String },
+                cost: { type: Number },
               },
             },
           ],
