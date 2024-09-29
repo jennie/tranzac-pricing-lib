@@ -339,6 +339,9 @@ export default class PricingRules {
 
     return {
       ...booking,
+      resources, // Include resources explicitly
+      expectedAttendance, // Include expectedAttendance explicitly
+      isPrivate, // Include isPrivate explicitly
       rooms: (booking.rooms || []).map((room) => ({
         ...room,
         daytimeCostItem: room.daytimeCostItem || null,
