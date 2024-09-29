@@ -536,6 +536,9 @@ export default class PricingRules {
         (sum, cost) => sum + (Number(cost.cost) || 0),
         0
       );
+      console.log("Daytime Description:", formattedDaytimeDescription);
+      console.log("Evening Description:", formattedEveningDescription);
+
       estimates.push({
         roomSlug,
         basePrice,
@@ -551,11 +554,11 @@ export default class PricingRules {
         additionalCosts: roomAdditionalCosts,
         totalCost: basePrice + roomAdditionalCostsTotal,
         daytimeCostItem: {
-          description: formattedDaytimeDescription, // Set the correct description
+          description: formattedDaytimeDescription, // Ensure this is set correctly
           cost: daytimePrice,
         },
         eveningCostItem: {
-          description: formattedEveningDescription, // Set the correct description
+          description: formattedEveningDescription, // Ensure this is set correctly
           cost: eveningPrice,
         },
         minimumHours: dayRules.minimumHours,
