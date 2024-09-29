@@ -27,6 +27,8 @@ interface Booking {
 interface RoomBooking {
   roomSlug: string;
   additionalCosts?: AdditionalCost[];
+  daytimeCostItem: any;
+  eveningCostItem: any;
 }
 
 interface AdditionalCost {
@@ -337,13 +339,11 @@ export default class PricingRules {
 
     return {
       ...booking,
-      roomSlugs,
-      costItems,
-      resources,
-      expectedAttendance,
-      isPrivate,
-      start: dateTimeToISOString(startDateTime),
-      end: dateTimeToISOString(endDateTime),
+      rooms: (booking.rooms || []).map((room) => ({
+        ...room,
+        daytimeCostItem: room.daytimeCostItem || null,
+        eveningCostItem: room.eveningCostItem || null,
+      })),
     };
   }
 
@@ -553,14 +553,22 @@ export default class PricingRules {
         eveningRateType,
         additionalCosts: roomAdditionalCosts,
         totalCost: basePrice + roomAdditionalCostsTotal,
-        daytimeCostItem: {
-          description: formattedDaytimeDescription, // Ensure this is set correctly
-          cost: daytimePrice,
-        },
-        eveningCostItem: {
-          description: formattedEveningDescription, // Ensure this is set correctly
-          cost: eveningPrice,
-        },
+        daytimeCostItem:
+          daytimePrice > 0
+            ? {
+                id: uuidv4(),
+                description: formattedDaytimeDescription, // Ensure description is set correctly here
+                cost: daytimePrice,
+              }
+            : null,
+        eveningCostItem:
+          eveningPrice > 0
+            ? {
+                id: uuidv4(),
+                description: formattedEveningDescription, // Ensure description is set correctly here
+                cost: eveningPrice,
+              }
+            : null,
         minimumHours: dayRules.minimumHours,
         totalBookingHours,
         isFullDay: !!dayRules.fullDay,
