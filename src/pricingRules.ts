@@ -189,7 +189,7 @@ export default class PricingRules {
                 expectedAttendance:
                   Number(preparedBooking.expectedAttendance) || 0,
               });
-            console.log("Estimates after calculatePrice:", estimates);
+            // console.log("Estimates after calculatePrice:", estimates);
 
             const formattedEstimates = estimates.map((estimate) => ({
               roomSlug: estimate.roomSlug || "",
@@ -225,7 +225,7 @@ export default class PricingRules {
               daytimeCostItem: estimate.daytimeCostItem,
               eveningCostItem: estimate.eveningCostItem,
             }));
-            console.log("Formatted Estimates in getPrice:", formattedEstimates);
+            // console.log("Formatted Estimates in getPrice:", formattedEstimates);
             const formattedPerSlotCosts = perSlotCosts.map((cost) => ({
               description: cost.description,
               subDescription: cost.subDescription,
@@ -539,8 +539,8 @@ export default class PricingRules {
         (sum, cost) => sum + (Number(cost.cost) || 0),
         0
       );
-      console.log("Daytime Description:", formattedDaytimeDescription);
-      console.log("Evening Description:", formattedEveningDescription);
+      // console.log("Daytime Description:", formattedDaytimeDescription);
+      // console.log("Evening Description:", formattedEveningDescription);
 
       estimates.push({
         roomSlug,
@@ -584,11 +584,11 @@ export default class PricingRules {
       0
     );
     slotTotal += perSlotCostsTotal;
-    console.log("calculatePrice result:", {
-      estimates,
-      perSlotCosts,
-      slotTotal,
-    });
+    // console.log("calculatePrice result:", {
+    //   estimates,
+    //   perSlotCosts,
+    //   slotTotal,
+    // });
 
     return { estimates, perSlotCosts, slotTotal };
   }
