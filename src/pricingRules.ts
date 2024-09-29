@@ -636,7 +636,18 @@ export default class PricingRules {
         cost: 0,
       });
     }
-
+    if (resources.includes("food")) {
+      const foodConfig = this.additionalCosts?.resources?.find(
+        (r) => r.id === "food"
+      );
+      if (foodConfig) {
+        perSlotCosts.push({
+          description: foodConfig.description,
+          subDescription: foodConfig.subDescription,
+          cost: foodConfig.cost,
+        });
+      }
+    }
     // Door Staff calculation
     if (resources.includes("door_staff")) {
       if (this.additionalCosts?.resources) {
