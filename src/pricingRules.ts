@@ -654,7 +654,6 @@ export default class PricingRules {
         }
       }
     }
-
     // Piano Tuning
     if (resources.includes("piano_tuning")) {
       const pianoTuningConfig = this.additionalCosts?.resources?.find(
