@@ -622,7 +622,7 @@ export default class PricingRules {
     // Check if the booking includes Southern Cross between 11 am - 4 pm
     // Check if the booking includes Southern Cross between 11 am - 4 pm
     const isSouthernCrossExempt =
-      roomSlugs.includes("DhqLkkzvQmKvCDMubndPjw") &&
+      roomSlugs.includes("southern-cross") &&
       bookingStartTime.getHours() < 16 &&
       bookingEndTime.getHours() >= 11;
 
