@@ -386,7 +386,10 @@ export default class PricingRules {
       !booking.roomSlugs ||
       booking.roomSlugs.length === 0
     ) {
-      throw new Error("Booking data is missing required fields:" + booking);
+      throw new Error(
+        "Booking data is missing required fields:" +
+          JSON.stringify(booking, null, 2)
+      );
     }
 
     const {
