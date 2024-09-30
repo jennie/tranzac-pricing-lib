@@ -620,16 +620,27 @@ export default class PricingRules {
     const bookingEndTime = new Date(end);
 
     // Check if the booking includes Southern Cross between 11 am - 4 pm
+    // Check if the booking includes Southern Cross between 11 am - 4 pm
     const isSouthernCrossExempt =
       roomSlugs.includes("DhqLkkzvQmKvCDMubndPjw") &&
-      bookingStartTime.getHours() >= 11 &&
-      bookingEndTime.getHours() <= 16;
+      ((bookingStartTime.getHours() >= 11 &&
+        bookingStartTime.getHours() < 16) ||
+        (bookingEndTime.getHours() > 11 && bookingEndTime.getHours() <= 16));
 
     // Early Open Staff calculation (only if not exempt for Southern Cross)
     if (bookingStartTime < venueOpeningTime && !isSouthernCrossExempt) {
+      const earlyOpenEndTime =
+        bookingStartTime.getHours() < 11
+          ? Math.min(11, venueOpeningTime.getHours()) // Consider 11 am as end of early-open
+          : venueOpeningTime.getHours();
+
       const earlyOpenHours = Math.ceil(
-        differenceInHours(venueOpeningTime, bookingStartTime)
+        differenceInHours(
+          new Date(venueOpeningTime.setHours(earlyOpenEndTime, 0, 0)),
+          bookingStartTime
+        )
       );
+
       if (earlyOpenHours > 0) {
         perSlotCosts.push({
           description: `Early Open Staff (${earlyOpenHours} hours)`,
