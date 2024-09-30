@@ -623,22 +623,34 @@ export default class PricingRules {
     // Check if the booking includes Southern Cross between 11 am - 4 pm
     const isSouthernCrossExempt =
       roomSlugs.includes("DhqLkkzvQmKvCDMubndPjw") &&
-      ((bookingStartTime.getHours() >= 11 &&
-        bookingStartTime.getHours() < 16) ||
-        (bookingEndTime.getHours() > 11 && bookingEndTime.getHours() <= 16));
+      bookingStartTime.getHours() < 16 &&
+      bookingEndTime.getHours() >= 11;
 
     // Early Open Staff calculation (only if not exempt for Southern Cross)
-    if (bookingStartTime < venueOpeningTime && !isSouthernCrossExempt) {
-      const earlyOpenEndTime =
-        bookingStartTime.getHours() < 11
-          ? Math.min(11, venueOpeningTime.getHours()) // Consider 11 am as end of early-open
-          : venueOpeningTime.getHours();
+    // Early Open Staff calculation (only if not exempt for Southern Cross)
+    if (bookingStartTime < venueOpeningTime) {
+      let earlyOpenEndTime = venueOpeningTime; // Default to venue opening time
 
+      // Check for Southern Cross exemption
+      if (isSouthernCrossExempt) {
+        // If booking is exempt, calculate early open time only outside 11 am - 4 pm window
+        if (bookingStartTime.getHours() < 11) {
+          // If booking starts before 11 am, charge up until 11 am
+          earlyOpenEndTime = new Date(start);
+          earlyOpenEndTime.setHours(11, 0, 0, 0);
+        } else if (bookingEndTime.getHours() > 16) {
+          // If booking ends after 4 pm, charge from 4 pm until venue opening time
+          earlyOpenEndTime = new Date(start);
+          earlyOpenEndTime.setHours(venueOpeningTime.getHours(), 0, 0, 0);
+        } else {
+          // Fully exempt from early open fee if completely within 11 am - 4 pm
+          earlyOpenEndTime = bookingStartTime;
+        }
+      }
+
+      // Calculate early open hours only if there's a valid period before earlyOpenEndTime
       const earlyOpenHours = Math.ceil(
-        differenceInHours(
-          new Date(venueOpeningTime.setHours(earlyOpenEndTime, 0, 0)),
-          bookingStartTime
-        )
+        differenceInHours(earlyOpenEndTime, bookingStartTime)
       );
 
       if (earlyOpenHours > 0) {
