@@ -320,7 +320,7 @@ export default class PricingRules {
       isPrivate = false,
       costItems = [],
     } = booking;
-    // console.log("Booking in prepareBookingForPricing:", booking);
+    console.log("Booking in prepareBookingForPricing:", booking);
 
     if (!roomSlugs || roomSlugs.length === 0) {
       throw new Error("Room slugs are undefined or empty in booking");
