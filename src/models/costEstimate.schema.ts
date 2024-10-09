@@ -4,7 +4,7 @@ let mongoosePromise: Promise<typeof import("mongoose")> | null = null;
 
 mongoosePromise = import("mongoose");
 
-interface ICostEstimateVersion {
+export interface ICostEstimateVersion {
   rentalRequestId: string;
   version: number;
   label?: string;
@@ -58,7 +58,7 @@ interface ICostEstimateVersion {
   balanceInvoiceUrl: string;
 }
 
-interface IStatusHistory {
+export interface IStatusHistory {
   status: string;
   timestamp: Date;
   changedBy: string;
@@ -70,7 +70,7 @@ export interface ICostEstimate extends Document {
   rentalRequestId: string;
 }
 
-const CostEstimateSchemaDefinition = {
+export const CostEstimateSchemaDefinition = {
   rentalRequestId: { type: String, required: true },
   versions: [
     {
