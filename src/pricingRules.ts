@@ -414,7 +414,11 @@ export default class PricingRules {
 
     const estimates: any[] = [];
 
-    // Use .time to access the actual time values
+    // Ensure startTime and endTime are valid before using them
+    if (!startTime?.time || !endTime?.time) {
+      throw new Error("startTime or endTime is missing or invalid");
+    }
+
     const startDateTime = toZonedTime(
       parseISO(startTime.time),
       TORONTO_TIMEZONE
@@ -461,7 +465,7 @@ export default class PricingRules {
       const eveningStartTime = new Date(startDateTime); // Corrected
       eveningStartTime.setHours(17, 0, 0, 0);
 
-      const totalBookingHours = differenceInHours(endDateTime, startDateTime); // Corrected
+      const totalBookingHours = differenceInHours(endDateTime, startDateTime);
 
       const bookingCrossesEveningThreshold =
         startDateTime < eveningStartTime && endDateTime > eveningStartTime;
@@ -486,7 +490,7 @@ export default class PricingRules {
           const daytimeEndTime = bookingCrossesEveningThreshold
             ? eveningStartTime
             : endDateTime;
-          daytimeHours = differenceInHours(daytimeEndTime, startDateTime); // Corrected
+          daytimeHours = differenceInHours(daytimeEndTime, startDateTime);
           daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
           daytimeRateType = dayRules.daytime.type;
 
@@ -505,7 +509,7 @@ export default class PricingRules {
 
         // Evening Calculation
         if (endDateTime > eveningStartTime && dayRules.evening) {
-          eveningHours = differenceInHours(endDateTime, eveningStartTime); // Corrected
+          eveningHours = differenceInHours(endDateTime, eveningStartTime);
           eveningRate = dayRules.evening[isPrivate ? "private" : "public"];
           eveningRateType = dayRules.evening.type;
 
@@ -602,27 +606,29 @@ export default class PricingRules {
   }
 
   async calculateAdditionalCosts(booking: any) {
-    // console.log(
-    //   "calculateAdditionalCosts - Input booking:",
-    //   JSON.stringify(booking, null, 2)
-    // );
-
     const {
       resources,
       roomSlugs,
-      start,
-      end,
+      startTime,
+      endTime,
       isPrivate,
       expectedAttendance,
       rooms,
     } = booking;
+
+    // Ensure startTime and endTime are valid before using them
+    if (!startTime?.time || !endTime?.time) {
+      throw new Error("startTime or endTime is missing or invalid");
+    }
+
     let perSlotCosts = [];
     let additionalCosts = [];
 
-    const venueOpeningTime = new Date(start);
+    const venueOpeningTime = new Date(startTime.time);
     venueOpeningTime.setHours(18, 0, 0, 0);
-    const bookingStartTime = new Date(start);
-    const bookingEndTime = new Date(end);
+
+    const bookingStartTime = new Date(startTime.time);
+    const bookingEndTime = new Date(endTime.time);
 
     // const isSouthernCrossExempt =
     //   roomSlugs.includes("southern-cross") &&
@@ -686,7 +692,10 @@ export default class PricingRules {
           (r) => r.id === "door_staff"
         );
         if (doorStaffConfig) {
-          const hours = differenceInHours(parseISO(end), parseISO(start));
+          const hours = differenceInHours(
+            parseISO(endTime.time),
+            parseISO(startTime.time)
+          );
           const doorStaffCost = Number(doorStaffConfig.cost) * Number(hours);
           perSlotCosts.push({
             description: `Door Staff (${hours} hours)`,
