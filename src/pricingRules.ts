@@ -25,6 +25,8 @@ interface Booking {
 }
 
 interface RoomBooking {
+  id: any;
+  slug: any;
   roomSlug: string;
   additionalCosts?: AdditionalCost[];
   daytimeCostItem: any;
@@ -390,7 +392,54 @@ export default class PricingRules {
           JSON.stringify(booking, null, 2)
       );
     }
+    const requiredFields = [
+      "id",
+      "title",
+      "startTime",
+      "endTime",
+      "roomSlugs",
+      "resources",
+      "isPrivate",
+      "expectedAttendance",
+      "rooms",
+    ];
+    const missingFields = [];
 
+    // Check for required fields
+    requiredFields.forEach((field) => {
+      if (
+        !(booking as any)[field] ||
+        (Array.isArray((booking as any)[field]) &&
+          (booking as any)[field].length === 0)
+      ) {
+        missingFields.push(field);
+      }
+    });
+    if (!booking.start) {
+      missingFields.push("startTime.time");
+    }
+    if (!booking.end) {
+      missingFields.push("endTime.time");
+    }
+    if (!booking.rooms || booking.rooms.length === 0) {
+      missingFields.push("rooms array");
+    } else {
+      booking.rooms.forEach((room, index) => {
+        if (!room.slug) {
+          missingFields.push(`rooms[${index}].slug`);
+        }
+        if (!room.id) {
+          missingFields.push(`rooms[${index}].id`);
+        }
+      });
+    }
+
+    // If there are missing fields, throw an explicit error
+    if (missingFields.length > 0) {
+      throw new Error(
+        `Booking data is missing required fields: ${missingFields.join(", ")}`
+      );
+    }
     const {
       roomSlugs,
       start,
