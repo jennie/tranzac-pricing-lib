@@ -18,8 +18,12 @@ interface Booking {
   expectedAttendance?: number;
   roomSlugs: string[];
   rooms?: RoomBooking[];
-  start: string;
-  end: string;
+  startTime: {
+    time: string;
+  };
+  endTime: {
+    time: string;
+  };
   date?: string;
   costItems?: any[];
 }
@@ -266,8 +270,8 @@ export default class PricingRules {
             costEstimates.push({
               id: booking.id || uuidv4(), // Use original booking id
               date: new Date(date), // Use `date` derived from `rentalDates` key
-              start: new Date(preparedBooking.start),
-              end: new Date(preparedBooking.end),
+              start: new Date(preparedBooking.startTime.time),
+              end: new Date(preparedBooking.endTime.time),
               estimates: formattedEstimates,
               perSlotCosts: formattedPerSlotCosts,
               costItems: booking.costItems || [], // Use costItems from original booking
@@ -314,8 +318,8 @@ export default class PricingRules {
 
   prepareBookingForPricing(booking: Booking) {
     const {
-      start,
-      end,
+      startTime,
+      endTime,
       roomSlugs,
       resources = [],
       expectedAttendance = 0,
@@ -327,13 +331,17 @@ export default class PricingRules {
       throw new Error("Room slugs are undefined or empty in booking");
     }
 
-    const startDateTime = toZonedTime(parseISO(start), TORONTO_TIMEZONE);
-    const endDateTime = toZonedTime(parseISO(end), TORONTO_TIMEZONE);
+    // Use startTime.time and endTime.time
+    const startDateTime = toZonedTime(
+      parseISO(startTime.time),
+      TORONTO_TIMEZONE
+    );
+    const endDateTime = toZonedTime(parseISO(endTime.time), TORONTO_TIMEZONE);
 
     if (!isValid(startDateTime) || !isValid(endDateTime)) {
       console.error("Invalid start or end time in booking data:", {
-        start,
-        end,
+        startTime,
+        endTime,
       });
       throw new Error("Invalid start or end time in booking data");
     }
@@ -382,8 +390,8 @@ export default class PricingRules {
   }> {
     // Validate the input booking object
     if (
-      !booking.start ||
-      !booking.end ||
+      !booking.startTime?.time ||
+      !booking.endTime?.time ||
       !booking.roomSlugs ||
       booking.roomSlugs.length === 0
     ) {
@@ -392,78 +400,33 @@ export default class PricingRules {
           JSON.stringify(booking, null, 2)
       );
     }
-    const requiredFields = [
-      "id",
-      "title",
-      "startTime",
-      "endTime",
-      "roomSlugs",
-      "resources",
-      "isPrivate",
-      "expectedAttendance",
-      "rooms",
-    ];
-    const missingFields = [];
 
-    // Check for required fields
-    requiredFields.forEach((field) => {
-      if (
-        !(booking as any)[field] ||
-        (Array.isArray((booking as any)[field]) &&
-          (booking as any)[field].length === 0)
-      ) {
-        missingFields.push(field);
-      }
-    });
-    if (!booking.start) {
-      missingFields.push("startTime.time");
-    }
-    if (!booking.end) {
-      missingFields.push("endTime.time");
-    }
-    if (!booking.rooms || booking.rooms.length === 0) {
-      missingFields.push("rooms array");
-    } else {
-      booking.rooms.forEach((room, index) => {
-        if (!room.slug) {
-          missingFields.push(`rooms[${index}].slug`);
-        }
-        if (!room.id) {
-          missingFields.push(`rooms[${index}].id`);
-        }
-      });
-    }
-
-    // If there are missing fields, throw an explicit error
-    if (missingFields.length > 0) {
-      throw new Error(
-        `Booking data is missing required fields: ${missingFields.join(", ")}`
-      );
-    }
     const {
       roomSlugs,
-      start,
-      end,
+      startTime,
+      endTime,
       isPrivate,
       expectedAttendance,
       resources,
       date,
       rooms,
     } = booking;
-    let estimates = [];
 
-    const startTime = toZonedTime(parseISO(start), "America/Toronto");
-    const endTime = toZonedTime(parseISO(end), "America/Toronto");
-    const currentDay = format(startTime, "EEEE", {
-      timeZone: "America/Toronto",
+    const estimates: any[] = [];
+
+    // Use .time to access the actual time values
+    const startDateTime = toZonedTime(
+      parseISO(startTime.time),
+      TORONTO_TIMEZONE
+    );
+    const endDateTime = toZonedTime(parseISO(endTime.time), TORONTO_TIMEZONE);
+
+    const currentDay = format(startDateTime, "EEEE", {
+      timeZone: TORONTO_TIMEZONE,
     });
 
     const { perSlotCosts, additionalCosts } =
       await this.calculateAdditionalCosts(booking);
-    // console.log(
-    //   "calculatePrice - After calculateAdditionalCosts:",
-    //   JSON.stringify({ perSlotCosts, additionalCosts }, null, 2)
-    // );
 
     let slotTotal = 0;
 
@@ -495,12 +458,13 @@ export default class PricingRules {
       let eveningRateType = "";
       let crossoverApplied = false;
 
-      const eveningStartTime = new Date(startTime);
+      const eveningStartTime = new Date(startDateTime); // Corrected
       eveningStartTime.setHours(17, 0, 0, 0);
 
-      const totalBookingHours = differenceInHours(endTime, startTime);
+      const totalBookingHours = differenceInHours(endDateTime, startDateTime); // Corrected
+
       const bookingCrossesEveningThreshold =
-        startTime < eveningStartTime && endTime > eveningStartTime;
+        startDateTime < eveningStartTime && endDateTime > eveningStartTime;
 
       // Full Day Logic
       if (dayRules.fullDay) {
@@ -518,11 +482,11 @@ export default class PricingRules {
         }
       } else {
         // Daytime Calculation
-        if (startTime < eveningStartTime && dayRules.daytime) {
+        if (startDateTime < eveningStartTime && dayRules.daytime) {
           const daytimeEndTime = bookingCrossesEveningThreshold
             ? eveningStartTime
-            : endTime;
-          daytimeHours = differenceInHours(daytimeEndTime, startTime);
+            : endDateTime;
+          daytimeHours = differenceInHours(daytimeEndTime, startDateTime); // Corrected
           daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
           daytimeRateType = dayRules.daytime.type;
 
@@ -540,8 +504,8 @@ export default class PricingRules {
         }
 
         // Evening Calculation
-        if (endTime > eveningStartTime && dayRules.evening) {
-          eveningHours = differenceInHours(endTime, eveningStartTime);
+        if (endDateTime > eveningStartTime && dayRules.evening) {
+          eveningHours = differenceInHours(endDateTime, eveningStartTime); // Corrected
           eveningRate = dayRules.evening[isPrivate ? "private" : "public"];
           eveningRateType = dayRules.evening.type;
 
@@ -590,8 +554,6 @@ export default class PricingRules {
         (sum, cost) => sum + (Number(cost.cost) || 0),
         0
       );
-      // console.log("Daytime Description:", formattedDaytimeDescription);
-      // console.log("Evening Description:", formattedEveningDescription);
 
       estimates.push({
         roomSlug,
@@ -635,11 +597,6 @@ export default class PricingRules {
       0
     );
     slotTotal += perSlotCostsTotal;
-    // console.log("calculatePrice result:", {
-    //   estimates,
-    //   perSlotCosts,
-    //   slotTotal,
-    // });
 
     return { estimates, perSlotCosts, slotTotal };
   }
