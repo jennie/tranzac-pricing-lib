@@ -390,8 +390,8 @@ export default class PricingRules {
   }> {
     // Validate the input booking object
     if (
-      !booking.startTime?.time ||
-      !booking.endTime?.time ||
+      !booking.startTime ||
+      !booking.endTime ||
       !booking.roomSlugs ||
       booking.roomSlugs.length === 0
     ) {
