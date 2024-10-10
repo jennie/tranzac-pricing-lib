@@ -388,7 +388,6 @@ export default class PricingRules {
     perSlotCosts: any[];
     slotTotal: number;
   }> {
-    console.log("========================Booking in calculatePrice:", booking);
     if (
       !booking.startTime ||
       !booking.endTime ||
