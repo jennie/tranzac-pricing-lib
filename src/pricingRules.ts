@@ -389,10 +389,9 @@ export default class PricingRules {
     slotTotal: number;
   }> {
     console.log("========================Booking in calculatePrice:", booking);
-    // Validate the input booking object
     if (
-      !booking.startTime?.time ||
-      !booking.endTime?.time ||
+      !booking.startTime ||
+      !booking.endTime ||
       !booking.roomSlugs ||
       booking.roomSlugs.length === 0
     ) {
