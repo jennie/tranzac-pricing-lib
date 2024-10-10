@@ -411,14 +411,10 @@ export default class PricingRules {
       date,
       rooms,
     } = booking;
-
     const estimates: any[] = [];
-
-    // Ensure startTime and endTime are valid before using them
     if (!startTime?.time || !endTime?.time) {
       throw new Error("startTime or endTime is missing or invalid");
     }
-
     const startDateTime = toZonedTime(
       parseISO(startTime.time),
       TORONTO_TIMEZONE
