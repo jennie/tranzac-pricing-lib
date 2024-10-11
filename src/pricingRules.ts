@@ -414,22 +414,14 @@ export default class PricingRules {
     if (!startTime?.time || !endTime?.time) {
       throw new Error("startTime or endTime is missing or invalid");
     }
-    const startDateTime =
-      typeof booking.startTime === "string"
-        ? new Date(booking.startTime)
-        : toZonedTime(parseISO(booking.startTime.time), TORONTO_TIMEZONE);
-    const endDateTime =
-      typeof booking.endTime === "string"
-        ? new Date(booking.endTime)
-        : toZonedTime(parseISO(booking.endTime.time), TORONTO_TIMEZONE);
-
-    if (!isValid(startDateTime) || !isValid(endDateTime)) {
-      console.error("Invalid start or end time in booking data:", {
-        startTime: booking.startTime,
-        endTime: booking.endTime,
-      });
-      throw new Error("Invalid start or end time in booking data");
-    }
+    const startDateTime = toZonedTime(
+      parseISO(booking.startTime.time),
+      TORONTO_TIMEZONE
+    );
+    const endDateTime = toZonedTime(
+      parseISO(booking.endTime.time),
+      TORONTO_TIMEZONE
+    );
 
     const currentDay = format(startDateTime, "EEEE", {
       timeZone: TORONTO_TIMEZONE,
