@@ -410,6 +410,9 @@ export default class PricingRules {
       date,
       rooms,
     } = booking;
+    console.log("Booking in calculatePrice:", booking);
+    console.log("Start Time:", startTime);
+    console.log("End Time:", endTime);
     const estimates: any[] = [];
     if (!startTime?.time || !endTime?.time) {
       throw new Error("startTime or endTime is missing or invalid");
