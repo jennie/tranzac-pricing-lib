@@ -414,9 +414,7 @@ export default class PricingRules {
     console.log("Start Time:", startTime);
     console.log("End Time:", endTime);
     const estimates: any[] = [];
-    if (!startTime?.time || !endTime?.time) {
-      throw new Error("startTime or endTime is missing or invalid");
-    }
+
     const startDateTime = toZonedTime(
       parseISO(booking.startTime.time),
       TORONTO_TIMEZONE
@@ -616,11 +614,6 @@ export default class PricingRules {
       expectedAttendance,
       rooms,
     } = booking;
-
-    // Ensure startTime and endTime are valid before using them
-    if (!startTime?.time || !endTime?.time) {
-      throw new Error("startTime or endTime is missing or invalid");
-    }
 
     let perSlotCosts = [];
     let additionalCosts = [];
