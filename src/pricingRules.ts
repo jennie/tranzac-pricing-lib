@@ -330,7 +330,7 @@ export default class PricingRules {
     if (!roomSlugs || roomSlugs.length === 0) {
       throw new Error("Room slugs are undefined or empty in booking");
     }
-
+    console.log("===================Start Time in prepareBooking:", startTime);
     // Use startTime.time and endTime.time
     const startDateTime = toZonedTime(
       parseISO(startTime.time),
