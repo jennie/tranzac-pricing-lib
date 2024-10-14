@@ -18,12 +18,8 @@ interface Booking {
   expectedAttendance?: number;
   roomSlugs: string[];
   rooms?: RoomBooking[];
-  startTime: {
-    time: string;
-  };
-  endTime: {
-    time: string;
-  };
+  startTime: string;
+  endTime: string;
   date?: string;
   costItems?: any[];
 }
@@ -270,8 +266,8 @@ export default class PricingRules {
             costEstimates.push({
               id: booking.id || uuidv4(), // Use original booking id
               date: new Date(date), // Use `date` derived from `rentalDates` key
-              start: new Date(preparedBooking.startTime.time),
-              end: new Date(preparedBooking.endTime.time),
+              start: new Date(preparedBooking.startTime),
+              end: new Date(preparedBooking.endTime),
               estimates: formattedEstimates,
               perSlotCosts: formattedPerSlotCosts,
               costItems: booking.costItems || [], // Use costItems from original booking
@@ -332,11 +328,8 @@ export default class PricingRules {
     }
     console.log("===================Start Time in prepareBooking:", startTime);
     // Use startTime.time and endTime.time
-    const startDateTime = toZonedTime(
-      parseISO(startTime.time),
-      TORONTO_TIMEZONE
-    );
-    const endDateTime = toZonedTime(parseISO(endTime.time), TORONTO_TIMEZONE);
+    const startDateTime = toZonedTime(parseISO(startTime), TORONTO_TIMEZONE);
+    const endDateTime = toZonedTime(parseISO(endTime), TORONTO_TIMEZONE);
 
     if (!isValid(startDateTime) || !isValid(endDateTime)) {
       console.error("Invalid start or end time in booking data:", {
@@ -416,11 +409,11 @@ export default class PricingRules {
     const estimates: any[] = [];
 
     const startDateTime = toZonedTime(
-      parseISO(booking.startTime.time),
+      parseISO(booking.startTime),
       TORONTO_TIMEZONE
     );
     const endDateTime = toZonedTime(
-      parseISO(booking.endTime.time),
+      parseISO(booking.endTime),
       TORONTO_TIMEZONE
     );
 
@@ -618,11 +611,11 @@ export default class PricingRules {
     let perSlotCosts = [];
     let additionalCosts = [];
 
-    const venueOpeningTime = new Date(startTime.time);
+    const venueOpeningTime = new Date(startTime);
     venueOpeningTime.setHours(18, 0, 0, 0);
 
-    const bookingStartTime = new Date(startTime.time);
-    const bookingEndTime = new Date(endTime.time);
+    const bookingStartTime = new Date(startTime);
+    const bookingEndTime = new Date(endTime);
 
     // const isSouthernCrossExempt =
     //   roomSlugs.includes("southern-cross") &&
@@ -687,8 +680,8 @@ export default class PricingRules {
         );
         if (doorStaffConfig) {
           const hours = differenceInHours(
-            parseISO(endTime.time),
-            parseISO(startTime.time)
+            parseISO(endTime),
+            parseISO(startTime)
           );
           const doorStaffCost = Number(doorStaffConfig.cost) * Number(hours);
           perSlotCosts.push({
