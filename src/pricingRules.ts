@@ -541,7 +541,6 @@ export default class PricingRules {
         (sum, cost) => sum + (Number(cost.cost) || 0),
         0
       );
-
       estimates.push({
         roomSlug,
         basePrice,
