@@ -535,7 +535,7 @@ export default class PricingRules {
 
       slotTotal += basePrice;
       const roomAdditionalCosts = additionalCosts.filter(
-        (cost: AdditionalCost) => cost.roomSlug === roomSlug
+        (cost) => cost.roomSlug === roomSlug
       );
       const roomAdditionalCostsTotal = roomAdditionalCosts.reduce(
         (sum, cost) => sum + (Number(cost.cost) || 0),
@@ -613,12 +613,9 @@ export default class PricingRules {
     } = booking;
 
     let perSlotCosts = [];
-    let additionalCosts: {
-      customLineItems?: any[];
-      [key: string]: any;
-    } = {};
+    const additionalCosts: any[] = [];
+
     let customLineItems = []; // New array for custom line items
-    additionalCosts.customLineItems = [];
 
     const venueOpeningTime = new Date(startTime);
     venueOpeningTime.setHours(18, 0, 0, 0);
