@@ -387,13 +387,27 @@ export default class PricingRules {
       !booking.roomSlugs ||
       booking.roomSlugs.length === 0
     ) {
+      console.error("Booking is missing required fields:", {
+        startTime: booking.startTime,
+        endTime: booking.endTime,
+        roomSlugs: booking.roomSlugs,
+      });
       throw new Error(
         "Booking data is missing required fields:" +
           JSON.stringify(booking, null, 2)
       );
     }
 
-    const { roomSlugs, startTime, endTime, isPrivate } = booking;
+    const {
+      roomSlugs,
+      startTime,
+      endTime,
+      isPrivate,
+      expectedAttendance,
+      resources,
+      date,
+      rooms,
+    } = booking;
     console.log("Booking in calculatePrice:", booking);
     console.log("Start Time:", startTime);
     console.log("End Time:", endTime);
