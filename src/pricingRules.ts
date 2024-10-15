@@ -393,16 +393,7 @@ export default class PricingRules {
       );
     }
 
-    const {
-      roomSlugs,
-      startTime,
-      endTime,
-      isPrivate,
-      expectedAttendance,
-      resources,
-      date,
-      rooms,
-    } = booking;
+    const { roomSlugs, startTime, endTime, isPrivate } = booking;
     console.log("Booking in calculatePrice:", booking);
     console.log("Start Time:", startTime);
     console.log("End Time:", endTime);
