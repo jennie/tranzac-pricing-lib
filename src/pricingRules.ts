@@ -370,7 +370,7 @@ export default class PricingRules {
     estimates: any[];
     perSlotCosts: any[];
     slotTotal: number;
-    slotCustomLineItems: any[]; // NEW: Added to return type
+    slotCustomLineItems: any[];
   }> {
     if (
       !booking.startTime ||
@@ -399,8 +399,6 @@ export default class PricingRules {
 
     const estimates: any[] = [];
     let slotTotal = 0;
-    // NEW: Initialize slotCustomLineItems array
-    const slotCustomLineItems: any[] = [];
 
     const startDateTime = toZonedTime(parseISO(startTime), TORONTO_TIMEZONE);
     const endDateTime = toZonedTime(parseISO(endTime), TORONTO_TIMEZONE);
@@ -409,17 +407,10 @@ export default class PricingRules {
       timeZone: TORONTO_TIMEZONE,
     });
 
-    // CHANGED: Destructure customLineItems from calculateAdditionalCosts result
-    const { perSlotCosts, additionalCosts } =
+    const { perSlotCosts, additionalCosts, customLineItems } =
       await this.calculateAdditionalCosts(booking);
 
-    // NEW: Add customLineItems to slotCustomLineItems if they exist
-    if (
-      additionalCosts.customLineItems &&
-      additionalCosts.customLineItems.length > 0
-    ) {
-      slotCustomLineItems.push(...additionalCosts.customLineItems);
-    }
+    const slotCustomLineItems = customLineItems;
 
     for (const roomSlug of roomSlugs) {
       if (!this.rules) throw new Error("Rules are not initialized");
@@ -543,7 +534,7 @@ export default class PricingRules {
       });
 
       slotTotal += basePrice;
-      const roomAdditionalCosts: AdditionalCost[] = additionalCosts.filter(
+      const roomAdditionalCosts = additionalCosts.filter(
         (cost: AdditionalCost) => cost.roomSlug === roomSlug
       );
       const roomAdditionalCostsTotal = roomAdditionalCosts.reduce(
@@ -604,16 +595,13 @@ export default class PricingRules {
     );
     slotTotal += perSlotCostsTotal;
 
-    // CHANGED: Return slotCustomLineItems along with other data
     return { estimates, perSlotCosts, slotTotal, slotCustomLineItems };
   }
 
   async calculateAdditionalCosts(booking: any): Promise<{
     perSlotCosts: any[];
-    additionalCosts: {
-      customLineItems?: any[];
-      [key: string]: any;
-    };
+    additionalCosts: any[];
+    customLineItems: any[];
   }> {
     const {
       resources,
@@ -736,6 +724,11 @@ export default class PricingRules {
     //   "calculateAdditionalCosts - Result:",
     //   JSON.stringify({ perSlotCosts, additionalCosts }, null, 2)
     // );
+    const result = { perSlotCosts, additionalCosts, customLineItems };
+    console.log(
+      "calculateAdditionalCosts result:",
+      JSON.stringify(result, null, 2)
+    );
 
     return {
       perSlotCosts: perSlotCosts.map((cost) => ({
@@ -745,6 +738,10 @@ export default class PricingRules {
       additionalCosts: additionalCosts.map((cost: AdditionalCost) => ({
         ...cost,
         id: cost.id || uuidv4(),
+      })),
+      customLineItems: customLineItems.map((item) => ({
+        ...item,
+        id: item.id || uuidv4(),
       })),
     };
   }
