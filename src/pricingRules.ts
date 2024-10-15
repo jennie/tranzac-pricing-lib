@@ -35,6 +35,8 @@ interface RoomBooking {
 }
 
 interface AdditionalCost {
+  id?: string; // Add the id property
+  roomSlug: string;
   description: string;
   subDescription?: string;
   cost: number;
@@ -134,6 +136,7 @@ export default class PricingRules {
 
   async getPrice(data: any): Promise<{
     costEstimates: any[];
+    customLineItems: Record<string, any[]>; // NEW: Added to return type
     grandTotal: number;
     tax: number;
     totalWithTax: number;
@@ -142,7 +145,8 @@ export default class PricingRules {
       await this.initialize();
       const costEstimates = [];
       let grandTotal = 0;
-      // console.log("Data received in getPrice:", JSON.stringify(data, null, 2));
+      const customLineItems: Record<string, any[]> = {}; // NEW: Added to store custom line items
+
       if (!data.rentalDates || typeof data.rentalDates !== "object") {
         console.error("Invalid rentalDates structure:", data.rentalDates);
         throw new Error("rentalDates is not defined or not an object.");
@@ -161,40 +165,22 @@ export default class PricingRules {
         }
 
         for (const booking of bookings as any[]) {
-          // console.log("Booking in getPrice:", booking);
           let bookingTotal = 0;
-          // console.log(
-          //   "Inside getPrice - additionalCosts:",
-          //   booking.rooms[0].additionalCosts
-          // );
-
-          const { estimates, perSlotCosts, slotTotal } =
-            await this.calculatePrice(booking as Booking);
-
-          // for (const estimate of estimates) {
-          //   console.log("Estimate additionalCosts:", estimate.additionalCosts);
-          //   bookingTotal += estimate.totalCost;
-          // }
 
           try {
-            // Use preparedBooking for validated and adjusted data`
             const preparedBooking: Booking =
               this.prepareBookingForPricing(booking);
 
-            // console.log(
-            //   "Prepared booking for pricing:",
-            //   preparedBooking.rooms?.[0]?.additionalCosts
-            // );
-            const { estimates, perSlotCosts, slotTotal } =
+            // CHANGED: Destructure slotCustomLineItems from calculatePrice result
+            const { estimates, perSlotCosts, slotTotal, slotCustomLineItems } =
               await this.calculatePrice({
                 ...preparedBooking,
                 date,
                 resources: preparedBooking.resources || [],
-                isPrivate: booking.private || false, // Use original booking's isPrivate
+                isPrivate: booking.private || false,
                 expectedAttendance:
                   Number(preparedBooking.expectedAttendance) || 0,
               });
-            // console.log("Estimates after calculatePrice:", estimates);
 
             const formattedEstimates = estimates.map((estimate) => ({
               roomSlug: estimate.roomSlug || "",
@@ -231,7 +217,7 @@ export default class PricingRules {
               eveningCostItem: estimate.eveningCostItem,
               fullDayCostItem: estimate.fullDayCostItem,
             }));
-            // console.log("Formatted Estimates in getPrice:", formattedEstimates);
+
             const formattedPerSlotCosts = perSlotCosts.map((cost) => ({
               description: cost.description,
               subDescription: cost.subDescription,
@@ -240,8 +226,6 @@ export default class PricingRules {
 
             const estimateTotal = formattedEstimates.reduce(
               (total, estimate) => {
-                // console.log(`Estimate:`, estimate);
-
                 const additionalCostsTotal = estimate.additionalCosts.reduce(
                   (sum: any, cost: { cost: any }) =>
                     sum + (typeof cost.cost === "number" ? cost.cost : 0),
@@ -260,27 +244,24 @@ export default class PricingRules {
 
             const totalForThisBooking = estimateTotal + perSlotCostsTotal;
 
-            // Accumulate the booking total
-            for (const costItem of booking.costItems || []) {
-              bookingTotal += costItem.cost;
-            }
-            // console.log("Formatted perSlotCosts:", formattedPerSlotCosts);
-
-            // Push to costEstimates
             costEstimates.push({
-              id: booking.id || uuidv4(), // Use original booking id
-              date: new Date(date), // Use `date` derived from `rentalDates` key
+              id: booking.id || uuidv4(),
+              date: new Date(date),
               start: new Date(preparedBooking.startTime),
               end: new Date(preparedBooking.endTime),
               estimates: formattedEstimates,
               perSlotCosts: formattedPerSlotCosts,
-              costItems: booking.costItems || [], // Use costItems from original booking
               slotTotal: slotTotal,
               roomSlugs: preparedBooking.roomSlugs,
-              isPrivate: booking.private, // Use `isPrivate` from original booking
+              isPrivate: booking.private,
               resources: preparedBooking.resources,
               expectedAttendance: preparedBooking.expectedAttendance,
             });
+
+            // NEW: Store slotCustomLineItems if they exist
+            if (slotCustomLineItems && slotCustomLineItems.length > 0) {
+              customLineItems[booking.id] = slotCustomLineItems;
+            }
 
             grandTotal += slotTotal;
           } catch (error: any) {
@@ -304,15 +285,19 @@ export default class PricingRules {
 
       const tax = this.calculateTax(grandTotal);
       const totalWithTax = this.calculateTotalWithTax(grandTotal);
-      // console.log(
-      //   "Cost estimates before returning from getPrice:",
-      //   costEstimates
-      // );
 
-      return { costEstimates, grandTotal, tax, totalWithTax };
+      // CHANGED: Added customLineItems to the return object
+      return { costEstimates, customLineItems, grandTotal, tax, totalWithTax };
     } catch (error: any) {
       console.error("Error in getPrice method:", error);
-      return { costEstimates: [], grandTotal: 0, tax: 0, totalWithTax: 0 };
+      // CHANGED: Added customLineItems to the error return
+      return {
+        costEstimates: [],
+        customLineItems: {},
+        grandTotal: 0,
+        tax: 0,
+        totalWithTax: 0,
+      };
     }
   }
 
@@ -385,6 +370,7 @@ export default class PricingRules {
     estimates: any[];
     perSlotCosts: any[];
     slotTotal: number;
+    slotCustomLineItems: any[]; // NEW: Added to return type
   }> {
     if (
       !booking.startTime ||
@@ -410,28 +396,30 @@ export default class PricingRules {
       date,
       rooms,
     } = booking;
-    console.log("Booking in calculatePrice:", booking);
-    console.log("Start Time:", startTime);
-    console.log("End Time:", endTime);
-    const estimates: any[] = [];
 
-    const startDateTime = toZonedTime(
-      parseISO(booking.startTime),
-      TORONTO_TIMEZONE
-    );
-    const endDateTime = toZonedTime(
-      parseISO(booking.endTime),
-      TORONTO_TIMEZONE
-    );
+    const estimates: any[] = [];
+    let slotTotal = 0;
+    // NEW: Initialize slotCustomLineItems array
+    const slotCustomLineItems: any[] = [];
+
+    const startDateTime = toZonedTime(parseISO(startTime), TORONTO_TIMEZONE);
+    const endDateTime = toZonedTime(parseISO(endTime), TORONTO_TIMEZONE);
 
     const currentDay = format(startDateTime, "EEEE", {
       timeZone: TORONTO_TIMEZONE,
     });
 
+    // CHANGED: Destructure customLineItems from calculateAdditionalCosts result
     const { perSlotCosts, additionalCosts } =
       await this.calculateAdditionalCosts(booking);
 
-    let slotTotal = 0;
+    // NEW: Add customLineItems to slotCustomLineItems if they exist
+    if (
+      additionalCosts.customLineItems &&
+      additionalCosts.customLineItems.length > 0
+    ) {
+      slotCustomLineItems.push(...additionalCosts.customLineItems);
+    }
 
     for (const roomSlug of roomSlugs) {
       if (!this.rules) throw new Error("Rules are not initialized");
@@ -461,7 +449,7 @@ export default class PricingRules {
       let eveningRateType = "";
       let crossoverApplied = false;
 
-      const eveningStartTime = new Date(startDateTime); // Corrected
+      const eveningStartTime = new Date(startDateTime);
       eveningStartTime.setHours(17, 0, 0, 0);
 
       const totalBookingHours = differenceInHours(endDateTime, startDateTime);
@@ -555,8 +543,8 @@ export default class PricingRules {
       });
 
       slotTotal += basePrice;
-      const roomAdditionalCosts = additionalCosts.filter(
-        (cost) => cost.roomSlug === roomSlug
+      const roomAdditionalCosts: AdditionalCost[] = additionalCosts.filter(
+        (cost: AdditionalCost) => cost.roomSlug === roomSlug
       );
       const roomAdditionalCostsTotal = roomAdditionalCosts.reduce(
         (sum, cost) => sum + (Number(cost.cost) || 0),
@@ -609,16 +597,24 @@ export default class PricingRules {
         isFullDay: !!dayRules.fullDay,
       });
     }
+
     const perSlotCostsTotal = perSlotCosts.reduce(
       (sum, cost) => sum + (Number(cost.cost) || 0),
       0
     );
     slotTotal += perSlotCostsTotal;
 
-    return { estimates, perSlotCosts, slotTotal };
+    // CHANGED: Return slotCustomLineItems along with other data
+    return { estimates, perSlotCosts, slotTotal, slotCustomLineItems };
   }
 
-  async calculateAdditionalCosts(booking: any) {
+  async calculateAdditionalCosts(booking: any): Promise<{
+    perSlotCosts: any[];
+    additionalCosts: {
+      customLineItems?: any[];
+      [key: string]: any;
+    };
+  }> {
     const {
       resources,
       roomSlugs,
@@ -630,7 +626,12 @@ export default class PricingRules {
     } = booking;
 
     let perSlotCosts = [];
-    let additionalCosts = [];
+    let additionalCosts: {
+      customLineItems?: any[];
+      [key: string]: any;
+    } = {};
+    let customLineItems = []; // New array for custom line items
+    additionalCosts.customLineItems = [];
 
     const venueOpeningTime = new Date(startTime);
     venueOpeningTime.setHours(18, 0, 0, 0);
@@ -638,58 +639,46 @@ export default class PricingRules {
     const bookingStartTime = new Date(startTime);
     const bookingEndTime = new Date(endTime);
 
-    // const isSouthernCrossExempt =
-    //   roomSlugs.includes("southern-cross") &&
-    //   bookingStartTime.getHours() < 16 &&
-    //   bookingEndTime.getHours() >= 11;
-
+    // Early Open Staff calculation (now a required cost)
     if (bookingStartTime < venueOpeningTime) {
-      let earlyOpenEndTime = venueOpeningTime; // Default to venue opening time
-
-      // Check for Southern Cross exemption
-      // if (isSouthernCrossExempt) {
-      //   if (bookingStartTime.getHours() < 11) {
-      //     earlyOpenEndTime = new Date(start);
-      //     earlyOpenEndTime.setHours(11, 0, 0, 0);
-      //   } else if (bookingEndTime.getHours() > 16) {
-      //     earlyOpenEndTime = new Date(start);
-      //     earlyOpenEndTime.setHours(venueOpeningTime.getHours(), 0, 0, 0);
-      //   } else {
-      //     // Fully exempt from early open fee if completely within 11 am - 4 pm
-      //     earlyOpenEndTime = bookingStartTime;
-      //   }
-      // }
-
-      // Calculate early open hours only if there's a valid period before earlyOpenEndTime
       const earlyOpenHours = Math.ceil(
-        differenceInHours(earlyOpenEndTime, bookingStartTime)
+        differenceInHours(venueOpeningTime, bookingStartTime)
       );
 
       if (earlyOpenHours > 0) {
         perSlotCosts.push({
+          id: uuidv4(),
           description: `Early Open Staff (${earlyOpenHours} hours)`,
           subDescription: "Additional staff for early opening",
           cost: earlyOpenHours * 30,
+          isRequired: true,
         });
       }
     }
 
+    // Security for parking lot (now a pre-populated custom line item)
     if (roomSlugs.includes("parking-lot")) {
-      perSlotCosts.push({
+      customLineItems.push({
+        id: uuidv4(),
         description: "Security (required)",
         subDescription: "Will quote separately",
         cost: 0,
+        isRequired: true,
       });
     }
+
+    // Cleaning fee for food (now a required cost)
     if (resources.includes("food")) {
       const foodConfig = this.additionalCosts?.resources?.find(
         (r) => r.id === "food"
       );
       if (foodConfig) {
         perSlotCosts.push({
+          id: uuidv4(),
           description: foodConfig.description,
           subDescription: foodConfig.subDescription,
           cost: foodConfig.cost,
+          isRequired: true,
         });
       }
     }
@@ -707,7 +696,7 @@ export default class PricingRules {
           const doorStaffCost = Number(doorStaffConfig.cost) * Number(hours);
           perSlotCosts.push({
             description: `Door Staff (${hours} hours)`,
-            subDescription: "Dedicated staff for entrance management",
+            subDescription: "Dedicated staff at the main entrance",
             cost: doorStaffCost,
           });
         }
@@ -749,8 +738,11 @@ export default class PricingRules {
     // );
 
     return {
-      perSlotCosts: perSlotCosts.map((cost) => ({ ...cost, id: uuidv4() })),
-      additionalCosts: additionalCosts.map((cost) => ({
+      perSlotCosts: perSlotCosts.map((cost) => ({
+        ...cost,
+        id: cost.id || uuidv4(),
+      })),
+      additionalCosts: additionalCosts.map((cost: AdditionalCost) => ({
         ...cost,
         id: cost.id || uuidv4(),
       })),
