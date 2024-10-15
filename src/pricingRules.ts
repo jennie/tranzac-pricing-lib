@@ -9,7 +9,7 @@ import {
 
 import { AdditionalCosts } from "./models/additionalCosts.schema"; // Import the interface
 
-import { formatISO, parseISO, isValid, differenceInHours } from "date-fns";
+import { formatISO, parseISO, isValid, differenceInHours, sub } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
 
 interface Booking {
@@ -31,6 +31,7 @@ interface RoomBooking {
   additionalCosts?: AdditionalCost[];
   daytimeCostItem: any;
   eveningCostItem: any;
+  fullDayCostItem: any;
 }
 
 interface AdditionalCost {
@@ -50,6 +51,8 @@ interface BookingRates {
   eveningRateType?: string;
   crossoverApplied?: boolean;
   label?: string;
+  fullDayPrice?: number;
+  isFullDay?: boolean;
 }
 
 const TORONTO_TIMEZONE = "America/Toronto";
@@ -226,6 +229,7 @@ export default class PricingRules {
               eveningDescription: estimate.eveningDescription || "",
               daytimeCostItem: estimate.daytimeCostItem,
               eveningCostItem: estimate.eveningCostItem,
+              fullDayCostItem: estimate.fullDayCostItem,
             }));
             // console.log("Formatted Estimates in getPrice:", formattedEstimates);
             const formattedPerSlotCosts = perSlotCosts.map((cost) => ({
@@ -348,6 +352,7 @@ export default class PricingRules {
         ...room,
         daytimeCostItem: room.daytimeCostItem || null,
         eveningCostItem: room.eveningCostItem || null,
+        fullDayCostItem: room.fullDayCostItem || null,
       })),
     };
   }
@@ -392,10 +397,7 @@ export default class PricingRules {
         endTime: booking.endTime,
         roomSlugs: booking.roomSlugs,
       });
-      throw new Error(
-        "Booking data is missing required fields:" +
-          JSON.stringify(booking, null, 2)
-      );
+      throw new Error("booking:" + JSON.stringify(booking, null, 2));
     }
 
     const {
@@ -547,6 +549,11 @@ export default class PricingRules {
         eveningRateType,
       });
 
+      const formattedFullDayDescription = this.generateRateDescription({
+        isFullDay: true,
+        fullDayPrice,
+      });
+
       slotTotal += basePrice;
       const roomAdditionalCosts = additionalCosts.filter(
         (cost) => cost.roomSlug === roomSlug
@@ -586,6 +593,15 @@ export default class PricingRules {
                 description: "Evening Hours",
                 subDescription: formattedEveningDescription || "",
                 cost: eveningPrice,
+              }
+            : null,
+        fullDayCostItem:
+          fullDayPrice > 0
+            ? {
+                id: uuidv4(),
+                description: "Full Day Rate",
+                subDescription: formattedFullDayDescription || "",
+                cost: fullDayPrice,
               }
             : null,
         minimumHours: dayRules.minimumHours,
@@ -782,11 +798,15 @@ export default class PricingRules {
     eveningRate,
     eveningRateType,
     crossoverApplied,
+    fullDayPrice,
+    isFullDay,
   }: BookingRates): string {
     // Ensure default values for missing properties
     let rateDescription = "";
 
-    if ((daytimeHours ?? 0) > 0) {
+    if (isFullDay) {
+      rateDescription = `$${fullDayPrice}/day`;
+    } else if ((daytimeHours ?? 0) > 0) {
       const hourlyRate = ((daytimePrice ?? 0) / (daytimeHours ?? 0)).toFixed(2);
       rateDescription = `$${hourlyRate}/hour`;
       if (crossoverApplied) {
