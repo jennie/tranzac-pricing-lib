@@ -1,6 +1,6 @@
 {
   "name": "@tranzac/pricing-lib",
-  "version": "1.2.45",
+  "version": "1.2.46",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
