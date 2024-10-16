@@ -197,7 +197,6 @@ export default class PricingRules {
             const preparedBooking: Booking =
               this.prepareBookingForPricing(booking);
 
-            // CHANGED: Destructure slotCustomLineItems from calculatePrice result
             const { estimates, perSlotCosts, slotTotal, slotCustomLineItems } =
               await this.calculatePrice({
                 ...preparedBooking,
@@ -282,6 +281,7 @@ export default class PricingRules {
               isPrivate: booking.private,
               resources: preparedBooking.resources,
               expectedAttendance: preparedBooking.expectedAttendance,
+              customLineItems: slotCustomLineItems,
             });
 
             // NEW: Store slotCustomLineItems if they exist
@@ -436,7 +436,7 @@ export default class PricingRules {
       await this.calculateAdditionalCosts(booking);
 
     const slotCustomLineItems = customLineItems;
-    if (resources.includes("security") || roomSlugs.includes("parking_lot")) {
+    if (resources.includes("security") || roomSlugs.includes("parking-lot")) {
       const securityConfig = this.additionalCosts?.resources.find(
         (r) => r.id === "security"
       );
@@ -444,10 +444,11 @@ export default class PricingRules {
         customLineItems.push({
           id: uuidv4(),
           description: securityConfig.description,
-          subDescription: securityConfig.subDescription,
-          cost: 0, // Always start at 0
+          subDescription:
+            securityConfig.subDescription || "Will quote separately",
+          cost: 0,
           isEditable: true,
-          isRequired: roomSlugs.includes("parking_lot"),
+          isRequired: roomSlugs.includes("parking-lot"),
         });
       }
     }
@@ -657,7 +658,7 @@ export default class PricingRules {
     );
     let perSlotCosts: AdditionalCost[] = [];
     let additionalCosts: AdditionalCost[] = [];
-    const customLineItems: any[] = []; // Initialize customLineItems
+    const customLineItems: any[] = [];
 
     // Early Open Staff calculation
     const venueOpeningTime = new Date(startTime);
