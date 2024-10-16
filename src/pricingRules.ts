@@ -206,6 +206,10 @@ export default class PricingRules {
                 expectedAttendance:
                   Number(preparedBooking.expectedAttendance) || 0,
               });
+            console.log(
+              "slotCustomLineItems in getPrice:",
+              slotCustomLineItems
+            );
 
             const formattedEstimates = estimates.map((estimate) => ({
               roomSlug: estimate.roomSlug || "",
@@ -311,7 +315,8 @@ export default class PricingRules {
 
       const tax = this.calculateTax(grandTotal);
       const totalWithTax = this.calculateTotalWithTax(grandTotal);
-
+      console.log("Final costEstimates:", costEstimates);
+      console.log("Final customLineItems:", customLineItems);
       // CHANGED: Added customLineItems to the return object
       return { costEstimates, customLineItems, grandTotal, tax, totalWithTax };
     } catch (error: any) {
@@ -434,13 +439,24 @@ export default class PricingRules {
 
     const { perSlotCosts, additionalCosts, customLineItems } =
       await this.calculateAdditionalCosts(booking);
+    console.log(
+      "Custom line items from calculateAdditionalCosts:",
+      customLineItems
+    );
 
     const slotCustomLineItems = customLineItems;
+
+    console.log("Room slugs:", roomSlugs);
+    console.log("Resources:", resources);
+
+    // Handle security
     if (resources.includes("security") || roomSlugs.includes("parking-lot")) {
+      console.log("Security should be added");
       const securityConfig = this.additionalCosts?.resources.find(
         (r) => r.id === "security"
       );
       if (securityConfig) {
+        console.log("Security config found:", securityConfig);
         customLineItems.push({
           id: uuidv4(),
           description: securityConfig.description,
@@ -450,7 +466,11 @@ export default class PricingRules {
           isEditable: true,
           isRequired: roomSlugs.includes("parking-lot"),
         });
+      } else {
+        console.log("Security config not found in additional costs");
       }
+    } else {
+      console.log("Security not required for this booking");
     }
     for (const roomSlug of roomSlugs) {
       if (!this.rules) throw new Error("Rules are not initialized");
@@ -635,6 +655,7 @@ export default class PricingRules {
       0
     );
     slotTotal += perSlotCostsTotal;
+    console.log("Final slotCustomLineItems:", slotCustomLineItems);
 
     return { estimates, perSlotCosts, slotTotal, slotCustomLineItems };
   }
@@ -833,7 +854,9 @@ export default class PricingRules {
         }
       }
     }
-
+    console.log("Final perSlotCosts:", perSlotCosts);
+    console.log("Final additionalCosts:", additionalCosts);
+    console.log("Final customLineItems:", customLineItems);
     return { perSlotCosts, additionalCosts, customLineItems };
   }
 
