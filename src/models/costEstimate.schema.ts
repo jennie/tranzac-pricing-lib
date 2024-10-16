@@ -118,6 +118,16 @@ export const CostEstimateSchemaDefinition = {
             },
           ],
           perSlotCosts: [{ type: Object }],
+          customLineItems: [
+            {
+              id: String,
+              description: String,
+              subDescription: String,
+              cost: Number,
+              isEditable: Boolean,
+              isRequired: Boolean,
+            },
+          ],
           slotTotal: { type: Number, required: true },
         },
       ],
