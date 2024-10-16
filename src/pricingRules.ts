@@ -628,6 +628,7 @@ export default class PricingRules {
     const {
       resources,
       rooms,
+      roomSlugs,
       isPrivate = false,
       expectedAttendance = 0,
       startTime,
@@ -640,8 +641,7 @@ export default class PricingRules {
       throw new Error("Rooms are undefined in booking");
     }
     for (const room of rooms) {
-      const roomSlug = room.roomSlug;
-      const normalizedRoomSlug = roomSlug.replace(/-/g, "_");
+      const roomSlug = room.slug;
 
       let projectorIncluded = false;
 
@@ -650,7 +650,7 @@ export default class PricingRules {
         const backlineConfig = this.additionalCosts?.resources?.find(
           (r: any) => r.id === "backline"
         );
-        if (backlineConfig?.rooms?.[normalizedRoomSlug]?.includes_projector) {
+        if (backlineConfig?.rooms?.[roomSlug]?.includes_projector) {
           projectorIncluded = true;
         }
       }
@@ -658,7 +658,7 @@ export default class PricingRules {
       // Calculate resource-based costs
       for (const resource of resources) {
         const cost = this.calculateResourceCost(resource, {
-          roomSlug: normalizedRoomSlug,
+          roomSlug: roomSlug,
           isPrivate,
           expectedAttendance,
           startTime,
