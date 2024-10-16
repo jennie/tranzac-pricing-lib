@@ -13,7 +13,7 @@ import { formatISO, parseISO, isValid, differenceInHours, sub } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
 
 interface Booking {
-  resources?: string[];
+  resources: string[];
   isPrivate?: boolean;
   expectedAttendance?: number;
   roomSlugs: string[];
@@ -22,6 +22,15 @@ interface Booking {
   endTime: string;
   date?: string;
   costItems?: any[];
+}
+
+interface ResourceDetails {
+  roomSlug: string;
+  isPrivate: boolean;
+  expectedAttendance: number;
+  startTime: string;
+  endTime: string;
+  projectorIncluded: boolean;
 }
 
 interface RoomBooking {
@@ -57,6 +66,22 @@ interface BookingRates {
   isFullDay?: boolean;
 }
 
+interface BookingDetails {
+  resources: string[];
+  rooms: Array<{ roomSlug: string; additionalCosts?: any[] }>;
+  isPrivate?: boolean; // Make isPrivate optional
+  expectedAttendance?: number; // Make expectedAttendance optional
+  start: string;
+  end: string;
+}
+
+interface Cost {
+  description: string;
+  subDescription?: string;
+  cost: number;
+  roomSlug?: string; // Make roomSlug optional in the Cost interface
+  isRequired?: boolean;
+}
 const TORONTO_TIMEZONE = "America/Toronto";
 const HST_RATE = 0.13; // 13% HST rate
 
@@ -68,10 +93,9 @@ function formatCurrency(amount: number): string {
 }
 
 export default class PricingRules {
-  private additionalCosts: AdditionalCosts | null = null;
-  private rules: Record<string, any> | null = null;
-  private timePeriods: any[] | null = null;
-
+  private timePeriods: any[] | null;
+  private rules: Record<string, any> | null;
+  private additionalCosts: any;
   constructor() {
     this.timePeriods = null;
     this.rules = null;
@@ -272,8 +296,8 @@ export default class PricingRules {
             costEstimates.push({
               id: booking.id || uuidv4(),
               date: new Date(date),
-              start: new Date(booking.start),
-              end: new Date(booking.end),
+              start: new Date(booking.startTime),
+              end: new Date(booking.endTime),
               estimates: [],
               perSlotCosts: [],
               slotTotal: 0,
@@ -315,7 +339,6 @@ export default class PricingRules {
     if (!roomSlugs || roomSlugs.length === 0) {
       throw new Error("Room slugs are undefined or empty in booking");
     }
-    console.log("===================Start Time in prepareBooking:", startTime);
     // Use startTime.time and endTime.time
     const startDateTime = toZonedTime(parseISO(startTime), TORONTO_TIMEZONE);
     const endDateTime = toZonedTime(parseISO(endTime), TORONTO_TIMEZONE);
@@ -390,8 +413,8 @@ export default class PricingRules {
       roomSlugs,
       startTime,
       endTime,
-      isPrivate,
-      expectedAttendance,
+      isPrivate = false,
+      expectedAttendance = 0,
       resources,
       date,
       rooms,
@@ -597,162 +620,232 @@ export default class PricingRules {
     return { estimates, perSlotCosts, slotTotal, slotCustomLineItems };
   }
 
-  async calculateAdditionalCosts(booking: any): Promise<{
-    perSlotCosts: any[];
-    additionalCosts: any[];
-    customLineItems: any[];
+  async calculateAdditionalCosts(booking: Booking): Promise<{
+    perSlotCosts: Cost[];
+    additionalCosts: Cost[];
+    customLineItems: any[]; // Add customLineItems to the return type
   }> {
     const {
       resources,
-      roomSlugs,
+      rooms,
+      isPrivate = false,
+      expectedAttendance = 0,
       startTime,
       endTime,
-      isPrivate,
-      expectedAttendance,
-      rooms,
     } = booking;
+    const additionalCosts: Cost[] = [];
+    let perSlotCosts: Cost[] = [];
 
-    let perSlotCosts = [];
-    const additionalCosts: any[] = [];
-
-    let customLineItems = []; // New array for custom line items
-
-    const venueOpeningTime = new Date(startTime);
-    venueOpeningTime.setHours(18, 0, 0, 0);
-
-    const bookingStartTime = new Date(startTime);
-    const bookingEndTime = new Date(endTime);
-
-    // Early Open Staff calculation (now a required cost)
-    if (bookingStartTime < venueOpeningTime) {
-      const earlyOpenHours = Math.ceil(
-        differenceInHours(venueOpeningTime, bookingStartTime)
-      );
-
-      if (earlyOpenHours > 0) {
-        perSlotCosts.push({
-          id: uuidv4(),
-          description: `Early Open Staff (${earlyOpenHours} hours)`,
-          subDescription: "Additional staff for early opening",
-          cost: earlyOpenHours * 30,
-          isRequired: true,
-        });
-      }
+    if (!rooms) {
+      throw new Error("Rooms are undefined in booking");
     }
+    for (const room of rooms) {
+      const roomSlug = room.roomSlug;
+      const normalizedRoomSlug = roomSlug.replace(/-/g, "_");
 
-    // Security for parking lot (now a pre-populated custom line item)
-    if (roomSlugs.includes("parking-lot")) {
-      customLineItems.push({
-        id: uuidv4(),
-        description: "Security (required)",
-        subDescription: "Will quote separately",
-        cost: 0,
-        isRequired: true,
-      });
-    }
+      let projectorIncluded = false;
 
-    // Cleaning fee for food (now a required cost)
-    if (resources.includes("food")) {
-      const foodConfig = this.additionalCosts?.resources?.find(
-        (r) => r.id === "food"
-      );
-      if (foodConfig) {
-        perSlotCosts.push({
-          id: uuidv4(),
-          description: foodConfig.description,
-          subDescription: foodConfig.subDescription,
-          cost: foodConfig.cost,
-          isRequired: true,
-        });
-      }
-    }
-    // Door Staff calculation
-    if (resources.includes("door_staff")) {
-      if (this.additionalCosts?.resources) {
-        const doorStaffConfig = this.additionalCosts.resources.find(
-          (r) => r.id === "door_staff"
+      // Check if backline includes projector
+      if (resources.includes("backline")) {
+        const backlineConfig = this.additionalCosts?.resources?.find(
+          (r: any) => r.id === "backline"
         );
-        if (doorStaffConfig) {
-          const hours = differenceInHours(
-            parseISO(endTime),
-            parseISO(startTime)
-          );
-          const doorStaffCost = Number(doorStaffConfig.cost) * Number(hours);
-          perSlotCosts.push({
-            description: `Door Staff (${hours} hours)`,
-            subDescription: "Dedicated staff at the main entrance",
-            cost: doorStaffCost,
-          });
+        if (backlineConfig?.rooms?.[normalizedRoomSlug]?.includes_projector) {
+          projectorIncluded = true;
         }
       }
-    }
-    // Piano Tuning
-    if (resources.includes("piano_tuning")) {
-      const pianoTuningConfig = this.additionalCosts?.resources?.find(
-        (r) => r.id === "piano_tuning"
-      );
-      if (pianoTuningConfig) {
-        perSlotCosts.push({
-          description: "Piano Tuning",
-          subDescription: "One-time tuning service",
-          cost: pianoTuningConfig.cost,
-        });
-      }
-    }
 
-    // Process room-specific additional costs
-    for (const room of rooms) {
+      // Calculate resource-based costs
+      for (const resource of resources) {
+        const cost = this.calculateResourceCost(resource, {
+          roomSlug: normalizedRoomSlug,
+          isPrivate,
+          expectedAttendance,
+          startTime,
+          endTime,
+          projectorIncluded,
+        });
+        if (cost) {
+          if (Array.isArray(cost)) {
+            additionalCosts.push(...cost.map((c) => ({ ...c, roomSlug })));
+          } else {
+            additionalCosts.push({ ...cost, roomSlug });
+          }
+        }
+      }
+
+      // Add any pre-existing additional costs for the room
       if (room.additionalCosts && Array.isArray(room.additionalCosts)) {
-        // Filter out any door staff costs from room additional costs
-        const roomCosts = room.additionalCosts.filter(
-          (cost: any) => !cost.description.toLowerCase().includes("door staff")
-        );
         additionalCosts.push(
-          ...roomCosts.map((cost: any) => ({
+          ...room.additionalCosts.map((cost: any) => ({
             ...cost,
-            roomSlug: room.roomSlug,
+            roomSlug,
           }))
         );
       }
     }
-    for (const resource of resources) {
-      const resourceConfig = this.additionalCosts?.resources?.find(
-        (r) => r.id === resource
-      );
-      if (resourceConfig && resourceConfig.rooms) {
-        for (const room of rooms) {
-          const roomCost = resourceConfig.rooms[room.roomSlug];
-          if (roomCost) {
-            additionalCosts.push({
-              description: roomCost.description,
-              cost: roomCost.cost,
-              roomSlug: room.roomSlug,
-            });
-          }
+
+    // Calculate per-slot costs
+    perSlotCosts = this.calculatePerSlotCosts(booking);
+
+    // Add unique IDs to perSlotCosts
+    perSlotCosts = perSlotCosts.map((cost) => ({
+      id: uuidv4(),
+      ...cost,
+    }));
+
+    console.log(
+      "calculateAdditionalCosts - Result:",
+      JSON.stringify({ perSlotCosts, additionalCosts }, null, 2)
+    );
+    return { perSlotCosts, additionalCosts, customLineItems: [] }; // Ensure customLineItems is returned
+  }
+
+  calculateResourceCost(
+    resource: string,
+    details: ResourceDetails
+  ): Cost | Cost[] | null {
+    const {
+      roomSlug,
+      isPrivate,
+      expectedAttendance,
+      startTime,
+      endTime,
+      projectorIncluded,
+    } = details;
+    const resourceConfig = this.additionalCosts?.resources.find(
+      (r: any) => r.id === resource
+    );
+    if (!resourceConfig) return null;
+
+    let cost: number = resourceConfig.cost || 0;
+    let description: string = resourceConfig.description || "";
+    let subDescription: string = resourceConfig.subDescription || "";
+
+    switch (resource) {
+      case "food":
+        return {
+          description,
+          subDescription,
+          cost,
+        };
+
+      case "backline":
+        const roomSpecificCost = resourceConfig.rooms?.[roomSlug];
+        if (roomSpecificCost) {
+          cost = roomSpecificCost.cost || 0;
+          description = roomSpecificCost.description || description;
         }
+        return {
+          description,
+          subDescription,
+          cost,
+        };
+
+      case "bartender":
+        if (isPrivate && expectedAttendance > 100) {
+          return {
+            description,
+            subDescription: "Comped for large private event",
+            cost: 0,
+          };
+        } else {
+          const hours = differenceInHours(
+            parseISO(endTime),
+            parseISO(startTime)
+          );
+          cost = (resourceConfig.cost || 0) * hours;
+          return {
+            description,
+            subDescription,
+            cost,
+          };
+        }
+
+      case "projector":
+        if (projectorIncluded) {
+          return null; // Skip if projector is already included in backline
+        }
+        return {
+          description,
+          subDescription,
+          cost,
+        };
+
+      case "audio_tech":
+        const baseCost = resourceConfig.cost || 0;
+        const overtimeConfig = this.additionalCosts?.resources.find(
+          (r: any) => r.id === "audio_tech_overtime"
+        );
+        const totalHours = differenceInHours(
+          parseISO(endTime),
+          parseISO(startTime)
+        );
+        const regularHours = Math.min(totalHours, 7); // Only 7 hours max for base
+        const overtimeHours = Math.max(0, totalHours - 7); // Anything over 7 hours is overtime
+
+        const costs: Cost[] = [
+          {
+            description,
+            subDescription,
+            cost: baseCost, // Base cost for up to 7 hours is fixed at $275
+          },
+        ];
+
+        if (overtimeHours > 0 && overtimeConfig) {
+          const overtimeCost = (overtimeConfig.cost || 0) * overtimeHours;
+          costs.push({
+            description: overtimeConfig.description || "Overtime",
+            subDescription: overtimeConfig.subDescription || "",
+            cost: overtimeCost,
+          });
+        }
+
+        return costs;
+
+      default:
+        if (resourceConfig.type === "hourly") {
+          const hours = differenceInHours(
+            parseISO(endTime),
+            parseISO(startTime)
+          );
+          cost = (resourceConfig.cost || 0) * hours;
+        }
+        return {
+          description,
+          subDescription,
+          cost,
+        };
+    }
+  }
+
+  calculatePerSlotCosts(booking: Booking): Cost[] {
+    const perSlotCosts: Cost[] = [];
+    const { startTime, endTime } = booking;
+
+    // Early Open Staff calculation
+    const venueOpeningTime = new Date(startTime);
+    venueOpeningTime.setHours(18, 0, 0, 0);
+
+    if (new Date(startTime) < venueOpeningTime) {
+      const earlyOpenHours = Math.ceil(
+        differenceInHours(venueOpeningTime, new Date(startTime))
+      );
+      if (earlyOpenHours > 0) {
+        perSlotCosts.push({
+          description: `Early Open Staff (${earlyOpenHours} hours)`,
+          subDescription: "Additional staff for early opening",
+          cost: earlyOpenHours * 30,
+          isRequired: true,
+        } as Cost);
       }
     }
-    const result = { perSlotCosts, additionalCosts, customLineItems };
-    console.log(
-      "calculateAdditionalCosts result:",
-      JSON.stringify(result, null, 2)
-    );
 
-    return {
-      perSlotCosts: perSlotCosts.map((cost) => ({
-        ...cost,
-        id: cost.id || uuidv4(),
-      })),
-      additionalCosts: additionalCosts.map((cost: AdditionalCost) => ({
-        ...cost,
-        id: cost.id || uuidv4(),
-      })),
-      customLineItems: customLineItems.map((item) => ({
-        ...item,
-        id: item.id || uuidv4(),
-      })),
-    };
+    // Add any other per-slot costs here
+
+    return perSlotCosts;
   }
+
   calculatePeriodPrice(
     startTime: Date,
     endTime: Date,
