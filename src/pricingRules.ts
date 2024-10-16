@@ -626,8 +626,14 @@ export default class PricingRules {
     additionalCosts: AdditionalCost[];
     customLineItems: any[]; // Add this line
   }> {
-    const { resources, roomSlugs, start, end, isPrivate, expectedAttendance } =
-      booking;
+    const {
+      resources,
+      roomSlugs,
+      startTime,
+      endTime,
+      isPrivate,
+      expectedAttendance,
+    } = booking;
     console.log(
       "=============Booking in calculateAdditionalCosts:===============",
       booking
@@ -637,9 +643,9 @@ export default class PricingRules {
     const customLineItems: any[] = []; // Initialize customLineItems
 
     // Early Open Staff calculation
-    const venueOpeningTime = new Date(start);
+    const venueOpeningTime = new Date(startTime);
     venueOpeningTime.setHours(18, 0, 0, 0); // Assuming venue opens at 6 PM
-    const bookingStartTime = new Date(start);
+    const bookingStartTime = new Date(startTime);
 
     if (bookingStartTime < venueOpeningTime) {
       const earlyOpenHours = Math.ceil(
@@ -663,7 +669,10 @@ export default class PricingRules {
       }
     }
 
-    const bookingHours = differenceInHours(parseISO(end), parseISO(start));
+    const bookingHours = differenceInHours(
+      parseISO(endTime),
+      parseISO(startTime)
+    );
 
     // Per-slot resources
     const perSlotResources = ["door_staff", "security", "piano_tuning"];
