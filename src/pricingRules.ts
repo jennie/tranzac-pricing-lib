@@ -50,6 +50,7 @@ interface AdditionalCost {
   roomSlug?: string;
   isRequired?: boolean;
   customLineItem?: boolean;
+  isEditable?: boolean;
 }
 
 interface BookingDetails {
@@ -435,7 +436,17 @@ export default class PricingRules {
       await this.calculateAdditionalCosts(booking);
 
     const slotCustomLineItems = customLineItems;
-
+    if (
+      booking.resources.includes("security") ||
+      booking.roomSlugs.includes("parking_lot")
+    ) {
+      slotCustomLineItems.push({
+        id: uuidv4(),
+        description: "Security",
+        cost: 0, // Always start at 0
+        isEditable: true,
+      });
+    }
     for (const roomSlug of roomSlugs) {
       if (!this.rules) throw new Error("Rules are not initialized");
       const roomRules = this.rules[roomSlug];
@@ -626,7 +637,7 @@ export default class PricingRules {
   async calculateAdditionalCosts(booking: any): Promise<{
     perSlotCosts: AdditionalCost[];
     additionalCosts: AdditionalCost[];
-    customLineItems: any[]; // Add this line
+    customLineItems: any[];
   }> {
     const {
       resources,
@@ -692,14 +703,25 @@ export default class PricingRules {
                 ? Number(resourceConfig.cost) * bookingHours || 0
                 : 0
               : resourceConfig?.cost || 0;
-          perSlotCosts.push({
-            id: uuidv4(),
-            description: resourceConfig.description,
-            subDescription: resourceConfig.subDescription,
-            cost: Number(cost) || 0,
-            isRequired:
-              resourceId === "security" && roomSlugs.includes("parking_lot"),
-          });
+          if (resourceId === "security") {
+            // Special handling for security
+            perSlotCosts.push({
+              id: uuidv4(),
+              description: resourceConfig.description,
+              subDescription: resourceConfig.subDescription,
+              cost: 0, // Always start at 0
+              isEditable: true, // Allow editing
+              isRequired: roomSlugs.includes("parking_lot"),
+            });
+          } else {
+            perSlotCosts.push({
+              id: uuidv4(),
+              description: resourceConfig.description,
+              subDescription: resourceConfig.subDescription,
+              cost: Number(cost) || 0,
+              isRequired: false,
+            });
+          }
         }
       }
     }
