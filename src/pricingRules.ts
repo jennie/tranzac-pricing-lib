@@ -715,11 +715,23 @@ export default class PricingRules {
         );
       }
     }
-
-    // console.log(
-    //   "calculateAdditionalCosts - Result:",
-    //   JSON.stringify({ perSlotCosts, additionalCosts }, null, 2)
-    // );
+    for (const resource of resources) {
+      const resourceConfig = this.additionalCosts?.resources?.find(
+        (r) => r.id === resource
+      );
+      if (resourceConfig && resourceConfig.rooms) {
+        for (const room of rooms) {
+          const roomCost = resourceConfig.rooms[room.roomSlug];
+          if (roomCost) {
+            additionalCosts.push({
+              description: roomCost.description,
+              cost: roomCost.cost,
+              roomSlug: room.roomSlug,
+            });
+          }
+        }
+      }
+    }
     const result = { perSlotCosts, additionalCosts, customLineItems };
     console.log(
       "calculateAdditionalCosts result:",
