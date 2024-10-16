@@ -628,6 +628,10 @@ export default class PricingRules {
   }> {
     const { resources, roomSlugs, start, end, isPrivate, expectedAttendance } =
       booking;
+    console.log(
+      "=============Booking in calculateAdditionalCosts:===============",
+      booking
+    );
     let perSlotCosts: AdditionalCost[] = [];
     let additionalCosts: AdditionalCost[] = [];
     const customLineItems: any[] = []; // Initialize customLineItems
