@@ -245,17 +245,12 @@ export default class PricingRules {
               eveningRate: estimate.eveningRate || 0,
               eveningRateType: estimate.eveningRateType || "",
               additionalCosts: Array.isArray(estimate.additionalCosts)
-                ? estimate.additionalCosts.map(
-                    (cost: {
-                      description: any;
-                      subDescription: any;
-                      cost: number;
-                    }) => ({
-                      description: cost.description || "",
-                      subDescription: cost.subDescription || "",
-                      cost: Number(cost.cost) || 0,
-                    })
-                  )
+                ? estimate.additionalCosts.map((cost: Cost) => ({
+                    description: cost.description || "",
+                    subDescription: cost.subDescription || "",
+                    cost: Number(cost.cost) || 0,
+                    isRequired: cost.isRequired || false,
+                  }))
                 : [],
               totalCost: estimate.totalCost || 0,
               rateDescription: estimate.rateDescription || "",
@@ -272,6 +267,7 @@ export default class PricingRules {
               description: cost.description,
               subDescription: cost.subDescription,
               cost: Number(cost.cost) || 0,
+              isRequired: cost.isRequired || false, // Include isRequired
             }));
 
             const estimateTotal = formattedEstimates.reduce(
