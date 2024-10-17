@@ -364,7 +364,6 @@ export default class PricingRules {
       isPrivate = false,
     } = booking;
 
-    // Log the booking object as received
     console.log("Booking in prepareBookingForPricing:", booking);
 
     if (!roomSlugs || roomSlugs.length === 0) {
@@ -375,19 +374,19 @@ export default class PricingRules {
       throw new Error("Date is missing in booking data");
     }
 
-    // Check if `startTime` and `endTime` already include full ISO date-time strings
+    // If `startTime` and `endTime` are already full ISO strings, use them directly
     const fullStartTime = startTime.includes("T")
       ? startTime
-      : `${date}T${startTime}:00`;
+      : `${date.split("T")[0]}T${startTime}:00`;
     const fullEndTime = endTime.includes("T")
       ? endTime
-      : `${date}T${endTime}:00`;
+      : `${date.split("T")[0]}T${endTime}:00`;
 
     // Log the full date-time strings before parsing
     console.log("Full start time string:", fullStartTime);
     console.log("Full end time string:", fullEndTime);
 
-    // Use parseISO to ensure the strings are valid ISO date-time strings
+    // Use parseISO to parse the full date-time strings
     const startDateTime = toZonedTime(
       parseISO(fullStartTime),
       TORONTO_TIMEZONE
@@ -411,15 +410,11 @@ export default class PricingRules {
       throw new Error("Invalid start or end time in booking data");
     }
 
-    // Convert the Date objects back to strings for use in the Booking type
-    const formattedStartTime = formatISO(startDateTime); // e.g., "2024-10-20T18:30:00-04:00"
-    const formattedEndTime = formatISO(endDateTime); // e.g., "2024-10-20T21:00:00-04:00"
+    // Convert the Date objects back to ISO strings
+    const formattedStartTime = formatISO(startDateTime);
+    const formattedEndTime = formatISO(endDateTime);
 
-    // Log the formatted start and end times
-    console.log("Formatted startTime:", formattedStartTime);
-    console.log("Formatted endTime:", formattedEndTime);
-
-    // Return the updated booking object with string startTime and endTime
+    // Return the updated booking object with ISO startTime and endTime
     return {
       ...booking,
       resources,
@@ -431,8 +426,8 @@ export default class PricingRules {
         eveningCostItem: room.eveningCostItem || null,
         fullDayCostItem: room.fullDayCostItem || null,
       })),
-      startTime: formattedStartTime, // Full date-time string
-      endTime: formattedEndTime, // Full date-time string
+      startTime: formattedStartTime,
+      endTime: formattedEndTime,
     };
   }
 
