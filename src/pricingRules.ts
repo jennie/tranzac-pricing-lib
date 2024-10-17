@@ -364,6 +364,9 @@ export default class PricingRules {
       isPrivate = false,
     } = booking;
 
+    // Log the booking object as received
+    console.log("Booking in prepareBookingForPricing:", booking);
+
     if (!roomSlugs || roomSlugs.length === 0) {
       throw new Error("Room slugs are undefined or empty in booking");
     }
@@ -373,8 +376,12 @@ export default class PricingRules {
     }
 
     // Combine the date with startTime.time and endTime.time to create full ISO date-time strings
-    const fullStartTime = `${date}T${startTime}:00`; // Example: "2024-10-20T15:00:00"
-    const fullEndTime = `${date}T${endTime}:00`; // Example: "2024-10-20T18:00:00"
+    const fullStartTime = `${date.split("T")[0]}T${startTime}:00`; // Example: "2024-10-20T18:30:00"
+    const fullEndTime = `${date.split("T")[0]}T${endTime}:00`; // Example: "2024-10-20T21:00:00"
+
+    // Log the full date-time strings before parsing
+    console.log("Full start time string:", fullStartTime);
+    console.log("Full end time string:", fullEndTime);
 
     // Use parseISO to ensure the strings are valid ISO date-time strings
     const startDateTime = toZonedTime(
@@ -383,20 +390,32 @@ export default class PricingRules {
     );
     const endDateTime = toZonedTime(parseISO(fullEndTime), TORONTO_TIMEZONE);
 
+    // Log the parsed Date objects
+    console.log("Parsed startDateTime:", startDateTime);
+    console.log("Parsed endDateTime:", endDateTime);
+
     // Validate the parsed date-time strings
     if (!isValid(startDateTime) || !isValid(endDateTime)) {
       console.error("Invalid start or end time in booking data:", {
-        startTime: startTime,
-        endTime: endTime,
+        startTime,
+        endTime,
+        fullStartTime,
+        fullEndTime,
+        startDateTime,
+        endDateTime,
       });
       throw new Error("Invalid start or end time in booking data");
     }
 
     // Convert the Date objects back to strings for use in the Booking type
-    const formattedStartTime = formatISO(startDateTime); // e.g., "2024-10-20T15:00:00-04:00"
-    const formattedEndTime = formatISO(endDateTime); // e.g., "2024-10-20T18:00:00-04:00"
+    const formattedStartTime = formatISO(startDateTime); // e.g., "2024-10-20T18:30:00-04:00"
+    const formattedEndTime = formatISO(endDateTime); // e.g., "2024-10-20T21:00:00-04:00"
 
-    // Return the updated booking object with string startTime and endTime as expected by the Booking type
+    // Log the formatted start and end times
+    console.log("Formatted startTime:", formattedStartTime);
+    console.log("Formatted endTime:", formattedEndTime);
+
+    // Return the updated booking object with string startTime and endTime
     return {
       ...booking,
       resources,
@@ -408,8 +427,8 @@ export default class PricingRules {
         eveningCostItem: room.eveningCostItem || null,
         fullDayCostItem: room.fullDayCostItem || null,
       })),
-      startTime: formattedStartTime, // Ensure this is a string, not a Date object
-      endTime: formattedEndTime, // Ensure this is a string, not a Date object
+      startTime: formattedStartTime, // Full date-time string
+      endTime: formattedEndTime, // Full date-time string
     };
   }
 
