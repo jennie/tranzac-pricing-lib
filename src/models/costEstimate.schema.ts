@@ -29,6 +29,7 @@ export interface ICostEstimateVersion {
         description: string;
         subDescription?: string;
         cost: number;
+        isRequired: { type: Boolean; default: false };
       }>;
       totalCost: number;
       rateDescription?: string;
@@ -100,6 +101,7 @@ export const CostEstimateSchemaDefinition = {
                   description: { type: String, required: true },
                   subDescription: { type: String },
                   cost: { type: Number, required: true },
+                  isRequired: { type: Boolean, default: false },
                 },
               ],
               totalCost: { type: Number, required: true },
@@ -117,7 +119,15 @@ export const CostEstimateSchemaDefinition = {
               },
             },
           ],
-          perSlotCosts: [{ type: Object }],
+          perSlotCosts: [
+            {
+              id: { type: String, required: true },
+              description: { type: String, required: true },
+              subDescription: { type: String },
+              cost: { type: Number, required: true },
+              isRequired: { type: Boolean, default: false }, // Add this line
+            },
+          ],
           customLineItems: [
             {
               id: String,
