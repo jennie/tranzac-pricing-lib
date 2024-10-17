@@ -368,16 +368,21 @@ export default class PricingRules {
       throw new Error("Room slugs are undefined or empty in booking");
     }
     // Use startTime.time and endTime.time
-    // const startDateTime = toZonedTime(parseISO(startTime), TORONTO_TIMEZONE);
-    // const endDateTime = toZonedTime(parseISO(endTime), TORONTO_TIMEZONE);
+    const fullStartTime = `${booking.date}T${booking.startTime}:00`; // Combine date with time
+    const fullEndTime = `${booking.date}T${booking.endTime}:00`;
+    const startDateTime = toZonedTime(
+      parseISO(fullStartTime),
+      TORONTO_TIMEZONE
+    );
+    const endDateTime = toZonedTime(parseISO(fullEndTime), TORONTO_TIMEZONE);
 
-    // if (!isValid(startDateTime) || !isValid(endDateTime)) {
-    //   console.error("Invalid start or end time in booking data:", {
-    //     startTime,
-    //     endTime,
-    //   });
-    //   throw new Error("Invalid start or end time in booking data");
-    // }
+    if (!isValid(startDateTime) || !isValid(endDateTime)) {
+      console.error("Invalid start or end time in booking data:", {
+        startTime,
+        endTime,
+      });
+      throw new Error("Invalid start or end time in booking data");
+    }
 
     return {
       ...booking,
