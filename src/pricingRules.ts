@@ -357,6 +357,7 @@ export default class PricingRules {
     const {
       startTime,
       endTime,
+      date,
       roomSlugs,
       resources = [],
       expectedAttendance = 0,
@@ -366,41 +367,49 @@ export default class PricingRules {
     if (!roomSlugs || roomSlugs.length === 0) {
       throw new Error("Room slugs are undefined or empty in booking");
     }
-    console.log("Booking in prepareBookingForPricing:", booking);
-    // Assuming booking.date is provided in a valid format (e.g., "2024-10-20")
-    const bookingDate = booking.date;
 
-    // Check if startTime and endTime are in the form { time: "15:00" }
-    const fullStartTime = `${bookingDate}T${startTime}:00`;
-    const fullEndTime = `${bookingDate}T${endTime}:00`;
+    if (!date) {
+      throw new Error("Date is missing in booking data");
+    }
 
-    // Use date-fns or similar to ensure valid ISO strings and apply the correct timezone
+    // Combine the date with startTime.time and endTime.time to create full ISO date-time strings
+    const fullStartTime = `${date}T${startTime}:00`; // Example: "2024-10-20T15:00:00"
+    const fullEndTime = `${date}T${endTime}:00`; // Example: "2024-10-20T18:00:00"
+
+    // Use parseISO to ensure the strings are valid ISO date-time strings
     const startDateTime = toZonedTime(
       parseISO(fullStartTime),
       TORONTO_TIMEZONE
     );
     const endDateTime = toZonedTime(parseISO(fullEndTime), TORONTO_TIMEZONE);
 
-    // Validate the date objects
+    // Validate the parsed date-time strings
     if (!isValid(startDateTime) || !isValid(endDateTime)) {
       console.error("Invalid start or end time in booking data:", {
-        startTime,
-        endTime,
+        startTime: startTime,
+        endTime: endTime,
       });
       throw new Error("Invalid start or end time in booking data");
     }
 
+    // Convert the Date objects back to strings for use in the Booking type
+    const formattedStartTime = formatISO(startDateTime); // e.g., "2024-10-20T15:00:00-04:00"
+    const formattedEndTime = formatISO(endDateTime); // e.g., "2024-10-20T18:00:00-04:00"
+
+    // Return the updated booking object with string startTime and endTime as expected by the Booking type
     return {
       ...booking,
-      resources, // Include resources explicitly
-      expectedAttendance, // Include expectedAttendance explicitly
-      isPrivate, // Include isPrivate explicitly
+      resources,
+      expectedAttendance,
+      isPrivate,
       rooms: (booking.rooms || []).map((room) => ({
         ...room,
         daytimeCostItem: room.daytimeCostItem || null,
         eveningCostItem: room.eveningCostItem || null,
         fullDayCostItem: room.fullDayCostItem || null,
       })),
+      startTime: formattedStartTime, // Ensure this is a string, not a Date object
+      endTime: formattedEndTime, // Ensure this is a string, not a Date object
     };
   }
 
