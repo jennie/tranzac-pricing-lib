@@ -967,6 +967,7 @@ export default class PricingRules {
           description,
           subDescription,
           cost,
+          isRequired: true,
         };
 
       case "backline":
