@@ -375,9 +375,13 @@ export default class PricingRules {
       throw new Error("Date is missing in booking data");
     }
 
-    // Combine the date with startTime.time and endTime.time to create full ISO date-time strings
-    const fullStartTime = `${date.split("T")[0]}T${startTime}:00`; // Example: "2024-10-20T18:30:00"
-    const fullEndTime = `${date.split("T")[0]}T${endTime}:00`; // Example: "2024-10-20T21:00:00"
+    // Check if `startTime` and `endTime` already include full ISO date-time strings
+    const fullStartTime = startTime.includes("T")
+      ? startTime
+      : `${date}T${startTime}:00`;
+    const fullEndTime = endTime.includes("T")
+      ? endTime
+      : `${date}T${endTime}:00`;
 
     // Log the full date-time strings before parsing
     console.log("Full start time string:", fullStartTime);
