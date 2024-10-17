@@ -150,7 +150,28 @@ export default class PricingRules {
       }
     }
   }
+  calculateTotals(costEstimates: any[]) {
+    const grandTotal = costEstimates.reduce(
+      (total: any, slot: any) => total + this.calculateSlotTotal(slot),
+      0
+    );
+    const tax = grandTotal * 0.13; // Assuming 13% tax rate
+    const totalWithTax = grandTotal + tax;
 
+    return { grandTotal, tax, totalWithTax };
+  }
+
+  calculateSlotTotal(slot: { estimates: any[]; perSlotCosts: any[] }) {
+    const estimatesTotal = slot.estimates.reduce(
+      (total: any, estimate: { totalCost: any }) => total + estimate.totalCost,
+      0
+    );
+    const perSlotCostsTotal = slot.perSlotCosts.reduce(
+      (total: number, cost: { cost: any }) => total + (Number(cost.cost) || 0),
+      0
+    );
+    return estimatesTotal + perSlotCostsTotal;
+  }
   calculateTax(grandTotal: number): number {
     return Number((grandTotal * HST_RATE).toFixed(2));
   }
@@ -347,16 +368,16 @@ export default class PricingRules {
       throw new Error("Room slugs are undefined or empty in booking");
     }
     // Use startTime.time and endTime.time
-    const startDateTime = toZonedTime(parseISO(startTime), TORONTO_TIMEZONE);
-    const endDateTime = toZonedTime(parseISO(endTime), TORONTO_TIMEZONE);
+    // const startDateTime = toZonedTime(parseISO(startTime), TORONTO_TIMEZONE);
+    // const endDateTime = toZonedTime(parseISO(endTime), TORONTO_TIMEZONE);
 
-    if (!isValid(startDateTime) || !isValid(endDateTime)) {
-      console.error("Invalid start or end time in booking data:", {
-        startTime,
-        endTime,
-      });
-      throw new Error("Invalid start or end time in booking data");
-    }
+    // if (!isValid(startDateTime) || !isValid(endDateTime)) {
+    //   console.error("Invalid start or end time in booking data:", {
+    //     startTime,
+    //     endTime,
+    //   });
+    //   throw new Error("Invalid start or end time in booking data");
+    // }
 
     return {
       ...booking,
