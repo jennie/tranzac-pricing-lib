@@ -7,6 +7,7 @@ interface IAdditionalCost extends Document {
   description: string;
   subDescription?: string;
   cost: number;
+  isRequired: boolean;
 }
 
 export interface Room {
@@ -97,6 +98,7 @@ const AdditionalCostSchema = new Schema<IAdditionalCost>({
   description: { type: String, required: true },
   subDescription: { type: String },
   cost: { type: Number, required: true },
+  isRequired: { type: Boolean },
 });
 
 const AdditionalCostsSchema = new Schema<AdditionalCosts>({
