@@ -375,7 +375,11 @@ export default class PricingRules {
       TORONTO_TIMEZONE
     );
     const endDateTime = toZonedTime(parseISO(fullEndTime), TORONTO_TIMEZONE);
-
+    console.log(
+      "Start and end times in prepareBookingForPricing:",
+      startDateTime,
+      endDateTime
+    );
     if (!isValid(startDateTime) || !isValid(endDateTime)) {
       console.error("Invalid start or end time in booking data:", {
         startTime,
