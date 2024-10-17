@@ -217,7 +217,7 @@ export default class PricingRules {
           try {
             const preparedBooking: Booking =
               this.prepareBookingForPricing(booking);
-
+            console.log("Prepared booking in getPrice:", preparedBooking);
             const { estimates, perSlotCosts, slotTotal, slotCustomLineItems } =
               await this.calculatePrice({
                 ...preparedBooking,
@@ -361,25 +361,27 @@ export default class PricingRules {
       resources = [],
       expectedAttendance = 0,
       isPrivate = false,
-      costItems = [],
     } = booking;
 
     if (!roomSlugs || roomSlugs.length === 0) {
       throw new Error("Room slugs are undefined or empty in booking");
     }
-    // Use startTime.time and endTime.time
-    const fullStartTime = `${booking.date}T${booking.startTime}:00`; // Combine date with time
-    const fullEndTime = `${booking.date}T${booking.endTime}:00`;
+    console.log("Booking in prepareBookingForPricing:", booking);
+    // Assuming booking.date is provided in a valid format (e.g., "2024-10-20")
+    const bookingDate = booking.date;
+
+    // Check if startTime and endTime are in the form { time: "15:00" }
+    const fullStartTime = `${bookingDate}T${startTime}:00`;
+    const fullEndTime = `${bookingDate}T${endTime}:00`;
+
+    // Use date-fns or similar to ensure valid ISO strings and apply the correct timezone
     const startDateTime = toZonedTime(
       parseISO(fullStartTime),
       TORONTO_TIMEZONE
     );
     const endDateTime = toZonedTime(parseISO(fullEndTime), TORONTO_TIMEZONE);
-    console.log(
-      "Start and end times in prepareBookingForPricing:",
-      startDateTime,
-      endDateTime
-    );
+
+    // Validate the date objects
     if (!isValid(startDateTime) || !isValid(endDateTime)) {
       console.error("Invalid start or end time in booking data:", {
         startTime,
