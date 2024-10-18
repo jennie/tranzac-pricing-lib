@@ -246,6 +246,7 @@ export default class PricingRules {
               eveningRateType: estimate.eveningRateType || "",
               additionalCosts: Array.isArray(estimate.additionalCosts)
                 ? estimate.additionalCosts.map((cost: Cost) => ({
+                    id: cost.id || uuidv4(),
                     description: cost.description || "",
                     subDescription: cost.subDescription || "",
                     cost: Number(cost.cost) || 0,
@@ -264,6 +265,7 @@ export default class PricingRules {
             }));
 
             const formattedPerSlotCosts = perSlotCosts.map((cost) => ({
+              id: cost.id || uuidv4(),
               description: cost.description,
               subDescription: cost.subDescription,
               cost: Number(cost.cost) || 0,

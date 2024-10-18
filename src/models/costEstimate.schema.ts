@@ -98,6 +98,7 @@ export const CostEstimateSchemaDefinition = {
               eveningRateType: { type: String },
               additionalCosts: [
                 {
+                  id: { type: String, required: true },
                   description: { type: String, required: true },
                   subDescription: { type: String },
                   cost: { type: Number, required: true },
