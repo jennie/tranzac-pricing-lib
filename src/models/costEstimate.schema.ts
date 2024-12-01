@@ -69,6 +69,8 @@ export interface ICostEstimate extends Document {
   versions: ICostEstimateVersion[];
   statusHistory: IStatusHistory[];
   rentalRequestId: string;
+  createdAt: Date; // Add these
+  updatedAt: Date; // timestamp fields
 }
 
 export const CostEstimateSchemaDefinition = {
@@ -178,7 +180,7 @@ export const getCostEstimateModel = async (): Promise<Model<ICostEstimate>> => {
     mongoose.models.CostEstimate ||
     mongoose.model<ICostEstimate>(
       "CostEstimate",
-      new mongoose.Schema(CostEstimateSchemaDefinition)
+      new mongoose.Schema(CostEstimateSchemaDefinition, { timestamps: true }) // Add timestamps option
     )
   );
 };
