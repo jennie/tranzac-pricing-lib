@@ -39,9 +39,10 @@ declare global {
   }
 }
 
-let mongoosePromise: Promise<typeof import("mongoose")> | null = null;
-
-mongoosePromise = import("mongoose");
+// Replace global mongoose promise with explicit export
+export let mongoosePromise: Promise<typeof import("mongoose")> | null = import(
+  "mongoose"
+);
 
 // Define schemas as plain objects
 const TimePeriodSchema: Record<keyof ITimePeriod, any> = {

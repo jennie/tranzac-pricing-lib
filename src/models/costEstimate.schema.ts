@@ -1,8 +1,8 @@
 import { Document, Model, Mongoose } from "mongoose";
 
-let mongoosePromise: Promise<typeof import("mongoose")> | null = null;
-
-mongoosePromise = import("mongoose");
+export let mongoosePromise: Promise<typeof import("mongoose")> | null = import(
+  "mongoose"
+);
 
 export interface ICostEstimateVersion {
   rentalRequestId: string;
