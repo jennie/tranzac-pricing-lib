@@ -202,21 +202,15 @@ export default class PricingRules {
         throw new Error("rentalDates is not defined or not an object.");
       }
 
-      for (const [date, bookings] of Object.entries(data.rentalDates)) {
+      const bookingPromises = Object.entries(data.rentalDates).flatMap(([date, bookings]) => {
         if (!Array.isArray(bookings)) {
-          console.error(
-            `Expected an array of bookings for date ${date}, but got:`,
-            bookings
-          );
-          continue;
+          console.error(`Expected an array of bookings for date ${date}, but got:`, bookings);
+          return [];
         }
         if (isNaN(new Date(date).getTime())) {
           console.warn("Invalid date found in rentalDates:", date);
         }
-
-        for (const booking of bookings as any[]) {
-          let bookingTotal = 0;
-
+        return bookings.map(async (booking: any) => {
           try {
             const preparedBooking: Booking =
               this.prepareBookingForPricing(booking);
@@ -332,11 +326,10 @@ export default class PricingRules {
               error: error.message,
             });
           }
-        }
-      }
+        });
+      });
 
-      const tax = this.calculateTax(grandTotal);
-      const totalWithTax = this.calculateTotalWithTax(grandTotal);
+      const parallelResults = await Promise.all(bookingPromises);
       console.log("Final costEstimates:", costEstimates);
       console.log("Final customLineItems:", customLineItems);
       // CHANGED: Added customLineItems to the return object
