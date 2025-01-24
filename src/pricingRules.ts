@@ -214,7 +214,9 @@ export default class PricingRules {
           try {
             const preparedBooking: Booking =
               this.prepareBookingForPricing(booking);
-            console.log("Prepared booking in getPrice:", preparedBooking);
+            if (process.env.NODE_ENV === "development") {
+              console.log("Prepared booking in getPrice:", preparedBooking);
+            }
             const { estimates, perSlotCosts, slotTotal, slotCustomLineItems } =
               await this.calculatePrice({
                 ...preparedBooking,
@@ -224,10 +226,12 @@ export default class PricingRules {
                 expectedAttendance:
                   Number(preparedBooking.expectedAttendance) || 0,
               });
-            console.log(
-              "slotCustomLineItems in getPrice:",
-              slotCustomLineItems
-            );
+            if (process.env.NODE_ENV === "development") {
+              console.log(
+                "slotCustomLineItems in getPrice:",
+                slotCustomLineItems
+              );
+            }
 
             const formattedEstimates = estimates.map((estimate) => ({
               roomSlug: estimate.roomSlug || "",
@@ -358,7 +362,9 @@ export default class PricingRules {
       isPrivate = false,
     } = booking;
 
-    console.log("Booking in prepareBookingForPricing:", booking);
+    if (process.env.NODE_ENV === "development") {
+      console.log("Booking in prepareBookingForPricing:", booking);
+    }
 
     if (!roomSlugs || roomSlugs.length === 0) {
       throw new Error("Room slugs are undefined or empty in booking");
@@ -376,9 +382,14 @@ export default class PricingRules {
       ? endTime
       : `${date.split("T")[0]}T${endTime}:00`;
 
+    booking.startTime = fullStartTime;
+    booking.endTime = fullEndTime;
+
     // Log the full date-time strings before parsing
-    console.log("Full start time string:", fullStartTime);
-    console.log("Full end time string:", fullEndTime);
+    if (process.env.NODE_ENV === "development") {
+      console.log("Full start time string:", fullStartTime);
+      console.log("Full end time string:", fullEndTime);
+    }
 
     // Use parseISO to parse the full date-time strings
     const startDateTime = toZonedTime(
@@ -388,8 +399,10 @@ export default class PricingRules {
     const endDateTime = toZonedTime(parseISO(fullEndTime), TORONTO_TIMEZONE);
 
     // Log the parsed Date objects
-    console.log("Parsed startDateTime:", startDateTime);
-    console.log("Parsed endDateTime:", endDateTime);
+    if (process.env.NODE_ENV === "development") {
+      console.log("Parsed startDateTime:", startDateTime);
+      console.log("Parsed endDateTime:", endDateTime);
+    }
 
     // Validate the parsed date-time strings
     if (!isValid(startDateTime) || !isValid(endDateTime)) {
@@ -490,12 +503,14 @@ export default class PricingRules {
 
     const { perSlotCosts, additionalCosts, customLineItems } =
       await this.calculateAdditionalCosts(booking);
-    console.log(
-      "Custom line items from calculateAdditionalCosts:",
-      customLineItems
-    );
-    console.log("Per-slot costs:", perSlotCosts);
-    console.log("Additional costs:", additionalCosts);
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        "Custom line items from calculateAdditionalCosts:",
+        customLineItems
+      );
+      console.log("Per-slot costs:", perSlotCosts);
+      console.log("Additional costs:", additionalCosts);
+    }
 
     const slotCustomLineItems = [...customLineItems];
 
@@ -618,14 +633,16 @@ export default class PricingRules {
     );
     slotTotal += customLineItemsTotal;
 
-    console.log("Final calculation:");
-    console.log(
-      "Room costs:",
-      slotTotal - perSlotCostsTotal - customLineItemsTotal
-    );
-    console.log("Per-slot costs total:", perSlotCostsTotal);
-    console.log("Custom line items total:", customLineItemsTotal);
-    console.log("Final slot total:", slotTotal);
+    if (process.env.NODE_ENV === "development") {
+      console.log("Final calculation:");
+      console.log(
+        "Room costs:",
+        slotTotal - perSlotCostsTotal - customLineItemsTotal
+      );
+      console.log("Per-slot costs total:", perSlotCostsTotal);
+      console.log("Custom line items total:", customLineItemsTotal);
+      console.log("Final slot total:", slotTotal);
+    }
 
     return { estimates, perSlotCosts, slotTotal, slotCustomLineItems };
   }
@@ -747,10 +764,12 @@ export default class PricingRules {
       isPrivate,
       expectedAttendance,
     } = booking;
-    console.log(
-      "=============Booking in calculateAdditionalCosts:===============",
-      booking
-    );
+    if (process.env.NODE_ENV === "development") {
+      console.log(
+        "=============Booking in calculateAdditionalCosts:===============",
+        booking
+      );
+    }
     let perSlotCosts: AdditionalCost[] = [];
     let additionalCosts: AdditionalCost[] = [];
     const customLineItems: any[] = [];
@@ -928,9 +947,11 @@ export default class PricingRules {
         }
       }
     }
-    console.log("Final perSlotCosts:", perSlotCosts);
-    console.log("Final additionalCosts:", additionalCosts);
-    console.log("Final customLineItems:", customLineItems);
+    if (process.env.NODE_ENV === "development") {
+      console.log("Final perSlotCosts:", perSlotCosts);
+      console.log("Final additionalCosts:", additionalCosts);
+      console.log("Final customLineItems:", customLineItems);
+    }
     return { perSlotCosts, additionalCosts, customLineItems };
   }
 
