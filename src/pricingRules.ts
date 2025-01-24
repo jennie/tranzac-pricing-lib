@@ -106,6 +106,9 @@ export default class PricingRules {
   }
 
   async initialize() {
+    if (this.rules && this.timePeriods && this.additionalCosts) {
+      return;
+    }
     if (!this.rules) {
       const maxRetries = 3;
       let retries = 0;
