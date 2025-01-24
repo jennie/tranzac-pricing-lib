@@ -680,106 +680,105 @@ export default class PricingRules {
 
   private calculateRoomPrice(
     startDateTime: Date,
-    endDateTime: Date,
+    endDateTime: Date,  
     dayRules: any,
     isPrivate: boolean
   ) {
-    let basePrice = 0;
-    let daytimeHours = 0;
-    let eveningHours = 0;
-    let daytimePrice = 0;
-    let eveningPrice = 0;
-    let fullDayPrice = 0;
-    let daytimeRate = 0;
-    let eveningRate = 0;
-    let daytimeRateType = "";
-    let eveningRateType = "";
-    let crossoverApplied = false;
+    const calculateHoursAndCost = (start: Date, end: Date, rate: number, rateType: string) => {
+      const hours = differenceInHours(end, start);
+      const cost = rateType === "flat" ? rate : rate * hours;
+      return { hours, cost };
+    };
 
     const eveningStartTime = new Date(startDateTime);
     eveningStartTime.setHours(17, 0, 0, 0);
 
     const totalBookingHours = differenceInHours(endDateTime, startDateTime);
-    const bookingCrossesEveningThreshold =
+    const bookingCrossesEveningThreshold = 
       startDateTime < eveningStartTime && endDateTime > eveningStartTime;
 
     if (dayRules.fullDay) {
       const fullDayRate = dayRules.fullDay[isPrivate ? "private" : "public"];
-      if (dayRules.fullDay.type === "flat") {
-        fullDayPrice = fullDayRate;
-        basePrice = fullDayPrice;
-      } else if (dayRules.fullDay.type === "hourly") {
-        const effectiveHours = Math.max(
-          totalBookingHours,
-          dayRules.fullDay.minimumHours || 0
+      const { cost: fullDayPrice } = calculateHoursAndCost(
+        startDateTime,
+        endDateTime, 
+        fullDayRate,
+        dayRules.fullDay.type
+      );
+      return {
+        basePrice: fullDayPrice,
+        fullDayPrice,
+        daytimeHours: 0,
+        eveningHours: 0,
+        daytimePrice: 0,
+        eveningPrice: 0,
+        daytimeRate: 0,
+        eveningRate: 0,
+        daytimeRateType: "",
+        eveningRateType: "",
+        crossoverApplied: false
+      };
+    }
+
+    let basePrice = 0;
+    let daytimePrice = 0;
+    let eveningPrice = 0;
+    let crossoverApplied = false;
+
+    if (startDateTime < eveningStartTime && dayRules.daytime) {
+      const daytimeEndTime = bookingCrossesEveningThreshold ? eveningStartTime : endDateTime;
+      const daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
+      
+      if (bookingCrossesEveningThreshold && dayRules.daytime.crossoverRate) {
+        crossoverApplied = true;
+        const { hours: daytimeHours, cost } = calculateHoursAndCost(
+          startDateTime,
+          daytimeEndTime,
+          dayRules.daytime.crossoverRate,
+          dayRules.daytime.type
         );
-        fullDayPrice = fullDayRate * effectiveHours;
-        basePrice = fullDayPrice;
+        daytimePrice = cost;
+        basePrice += cost;
+      } else {
+        const { hours: daytimeHours, cost } = calculateHoursAndCost(
+          startDateTime,
+          daytimeEndTime,
+          daytimeRate,
+          dayRules.daytime.type
+        );
+        daytimePrice = cost;
+        basePrice += cost;
       }
-    } else {
-      if (startDateTime < eveningStartTime && dayRules.daytime) {
-        const daytimeEndTime = bookingCrossesEveningThreshold
-          ? eveningStartTime
-          : endDateTime;  // Changed from endTime to endDateTime
-        daytimeHours = differenceInHours(daytimeEndTime, startDateTime);
-        daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
-        daytimeRateType = dayRules.daytime.type;
+    }
 
-        if (bookingCrossesEveningThreshold && dayRules.daytime.crossoverRate) {
-          daytimeRate = dayRules.daytime.crossoverRate;
-          crossoverApplied = true;
-        }
+    if (endDateTime > eveningStartTime && dayRules.evening) {
+      const { hours: eveningHours, cost } = calculateHoursAndCost(
+        eveningStartTime,
+        endDateTime,
+        dayRules.evening[isPrivate ? "private" : "public"],
+        dayRules.evening.type
+      );
+      eveningPrice = cost;
+      basePrice += cost;
+    }
 
-        daytimePrice = daytimeRate * daytimeHours;
-        basePrice += daytimePrice;
-      }
-
-      if (endDateTime > eveningStartTime && dayRules.evening) {
-        eveningHours = differenceInHours(endDateTime, eveningStartTime);
-        eveningRate = dayRules.evening[isPrivate ? "private" : "public"];
-        eveningRateType = dayRules.evening.type;
-
-        if (eveningRateType === "flat") {
-          eveningPrice = eveningRate;
-        } else if (eveningRateType === "hourly") {
-          eveningPrice = eveningRate * eveningHours;
-        }
-
-        basePrice += eveningPrice;
-      }
-
-      if (dayRules.minimumHours && totalBookingHours < dayRules.minimumHours) {
-        const minimumPrice =
-          basePrice * (dayRules.minimumHours / totalBookingHours);
-        if (minimumPrice > basePrice) {
-          basePrice = minimumPrice;
-        }
-      }
+    if (dayRules.minimumHours && totalBookingHours < dayRules.minimumHours) {
+      basePrice = basePrice * (dayRules.minimumHours / totalBookingHours);
     }
 
     return {
       basePrice,
       daytimePrice,
       eveningPrice,
-      fullDayPrice,
-      daytimeHours,
-      eveningHours,
-      daytimeRate,
-      eveningRate,
-      daytimeRateType,
-      eveningRateType,
-      crossoverApplied,
+      fullDayPrice: 0,
+      daytimeHours: differenceInHours(eveningStartTime, startDateTime),
+      eveningHours: differenceInHours(endDateTime, eveningStartTime),
+      daytimeRate: dayRules.daytime?.[isPrivate ? "private" : "public"] || 0,
+      eveningRate: dayRules.evening?.[isPrivate ? "private" : "public"] || 0,
+      daytimeRateType: dayRules.daytime?.type || "",
+      eveningRateType: dayRules.evening?.type || "",
+      crossoverApplied
     };
-  }
-
-  private createCostItem(
-    description: string,
-    cost: number,
-    subDescription: string
-  ): any {
-    return cost > 0
-      ? { id: uuidv4(), description, subDescription, cost }
-      : null;
   }
 
   async calculateAdditionalCosts(booking: any): Promise<{
