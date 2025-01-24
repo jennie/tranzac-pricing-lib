@@ -99,6 +99,8 @@ export default class PricingRules {
   private timePeriods: any[] | null;
   private rules: Record<string, any> | null;
   private additionalCosts: AdditionalCosts | null;
+  private taxCache = new Map<number, number>();
+  private totalWithTaxCache = new Map<number, number>();
   constructor() {
     this.timePeriods = null;
     this.rules = null;
@@ -176,12 +178,22 @@ export default class PricingRules {
     return estimatesTotal + perSlotCostsTotal;
   }
   calculateTax(grandTotal: number): number {
-    return Number((grandTotal * HST_RATE).toFixed(2));
+    if (this.taxCache.has(grandTotal)) {
+      return this.taxCache.get(grandTotal)!;
+    }
+    const tax = Number((grandTotal * HST_RATE).toFixed(2));
+    this.taxCache.set(grandTotal, tax);
+    return tax;
   }
 
   calculateTotalWithTax(grandTotal: number): number {
+    if (this.totalWithTaxCache.has(grandTotal)) {
+      return this.totalWithTaxCache.get(grandTotal)!;
+    }
     const tax = this.calculateTax(grandTotal);
-    return Number((grandTotal + tax).toFixed(2));
+    const total = Number((grandTotal + tax).toFixed(2));
+    this.totalWithTaxCache.set(grandTotal, total);
+    return total;
   }
 
   async getPrice(data: any): Promise<{
