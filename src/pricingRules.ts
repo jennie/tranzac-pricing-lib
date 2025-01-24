@@ -85,6 +85,23 @@ interface Cost {
   roomSlug?: string; // Make roomSlug optional in the Cost interface
   isRequired?: boolean;
 }
+
+interface CostEstimate {
+  id: string;
+  date: Date;
+  start: Date;
+  end: Date;
+  estimates: any[];
+  perSlotCosts: any[];
+  slotTotal: number;
+  roomSlugs?: string[];
+  isPrivate?: boolean;
+  resources?: string[];
+  expectedAttendance?: number;
+  customLineItems?: any[];
+  error?: string;
+}
+
 const TORONTO_TIMEZONE = "America/Toronto";
 const HST_RATE = 0.13; // 13% HST rate
 
@@ -197,7 +214,7 @@ export default class PricingRules {
   }
 
   async getPrice(data: any): Promise<{
-    costEstimates: any[];
+    costEstimates: CostEstimate[];
     customLineItems: Record<string, any[]>; // NEW: Added to return type
     grandTotal: number;
     tax: number;
@@ -205,7 +222,7 @@ export default class PricingRules {
   }> {
     try {
       await this.initialize();
-      const costEstimates = [];
+      const costEstimates: CostEstimate[] = [];
       let grandTotal = 0;
       const customLineItems: Record<string, any[]> = {}; // NEW: Added to store custom line items
 
@@ -346,6 +363,8 @@ export default class PricingRules {
       });
 
       const parallelResults = await Promise.all(bookingPromises);
+      const tax = this.calculateTax(grandTotal);
+      const totalWithTax = this.calculateTotalWithTax(grandTotal);
       console.log("Final costEstimates:", costEstimates);
       console.log("Final customLineItems:", customLineItems);
       // CHANGED: Added customLineItems to the return object
@@ -701,7 +720,7 @@ export default class PricingRules {
       if (startDateTime < eveningStartTime && dayRules.daytime) {
         const daytimeEndTime = bookingCrossesEveningThreshold
           ? eveningStartTime
-          : endTime;
+          : endDateTime;  // Changed from endTime to endDateTime
         daytimeHours = differenceInHours(daytimeEndTime, startDateTime);
         daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
         daytimeRateType = dayRules.daytime.type;
