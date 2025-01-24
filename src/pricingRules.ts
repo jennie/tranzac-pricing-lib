@@ -689,7 +689,7 @@ export default class PricingRules {
       if (startDateTime < eveningStartTime && dayRules.daytime) {
         const daytimeEndTime = bookingCrossesEveningThreshold
           ? eveningStartTime
-          : endDateTime;
+          : endTime;
         daytimeHours = differenceInHours(daytimeEndTime, startDateTime);
         daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
         daytimeRateType = dayRules.daytime.type;
@@ -809,144 +809,136 @@ export default class PricingRules {
     // Per-slot resources
     const perSlotResources = ["door_staff", "piano_tuning"];
 
-    // Calculate costs for per-slot resources
+    const resourceConfigMap = this.additionalCosts?.resources.reduce((map, resource) => {
+      map[resource.id] = resource;
+      return map;
+    }, {} as Record<string, any>);
+
+    // Replace nested loops with single pass over resources:
     for (const resourceId of resources) {
+      const config = resourceConfigMap && resourceConfigMap[resourceId];
+      if (!config) continue;
+
+      // Calculate costs for per-slot resources
       if (perSlotResources.includes(resourceId)) {
-        const resourceConfig = this.additionalCosts?.resources.find(
-          (r) => r.id === resourceId
-        );
-        if (resourceConfig) {
-          let cost =
-            resourceConfig.type === "hourly"
-              ? resourceConfig?.cost
-                ? Number(resourceConfig.cost) * bookingHours || 0
-                : 0
-              : resourceConfig?.cost || 0;
-          perSlotCosts.push({
-            id: uuidv4(),
-            description: resourceConfig.description,
-            subDescription: resourceConfig.subDescription,
-            cost: Number(cost) || 0,
-            isRequired: false,
-          });
-        }
-      }
-    }
-
-    // Room-specific and other additional costs
-    for (const roomSlug of roomSlugs) {
-      const backlineConfig = this.additionalCosts?.resources.find(
-        (r) => r.id === "backline"
-      );
-      const projectorConfig = this.additionalCosts?.resources.find(
-        (r) => r.id === "projector"
-      );
-
-      let projectorIncluded = false;
-
-      // Handle backline
-      if (
-        resources.includes("backline") &&
-        backlineConfig &&
-        backlineConfig.rooms
-      ) {
-        const roomBacklineConfig = backlineConfig.rooms[roomSlug];
-        if (roomBacklineConfig) {
-          additionalCosts.push({
-            id: uuidv4(),
-            roomSlug,
-            description:
-              roomBacklineConfig.description || backlineConfig.description,
-            cost: Number(roomBacklineConfig.cost) || 0,
-          });
-          projectorIncluded = roomBacklineConfig.includes_projector || false;
-        }
-      }
-
-      // Handle projector
-      if (
-        resources.includes("projector") &&
-        !projectorIncluded &&
-        projectorConfig
-      ) {
-        additionalCosts.push({
+        let cost =
+          config.type === "hourly"
+            ? config?.cost
+              ? Number(config.cost) * bookingHours || 0
+              : 0
+            : config?.cost || 0;
+        perSlotCosts.push({
           id: uuidv4(),
-          roomSlug,
-          description: projectorConfig.description,
-          cost: Number(projectorConfig.cost) || 0,
+          description: config.description,
+          subDescription: config.subDescription,
+          cost: Number(cost) || 0,
+          isRequired: false,
         });
       }
 
       // Handle other resources
-      for (const resourceId of resources) {
+      for (const roomSlug of roomSlugs) {
+        const backlineConfig = resourceConfigMap["backline"];
+        const projectorConfig = resourceConfigMap["projector"];
+
+        let projectorIncluded = false;
+
+        // Handle backline
+        if (
+          resourceId === "backline" &&
+          backlineConfig &&
+          backlineConfig.rooms
+        ) {
+          const roomBacklineConfig = backlineConfig.rooms[roomSlug];
+          if (roomBacklineConfig) {
+            additionalCosts.push({
+              id: uuidv4(),
+              roomSlug,
+              description:
+                roomBacklineConfig.description || backlineConfig.description,
+              cost: Number(roomBacklineConfig.cost) || 0,
+            });
+            projectorIncluded = roomBacklineConfig.includes_projector || false;
+          }
+        }
+
+        // Handle projector
+        if (
+          resourceId === "projector" &&
+          !projectorIncluded &&
+          projectorConfig
+        ) {
+          additionalCosts.push({
+            id: uuidv4(),
+            roomSlug,
+            description: projectorConfig.description,
+            cost: Number(projectorConfig.cost) || 0,
+          });
+        }
+
+        // Handle other resources
         if (
           !perSlotResources.includes(resourceId) &&
           resourceId !== "backline" &&
           resourceId !== "projector"
         ) {
-          const resourceConfig = this.additionalCosts?.resources.find(
-            (r) => r.id === resourceId
-          );
-          if (resourceConfig) {
-            let cost = resourceConfig?.cost || 0;
-            let description = resourceConfig?.description || "";
-            let subDescription = resourceConfig?.subDescription || "";
+          let cost = config?.cost || 0;
+          let description = config?.description || "";
+          let subDescription = config?.subDescription || "";
 
-            switch (resourceId) {
-              case "bartender":
-                if (isPrivate && expectedAttendance > 100) {
-                  cost = 0;
-                  subDescription = "Comped for large private event";
-                } else if (resourceConfig.type === "hourly") {
-                  cost = Number(cost) * bookingHours;
+          switch (resourceId) {
+            case "bartender":
+              if (isPrivate && expectedAttendance > 100) {
+                cost = 0;
+                subDescription = "Comped for large private event";
+              } else if (config.type === "hourly") {
+                cost = Number(cost) * bookingHours;
+              }
+              break;
+            case "audio_tech":
+              const regularHours = Math.min(bookingHours, 7);
+              const overtimeHours = Math.max(0, bookingHours - 7);
+
+              additionalCosts.push({
+                id: uuidv4(),
+                roomSlug,
+                description,
+                subDescription,
+                cost: Number(config.cost) || 0, // Base cost for up to 7 hours
+              });
+
+              if (overtimeHours > 0) {
+                const overtimeConfig = resourceConfigMap["audio_tech_overtime"];
+                if (overtimeConfig) {
+                  additionalCosts.push({
+                    id: uuidv4(),
+                    roomSlug,
+                    description: overtimeConfig.description,
+                    subDescription: overtimeConfig.subDescription,
+                    cost: Number(overtimeConfig?.cost)
+                      ? Number(overtimeConfig.cost) * overtimeHours
+                      : 0,
+                  });
                 }
-                break;
-              case "audio_tech":
-                const regularHours = Math.min(bookingHours, 7);
-                const overtimeHours = Math.max(0, bookingHours - 7);
-
-                additionalCosts.push({
-                  id: uuidv4(),
-                  roomSlug,
-                  description,
-                  subDescription,
-                  cost: Number(resourceConfig.cost) || 0, // Base cost for up to 7 hours
-                });
-
-                if (overtimeHours > 0) {
-                  const overtimeConfig = this.additionalCosts?.resources.find(
-                    (r) => r.id === "audio_tech_overtime"
-                  );
-                  if (overtimeConfig) {
-                    additionalCosts.push({
-                      id: uuidv4(),
-                      roomSlug,
-                      description: overtimeConfig.description,
-                      subDescription: overtimeConfig.subDescription,
-                      cost: Number(overtimeConfig?.cost)
-                        ? Number(overtimeConfig.cost) * overtimeHours
-                        : 0,
-                    });
-                  }
-                }
-                continue;
-              default:
-                if (resourceConfig.type === "hourly") {
-                  cost = Number(cost) * bookingHours;
-                }
-            }
-
-            additionalCosts.push({
-              id: uuidv4(),
-              roomSlug,
-              description,
-              subDescription,
-              cost: Number(cost),
-            });
+              }
+              continue;
+            default:
+              if (config.type === "hourly") {
+                cost = Number(cost) * bookingHours;
+              }
           }
+
+          additionalCosts.push({
+            id: uuidv4(),
+            roomSlug,
+            description,
+            subDescription,
+            cost: Number(cost),
+          });
         }
       }
     }
+
     if (process.env.NODE_ENV === "development") {
       console.log("Final perSlotCosts:", perSlotCosts);
       console.log("Final additionalCosts:", additionalCosts);
