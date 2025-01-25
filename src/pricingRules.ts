@@ -618,22 +618,21 @@ export default class PricingRules {
         eveningRateType,
         additionalCosts: roomAdditionalCosts,
         totalCost: basePrice + roomAdditionalCostsTotal,
-        daytimeCostItem: this.createCostItem(
-          "Daytime Hours",
-          daytimePrice,
-          daytimeRateType === 'flat' 
-            ? 'Flat rate' 
-            : `${daytimeHours.toFixed(1)} hours at $${(daytimeRate || 0).toFixed(2)}/hour${
-              crossoverApplied ? ' (crossover rate)' : ''
-            }`
-        ),
-        eveningCostItem: this.createCostItem(
-          "Evening Hours",
-          eveningPrice,
-          eveningRateType === 'flat'
-            ? 'Flat rate'
-            : `${eveningHours.toFixed(1)} hours at $${(eveningRate || 0).toFixed(0)}/hour`
-        ),
+        daytimeCostItem: {
+          description: "Daytime Hours",
+          cost: daytimePrice,
+          rateType: daytimeRateType,
+          hours: daytimeHours,
+          rate: daytimeRate,
+          crossoverApplied
+        },
+        eveningCostItem: {
+          description: "Evening Hours",
+          cost: eveningPrice,
+          rateType: eveningRateType,
+          hours: eveningHours,
+          rate: eveningRate
+        },
         fullDayCostItem: this.createCostItem(
           "Full Day Rate",
           fullDayPrice,
