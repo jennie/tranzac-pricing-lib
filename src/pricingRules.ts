@@ -632,12 +632,7 @@ export default class PricingRules {
         eveningCostItem: this.createCostItem(
           "Evening Hours",
           eveningPrice,
-          this.generateRateDescription({
-            eveningHours,
-            eveningRate,
-            eveningPrice,
-            eveningRateType,
-          })
+          `${eveningHours.toFixed(2)} hours at $${(eveningRate || 0).toFixed(2)}/hour`
         ),
         fullDayCostItem: this.createCostItem(
           "Full Day Rate",
@@ -1198,25 +1193,26 @@ export default class PricingRules {
     fullDayPrice,
     isFullDay,
   }: BookingRates): string {
-    // Ensure default values for missing properties
-    let rateDescription = "";
-
     if (isFullDay) {
-      rateDescription = `$${fullDayPrice}/day`;
-    } else if ((daytimeHours ?? 0) > 0) {
-      const hourlyRate = ((daytimePrice ?? 0) / (daytimeHours ?? 0)).toFixed(2);
-      rateDescription = `$${hourlyRate}/hour`;
-      if (crossoverApplied) {
-        rateDescription += " (crossover rate)";
-      }
-    } else if (eveningRateType === "flat") {
-      rateDescription = "Flat rate";
-    } else if (eveningHours > 0) {
-      const hourlyEveningRate = ((eveningPrice ?? 0) / eveningHours).toFixed(2);
-      rateDescription = `$${hourlyEveningRate}/hour`;
+      return `$${fullDayPrice}/day`;
     }
-
-    return rateDescription;
+  
+    const formatRate = (price: number, hours: number, type: string) => {
+      if (type === 'flat') return 'Flat rate';
+      const rate = price / hours;
+      return `$${rate.toFixed(2)}/hour`;
+    };
+  
+    if (daytimeHours > 0) {
+      const rateStr = formatRate(daytimePrice || 0, daytimeHours, daytimeRateType || '');
+      return crossoverApplied ? `${rateStr} (crossover rate)` : rateStr;
+    }
+  
+    if (eveningHours > 0) {
+      return formatRate(eveningPrice || 0, eveningHours, eveningRateType || '');
+    }
+  
+    return '';
   }
 }
 
