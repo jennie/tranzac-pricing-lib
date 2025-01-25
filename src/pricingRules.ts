@@ -621,13 +621,9 @@ export default class PricingRules {
         daytimeCostItem: this.createCostItem(
           "Daytime Hours",
           daytimePrice,
-          this.generateRateDescription({
-            daytimeHours,
-            daytimePrice,
-            daytimeRate,
-            daytimeRateType,
-            crossoverApplied,
-          })
+          `${daytimeHours.toFixed(2)} hours at $${(daytimeRate || 0).toFixed(2)}/hour${
+            crossoverApplied ? ' (crossover rate)' : ''
+          }`
         ),
         eveningCostItem: this.createCostItem(
           "Evening Hours",
