@@ -619,19 +619,20 @@ export default class PricingRules {
         additionalCosts: roomAdditionalCosts,
         totalCost: basePrice + roomAdditionalCostsTotal,
         daytimeCostItem: {
-          description: "Daytime Hours",
-          cost: daytimePrice,
-          rateType: daytimeRateType,
-          hours: daytimeHours,
-          rate: daytimeRate,
-          crossoverApplied
+          description: estimate.isFullDay ? "Full Day Rate" : "Daytime Hours",
+          cost: daytimePrice || 0,
+          rateType: daytimeRateType || 'hourly',
+          hours: daytimeHours || 0,
+          rate: daytimeRate || 0,
+          crossoverApplied: crossoverApplied || false,
+          isFullDay: !!dayRules.fullDay
         },
         eveningCostItem: {
           description: "Evening Hours",
-          cost: eveningPrice,
-          rateType: eveningRateType,
-          hours: eveningHours,
-          rate: eveningRate
+          cost: eveningPrice || 0,
+          rateType: eveningRateType || 'hourly',
+          hours: eveningHours || 0,
+          rate: eveningRate || 0
         },
         fullDayCostItem: this.createCostItem(
           "Full Day Rate",
@@ -713,13 +714,13 @@ export default class PricingRules {
 
     if (dayRules.fullDay) {
       const rate = dayRules.fullDay[isPrivate ? "private" : "public"];
-      const { cost: fullDayPrice } = calculateHoursAndCost(startDateTime, endDateTime, rate, dayRules.fullDay.type);
+      const { hours, cost } = calculateHoursAndCost(startDateTime, endDateTime, rate, dayRules.fullDay.type);
       return {
-        basePrice: fullDayPrice,
-        fullDayPrice,
-        daytimeHours: 0,
+        basePrice: cost,
+        fullDayPrice: cost,
+        daytimeHours: hours, // Include total hours as daytime hours for full day bookings
         eveningHours: 0,
-        daytimePrice: 0,
+        daytimePrice: cost,
         eveningPrice: 0,
         daytimeRate: rate,
         eveningRate: 0,
