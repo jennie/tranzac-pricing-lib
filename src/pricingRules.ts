@@ -621,14 +621,18 @@ export default class PricingRules {
         daytimeCostItem: this.createCostItem(
           "Daytime Hours",
           daytimePrice,
-          `${daytimeHours.toFixed(2)} hours at $${(daytimeRate || 0).toFixed(2)}/hour${
-            crossoverApplied ? ' (crossover rate)' : ''
-          }`
+          daytimeRateType === 'flat' 
+            ? 'Flat rate' 
+            : `${daytimeHours.toFixed(1)} hours at $${(daytimeRate || 0).toFixed(2)}/hour${
+              crossoverApplied ? ' (crossover rate)' : ''
+            }`
         ),
         eveningCostItem: this.createCostItem(
           "Evening Hours",
           eveningPrice,
-          `${eveningHours.toFixed(2)} hours at $${(eveningRate || 0).toFixed(2)}/hour`
+          eveningRateType === 'flat'
+            ? 'Flat rate'
+            : `${eveningHours.toFixed(1)} hours at $${(eveningRate || 0).toFixed(0)}/hour`
         ),
         fullDayCostItem: this.createCostItem(
           "Full Day Rate",
@@ -942,7 +946,8 @@ export default class PricingRules {
                 cost = 0;
                 subDescription = "Comped for large private event";
               } else if (config.type === "hourly") {
-                cost = Number(cost) * bookingHours;
+                cost = Number(config.cost) * bookingHours;
+                subDescription = `${bookingHours} hours at $${config.cost}/hour`;
               }
               break;
             case "audio_tech":
