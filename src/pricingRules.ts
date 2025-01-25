@@ -686,25 +686,40 @@ export default class PricingRules {
   ) {
     const calculateHoursAndCost = (start: Date, end: Date, rate: number, rateType: string) => {
       const hours = differenceInHours(end, start);
-      const cost = rateType === "flat" ? rate : rate * hours;
-      return { hours, cost };
+      return { 
+        hours, 
+        cost: rateType === "flat" ? rate : rate * hours,
+        hourlyRate: rateType === "flat" ? null : rate
+      };
     };
 
     const eveningStartTime = new Date(startDateTime);
     eveningStartTime.setHours(17, 0, 0, 0);
 
     const totalBookingHours = differenceInHours(endDateTime, startDateTime);
-    const bookingCrossesEveningThreshold = 
-      startDateTime < eveningStartTime && endDateTime > eveningStartTime;
+    const bookingCrossesEveningThreshold = startDateTime < eveningStartTime && endDateTime > eveningStartTime;
+
+    // Check if pricing category exists and has the required rate type
+    if (!dayRules || (!dayRules.daytime && !dayRules.evening && !dayRules.fullDay)) {
+      console.error('Invalid pricing rules:', dayRules);
+      return {
+        basePrice: 0,
+        daytimePrice: 0,
+        eveningPrice: 0,
+        fullDayPrice: 0,
+        daytimeHours: 0,
+        eveningHours: 0,
+        daytimeRate: 0,
+        eveningRate: 0,
+        daytimeRateType: '',
+        eveningRateType: '',
+        crossoverApplied: false
+      };
+    }
 
     if (dayRules.fullDay) {
-      const fullDayRate = dayRules.fullDay[isPrivate ? "private" : "public"];
-      const { cost: fullDayPrice } = calculateHoursAndCost(
-        startDateTime,
-        endDateTime, 
-        fullDayRate,
-        dayRules.fullDay.type
-      );
+      const rate = dayRules.fullDay[isPrivate ? "private" : "public"];
+      const { cost: fullDayPrice } = calculateHoursAndCost(startDateTime, endDateTime, rate, dayRules.fullDay.type);
       return {
         basePrice: fullDayPrice,
         fullDayPrice,
@@ -712,10 +727,10 @@ export default class PricingRules {
         eveningHours: 0,
         daytimePrice: 0,
         eveningPrice: 0,
-        daytimeRate: 0,
+        daytimeRate: rate,
         eveningRate: 0,
-        daytimeRateType: "",
-        eveningRateType: "",
+        daytimeRateType: dayRules.fullDay.type,
+        eveningRateType: '',
         crossoverApplied: false
       };
     }
@@ -723,47 +738,61 @@ export default class PricingRules {
     let basePrice = 0;
     let daytimePrice = 0;
     let eveningPrice = 0;
+    let daytimeHours = 0;
+    let eveningHours = 0;
+    let daytimeRate = 0;
+    let eveningRate = 0;
     let crossoverApplied = false;
 
+    // Handle daytime pricing
     if (startDateTime < eveningStartTime && dayRules.daytime) {
       const daytimeEndTime = bookingCrossesEveningThreshold ? eveningStartTime : endDateTime;
-      const daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
-      
+      const pricingRate = dayRules.daytime[isPrivate ? "private" : "public"];
+      daytimeRate = pricingRate;
+
       if (bookingCrossesEveningThreshold && dayRules.daytime.crossoverRate) {
         crossoverApplied = true;
-        const { hours: daytimeHours, cost } = calculateHoursAndCost(
+        const { hours, cost } = calculateHoursAndCost(
           startDateTime,
           daytimeEndTime,
           dayRules.daytime.crossoverRate,
           dayRules.daytime.type
         );
+        daytimeHours = hours;
         daytimePrice = cost;
-        basePrice += cost;
       } else {
-        const { hours: daytimeHours, cost } = calculateHoursAndCost(
+        const { hours, cost } = calculateHoursAndCost(
           startDateTime,
           daytimeEndTime,
-          daytimeRate,
+          pricingRate,
           dayRules.daytime.type
         );
+        daytimeHours = hours;
         daytimePrice = cost;
-        basePrice += cost;
       }
+      basePrice += daytimePrice;
     }
 
+    // Handle evening pricing
     if (endDateTime > eveningStartTime && dayRules.evening) {
-      const { hours: eveningHours, cost } = calculateHoursAndCost(
-        eveningStartTime,
+      const eveningRate = dayRules.evening[isPrivate ? "private" : "public"];
+      const { hours, cost } = calculateHoursAndCost(
+        Math.max(startDateTime.getTime(), eveningStartTime.getTime()),
         endDateTime,
-        dayRules.evening[isPrivate ? "private" : "public"],
+        eveningRate,
         dayRules.evening.type
       );
+      eveningHours = hours;
       eveningPrice = cost;
-      basePrice += cost;
+      basePrice += eveningPrice;
     }
 
+    // Apply minimum hours if needed
     if (dayRules.minimumHours && totalBookingHours < dayRules.minimumHours) {
-      basePrice = basePrice * (dayRules.minimumHours / totalBookingHours);
+      const ratio = dayRules.minimumHours / totalBookingHours;
+      basePrice *= ratio;
+      daytimePrice *= ratio;
+      eveningPrice *= ratio;
     }
 
     return {
@@ -771,12 +800,12 @@ export default class PricingRules {
       daytimePrice,
       eveningPrice,
       fullDayPrice: 0,
-      daytimeHours: differenceInHours(eveningStartTime, startDateTime),
-      eveningHours: differenceInHours(endDateTime, eveningStartTime),
-      daytimeRate: dayRules.daytime?.[isPrivate ? "private" : "public"] || 0,
-      eveningRate: dayRules.evening?.[isPrivate ? "private" : "public"] || 0,
-      daytimeRateType: dayRules.daytime?.type || "",
-      eveningRateType: dayRules.evening?.type || "",
+      daytimeHours,
+      eveningHours,
+      daytimeRate,
+      eveningRate,
+      daytimeRateType: dayRules.daytime?.type || '',
+      eveningRateType: dayRules.evening?.type || '',
       crossoverApplied
     };
   }
