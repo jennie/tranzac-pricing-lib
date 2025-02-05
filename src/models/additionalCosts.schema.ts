@@ -1,5 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
-import { Schema, model, Document } from "mongoose";
+import { Schema, model, Document, Model, models } from "mongoose";
+import { CostEstimateSchemaDefinition } from "./costEstimate.schema";
 
 interface IAdditionalCost extends Document {
   id: string;
@@ -106,11 +107,9 @@ const AdditionalCostsSchema = new Schema<AdditionalCosts>({
   conditions: [ConditionSchema],
 });
 
-export const AdditionalCost = model<IAdditionalCost>(
-  "AdditionalCost",
-  AdditionalCostSchema
-);
-export const AdditionalCosts = model<AdditionalCosts>(
-  "AdditionalCosts",
-  AdditionalCostsSchema
-);
+export const AdditionalCost =
+  models.AdditionalCost ||
+  model<IAdditionalCost>("AdditionalCost", AdditionalCostSchema);
+export const AdditionalCosts =
+  models.AdditionalCosts ||
+  model<AdditionalCosts>("AdditionalCosts", AdditionalCostsSchema);
