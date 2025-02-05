@@ -1,7 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 import { Schema, model, Document, Model, models } from "mongoose";
 import { CostEstimateSchemaDefinition } from "./costEstimate.schema";
-import { AdditionalCosts as AdditionalCostsModel } from "./additionalCosts.schema";
 
 interface IAdditionalCost extends Document {
   id: string;
