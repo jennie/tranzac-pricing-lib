@@ -102,6 +102,13 @@ interface CostEstimate {
   error?: string;
 }
 
+// NEW: Added interface AdditionalCosts to define the expected structure.
+interface AdditionalCosts {
+  conditions: any[];
+  resources: any[];
+  // Add additional properties if needed.
+}
+
 const TORONTO_TIMEZONE = "America/Toronto";
 const HST_RATE = 0.13; // 13% HST rate
 

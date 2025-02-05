@@ -1,6 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 import { Schema, model, Document, Model, models } from "mongoose";
 import { CostEstimateSchemaDefinition } from "./costEstimate.schema";
+import { AdditionalCosts as AdditionalCostsModel } from "./additionalCosts.schema";
 
 interface IAdditionalCost extends Document {
   id: string;
@@ -38,7 +39,7 @@ export interface Condition {
   description: string;
 }
 
-export interface AdditionalCosts extends Document {
+export interface IAdditionalCosts extends Document {
   _id: string;
   resources: Resource[];
   conditions: Condition[];
@@ -102,7 +103,7 @@ const AdditionalCostSchema = new Schema<IAdditionalCost>({
   isRequired: { type: Boolean },
 });
 
-const AdditionalCostsSchema = new Schema<AdditionalCosts>({
+const AdditionalCostsSchema = new Schema<IAdditionalCosts>({
   resources: [ResourceSchema],
   conditions: [ConditionSchema],
 });
@@ -112,4 +113,4 @@ export const AdditionalCost =
   model<IAdditionalCost>("AdditionalCost", AdditionalCostSchema);
 export const AdditionalCosts =
   models.AdditionalCosts ||
-  model<AdditionalCosts>("AdditionalCosts", AdditionalCostsSchema);
+  model<IAdditionalCosts>("AdditionalCosts", AdditionalCostsSchema);
