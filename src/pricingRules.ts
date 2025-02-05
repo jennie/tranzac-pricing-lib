@@ -231,15 +231,16 @@ export default class PricingRules {
         throw new Error("rentalDates is not defined or not an object.");
       }
 
-      const bookingPromises = Object.entries(data.rentalDates).flatMap(([date, bookings]) => {
+      // Changed: Replace flatMap with reduce and add explicit types for destructured parameters.
+      const bookingPromises = Object.entries(data.rentalDates).reduce((acc: Promise<any>[], [date, bookings]: [string, any]) => {
         if (!Array.isArray(bookings)) {
           console.error(`Expected an array of bookings for date ${date}, but got:`, bookings);
-          return [];
+          return acc;
         }
         if (isNaN(new Date(date).getTime())) {
           console.warn("Invalid date found in rentalDates:", date);
         }
-        return bookings.map(async (booking: any) => {
+        const promises = bookings.map(async (booking: any) => {
           try {
             const preparedBooking: Booking =
               this.prepareBookingForPricing(booking);
@@ -360,7 +361,8 @@ export default class PricingRules {
             });
           }
         });
-      });
+        return acc.concat(promises);
+      }, []);
 
       const parallelResults = await Promise.all(bookingPromises);
       const tax = this.calculateTax(grandTotal);
@@ -619,7 +621,8 @@ export default class PricingRules {
         additionalCosts: roomAdditionalCosts,
         totalCost: basePrice + roomAdditionalCostsTotal,
         daytimeCostItem: {
-          description: estimate.isFullDay ? "Full Day Rate" : "Daytime Hours",
+          // Changed: Replace "estimate.isFullDay" with check on dayRules.fullDay.
+          description: dayRules.fullDay ? "Full Day Rate" : "Daytime Hours",
           cost: daytimePrice || 0,
           rateType: daytimeRateType || 'hourly',
           hours: daytimeHours || 0,
@@ -694,31 +697,13 @@ export default class PricingRules {
     const totalBookingHours = differenceInHours(endDateTime, startDateTime);
     const bookingCrossesEveningThreshold = startDateTime < eveningStartTime && endDateTime > eveningStartTime;
 
-    // Check if pricing category exists and has the required rate type
-    if (!dayRules || (!dayRules.daytime && !dayRules.evening && !dayRules.fullDay)) {
-      console.error('Invalid pricing rules:', dayRules);
-      return {
-        basePrice: 0,
-        daytimePrice: 0,
-        eveningPrice: 0,
-        fullDayPrice: 0,
-        daytimeHours: 0,
-        eveningHours: 0,
-        daytimeRate: 0,
-        eveningRate: 0,
-        daytimeRateType: '',
-        eveningRateType: '',
-        crossoverApplied: false
-      };
-    }
-
     if (dayRules.fullDay) {
       const rate = dayRules.fullDay[isPrivate ? "private" : "public"];
       const { hours, cost } = calculateHoursAndCost(startDateTime, endDateTime, rate, dayRules.fullDay.type);
       return {
         basePrice: cost,
         fullDayPrice: cost,
-        daytimeHours: hours, // Include total hours as daytime hours for full day bookings
+        daytimeHours: hours,
         eveningHours: 0,
         daytimePrice: cost,
         eveningPrice: 0,
@@ -739,7 +724,6 @@ export default class PricingRules {
     let eveningRate = 0;
     let crossoverApplied = false;
 
-    // Handle daytime pricing
     if (startDateTime < eveningStartTime && dayRules.daytime) {
       const daytimeEndTime = bookingCrossesEveningThreshold ? eveningStartTime : endDateTime;
       const pricingRate = dayRules.daytime[isPrivate ? "private" : "public"];
@@ -768,13 +752,12 @@ export default class PricingRules {
       basePrice += daytimePrice;
     }
 
-    // Handle evening pricing
     if (endDateTime > eveningStartTime && dayRules.evening) {
-      const eveningRate = dayRules.evening[isPrivate ? "private" : "public"];
+      const effectiveStart = startDateTime > eveningStartTime ? startDateTime : eveningStartTime;
       const { hours, cost } = calculateHoursAndCost(
-        Math.max(startDateTime.getTime(), eveningStartTime.getTime()),
+        effectiveStart,
         endDateTime,
-        eveningRate,
+        dayRules.evening[isPrivate ? "private" : "public"],
         dayRules.evening.type
       );
       eveningHours = hours;
@@ -782,7 +765,6 @@ export default class PricingRules {
       basePrice += eveningPrice;
     }
 
-    // Apply minimum hours if needed
     if (dayRules.minimumHours && totalBookingHours < dayRules.minimumHours) {
       const ratio = dayRules.minimumHours / totalBookingHours;
       basePrice *= ratio;
@@ -1204,8 +1186,8 @@ export default class PricingRules {
       return `$${rate.toFixed(2)}/hour`;
     };
   
-    if (daytimeHours > 0) {
-      const rateStr = formatRate(daytimePrice || 0, daytimeHours, daytimeRateType || '');
+    if ((daytimeHours || 0) > 0) {
+      const rateStr = formatRate(daytimePrice || 0, daytimeHours || 0, daytimeRateType || '');
       return crossoverApplied ? `${rateStr} (crossover rate)` : rateStr;
     }
   
@@ -1214,6 +1196,11 @@ export default class PricingRules {
     }
   
     return '';
+  }
+
+  // NEW: Added helper method to create a cost item.
+  private createCostItem(description: string, cost: number, rateDescription: string) {
+    return { description, cost, rateDescription };
   }
 }
 
