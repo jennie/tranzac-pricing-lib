@@ -638,14 +638,18 @@ export default class PricingRules {
         additionalCosts: roomAdditionalCosts,
         totalCost: basePrice + roomAdditionalCostsTotal,
         daytimeCostItem: {
-          // Changed: Replace "estimate.isFullDay" with check on dayRules.fullDay.
           description: dayRules.fullDay ? "Full Day Rate" : "Daytime Hours",
           cost: daytimePrice || 0,
           rateType: daytimeRateType || "hourly",
-          hours: daytimeHours || 0,
+          hours: daytimeHours || 0, // This will be 3.0 for minimum hours
           rate: daytimeRate || 0,
           crossoverApplied: crossoverApplied || false,
           isFullDay: !!dayRules.fullDay,
+          subDescription:
+            dayRules.daytime?.minimumHours &&
+            daytimeHours === dayRules.daytime.minimumHours
+              ? `${actualHours} hours (minimum ${dayRules.daytime.minimumHours} hours required)`
+              : `${daytimeHours} hours at ${formatCurrency(daytimeRate)}/hour`,
         },
         eveningCostItem: {
           description: "Evening Hours",
