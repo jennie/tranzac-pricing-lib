@@ -794,7 +794,9 @@ export default class PricingRules {
       const publicRate = dayRules.daytime?.public;
       const privateRate = dayRules.daytime?.private;
       if (!publicRate || !privateRate) {
-        throw new Error("Missing public or private rate in daytime pricing rules");
+        throw new Error(
+          "Missing public or private rate in daytime pricing rules"
+        );
       }
 
       let daytimeRate = isPrivate ? privateRate : publicRate;
@@ -1024,13 +1026,23 @@ export default class PricingRules {
           switch (resourceId) {
             case "bartender":
               if (isPrivate && expectedAttendance > 100) {
-                cost = 0;
-                subDescription = "Comped for large private event";
-              } else if (config.type === "hourly") {
-                cost = Number(config.cost) * bookingHours;
-                subDescription = `${bookingHours} hours at $${config.cost}/hour`;
+                return {
+                  description,
+                  subDescription: "Comped for large private event",
+                  cost: 0,
+                };
+              } else {
+                const hours = differenceInHours(
+                  parseISO(endTime),
+                  parseISO(startTime)
+                );
+                cost = (Number(resourceConfig?.cost) || 0) * hours;
+                return {
+                  description,
+                  subDescription,
+                  cost,
+                };
               }
-              break;
             case "audio_tech":
               const regularHours = Math.min(bookingHours, 7);
               const overtimeHours = Math.max(0, bookingHours - 7);
@@ -1143,6 +1155,7 @@ export default class PricingRules {
             subDescription,
             cost,
           };
+        }
 
       case "projector":
         if (projectorIncluded) {
