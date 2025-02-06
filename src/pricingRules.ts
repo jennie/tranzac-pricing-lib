@@ -657,7 +657,6 @@ export default class PricingRules {
         additionalCosts: roomAdditionalCosts,
         totalCost: basePrice + roomAdditionalCostsTotal,
         daytimeCostItem: {
-          // Changed: Replace "estimate.isFullDay" with check on dayRules.fullDay.
           description: dayRules.fullDay ? "Full Day Rate" : "Daytime Hours",
           cost: daytimePrice || 0,
           rateType: daytimeRateType || "hourly",
@@ -798,43 +797,58 @@ export default class PricingRules {
 
       // Calculate price using applied hours when hourly
       eveningPrice =
-        eveningRateType === "hourly" ? eveningRate * appliedHours : eveningRate;
-
-      eveningCostItem = {
-        description: "Evening Hours",
-        cost: eveningPrice,
-        rateType: eveningRateType,
-        hours: actualHours,
-        rate: eveningRate,
-        minimumHours: minimumHours,
-        minimumApplied: actualHours < minimumHours,
-      };
+        eveningRateType === "hourly"
+          ? eveningRate * appliedHours // This is correct
+          : eveningRate;
     }
 
+    // Similarly for daytime
+    if (daytimeHours > 0 && dayRules.daytime) {
+      const minimumHours = dayRules.daytime.minimumHours || 0;
+      const actualHours = daytimeHours;
+      const appliedHours = Math.max(actualHours, minimumHours);
+
+      daytimeRateType = dayRules.daytime.type;
+      daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
+
+      // Calculate price using applied hours when hourly
+      daytimePrice =
+        daytimeRateType === "hourly"
+          ? daytimeRate * appliedHours // This is correct
+          : daytimeRate;
+    }
+
+    // Calculate total cost
+    const totalCost = daytimePrice + eveningPrice;
+
     return {
-      basePrice,
+      basePrice: totalCost,
       daytimeHours,
       eveningHours,
       daytimePrice,
       eveningPrice,
-      fullDayPrice: 0,
       daytimeRate,
       eveningRate,
-      daytimeRateType: dayRules.daytime?.type || "",
-      eveningRateType: dayRules.evening?.type || "",
-      crossoverApplied,
-      daytimeCostItem,
-      eveningCostItem,
-      fullDayCostItem: this.createCostItem(
-        "Full Day Rate",
-        0,
-        this.generateRateDescription({
-          basePrice: 0,
-          isFullDay: true,
-          fullDayPrice: 0,
-        })
-      ),
-      isFullDay: false,
+      daytimeRateType,
+      eveningRateType,
+      daytimeCostItem: {
+        description: "Daytime Hours",
+        cost: daytimePrice,
+        rateType: daytimeRateType,
+        hours: daytimeHours,
+        rate: daytimeRate,
+        minimumHours: dayRules.daytime?.minimumHours || 0,
+        minimumApplied: daytimeHours < (dayRules.daytime?.minimumHours || 0),
+      },
+      eveningCostItem: {
+        description: "Evening Hours",
+        cost: eveningPrice,
+        rateType: eveningRateType,
+        hours: eveningHours,
+        rate: eveningRate,
+        minimumHours: dayRules.evening?.minimumHours || 0,
+        minimumApplied: eveningHours < (dayRules.evening?.minimumHours || 0),
+      },
     };
   }
 
