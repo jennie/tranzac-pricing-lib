@@ -1303,13 +1303,6 @@ export default class PricingRules {
     rate: number;
     minimumApplied?: boolean;
   } {
-    console.log("[PricingRules] Period rules received:", {
-      periodRules,
-      parent: periodRules.parent,
-      minimumHours: periodRules.minimumHours,
-      parentMinimumHours: periodRules.parent?.minimumHours,
-    });
-
     if (!periodRules) {
       throw new Error(
         `No rules found for ${isEvening ? "evening" : "daytime"} period`
@@ -1318,22 +1311,12 @@ export default class PricingRules {
 
     const rate = periodRules[isPrivate ? "private" : "public"];
     const actualHours = (Number(endTime) - Number(startTime)) / 3600000;
-    const hours = Math.min(
-      actualHours,
-      isEvening ? 12 : 24 - new Date(startTime).getHours()
-    );
 
-    // Get minimumHours from parent rules if not found in period rules
-    const minimumHours =
-      periodRules.minimumHours || periodRules.parent?.minimumHours || 0;
+    // Get minimumHours directly from period rules
+    const minimumHours = periodRules.minimumHours || 0;
 
-    console.log("[PricingRules] Calculated minimum hours:", {
-      periodMinimumHours: periodRules.minimumHours,
-      parentMinimumHours: periodRules.parent?.minimumHours,
-      finalMinimumHours: minimumHours,
-      actualHours,
-      minimumApplied: actualHours < minimumHours,
-    });
+    // Calculate the effective hours (either actual or minimum, whichever is greater)
+    const effectiveHours = Math.max(actualHours, minimumHours);
 
     // Check if this is a crossover period and use crossover rate if applicable
     const isCrossoverPeriod = this.isCrossoverPeriod(startTime, endTime);
@@ -1345,13 +1328,12 @@ export default class PricingRules {
     if (periodRules.type === "flat") {
       return {
         price: effectiveRate,
-        hours,
+        hours: actualHours,
         rate: effectiveRate,
-        minimumHours: 0,
+        minimumHours,
+        minimumApplied: false,
       };
     } else if (periodRules.type === "hourly") {
-      // Apply minimum hours to price calculation
-      const effectiveHours = Math.max(hours, minimumHours);
       const price = effectiveHours * effectiveRate;
 
       return {
