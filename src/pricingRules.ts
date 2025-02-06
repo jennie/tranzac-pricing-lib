@@ -1026,23 +1026,28 @@ export default class PricingRules {
           switch (resourceId) {
             case "bartender":
               if (isPrivate && expectedAttendance > 100) {
-                return {
+                additionalCosts.push({
+                  id: uuidv4(),
+                  roomSlug,
                   description,
                   subDescription: "Comped for large private event",
                   cost: 0,
-                };
+                });
               } else {
                 const hours = differenceInHours(
                   parseISO(endTime),
                   parseISO(startTime)
                 );
-                cost = (Number(resourceConfig?.cost) || 0) * hours;
-                return {
+                cost = (Number(config?.cost) || 0) * hours;
+                additionalCosts.push({
+                  id: uuidv4(),
+                  roomSlug,
                   description,
                   subDescription,
                   cost,
-                };
+                });
               }
+              continue;
             case "audio_tech":
               const regularHours = Math.min(bookingHours, 7);
               const overtimeHours = Math.max(0, bookingHours - 7);
