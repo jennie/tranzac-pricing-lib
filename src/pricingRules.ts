@@ -63,6 +63,7 @@ interface BookingDetails {
 }
 
 interface BookingRates {
+  basePrice: number;
   daytimeHours?: number;
   daytimePrice?: number;
   daytimeRate?: number;
@@ -71,9 +72,8 @@ interface BookingRates {
   eveningPrice?: number;
   eveningRate?: number;
   eveningRateType?: string;
-  crossoverApplied?: boolean;
-  label?: string;
   fullDayPrice?: number;
+  crossoverApplied?: boolean;
   isFullDay?: boolean;
 }
 
@@ -656,8 +656,12 @@ export default class PricingRules {
         },
         fullDayCostItem: this.createCostItem(
           "Full Day Rate",
-          fullDayPrice,
-          this.generateRateDescription({ isFullDay: true, fullDayPrice })
+          fullDayPrice || 0,
+          this.generateRateDescription({
+            basePrice: 0,
+            isFullDay: true,
+            fullDayPrice: fullDayPrice || 0,
+          })
         ),
         minimumHours: dayRules.minimumHours,
         totalBookingHours,
@@ -1189,9 +1193,10 @@ export default class PricingRules {
     crossoverApplied,
     fullDayPrice,
     isFullDay,
+    basePrice = 0,
   }: BookingRates): string {
     if (isFullDay) {
-      return `$${fullDayPrice}/day`;
+      return `$${fullDayPrice || 0}/day`;
     }
 
     const formatRate = (price: number, hours: number, type: string) => {
