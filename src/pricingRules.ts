@@ -789,33 +789,29 @@ export default class PricingRules {
 
     // Calculate evening costs
     if (eveningHours > 0 && dayRules.evening) {
-      const eveningCost = this.calculatePeriodCost(
-        eveningStartTime,
-        endDateTime,
-        dayRules.evening,
-        true,
-        isPrivate
-      );
+      console.log("[PricingRules] Evening calculation start:", {
+        dayRules,
+        minimumHours: dayRules.minimumHours,
+        parentMinHours: dayRules.evening?.parent?.minimumHours,
+        effectiveMinHours:
+          dayRules.minimumHours || dayRules.evening?.parent?.minimumHours || 0,
+      });
 
-      eveningPrice = eveningCost.price;
-      eveningRate = dayRules.evening[isPrivate ? "private" : "public"];
-      eveningRateType = dayRules.evening.type;
-
-      // Get minimum hours from dayRules or its evening.parent reference
       const minimumHours =
         dayRules.minimumHours || dayRules.evening?.parent?.minimumHours || 0;
+      const actualHours = eveningHours;
+      const appliedHours = Math.max(actualHours, minimumHours);
 
-      // Calculate the applied hours (use minimum if actual hours are less)
-      const appliedHours = Math.max(eveningHours, minimumHours);
+      eveningRateType = dayRules.evening.type;
+      eveningRate = this.getEffectiveRate(room, true, isPrivate);
 
-      // Calculate evening price based on applied hours
-      if (eveningRateType === "hourly") {
-        eveningPrice = eveningRate * appliedHours;
-      }
+      // Calculate price using applied hours when hourly
+      eveningPrice =
+        eveningRateType === "hourly" ? eveningRate * appliedHours : eveningRate;
 
-      console.log("[PricingRules] Evening pricing calculation:", {
-        eveningHours,
+      console.log("[PricingRules] Evening price calculation:", {
         minimumHours,
+        actualHours,
         appliedHours,
         eveningRate,
         eveningPrice,
@@ -826,11 +822,13 @@ export default class PricingRules {
         description: "Evening Hours",
         cost: eveningPrice,
         rateType: eveningRateType,
-        hours: eveningHours,
+        hours: actualHours,
         rate: eveningRate,
-        minimumHours: minimumHours,
-        minimumApplied: eveningHours < minimumHours,
+        minimumHours, // Add this explicitly
+        minimumApplied: actualHours < minimumHours, // Add this explicitly
       };
+
+      console.log("[PricingRules] Created evening cost item:", eveningCostItem);
     }
 
     return {
