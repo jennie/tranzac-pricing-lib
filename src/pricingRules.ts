@@ -774,6 +774,7 @@ export default class PricingRules {
     const torontoEveningStart = new Date(torontoStart);
     torontoEveningStart.setHours(17, 0, 0, 0);
 
+    const totalBookingHours = differenceInHours(torontoEnd, torontoStart);
     const bookingCrossesEveningThreshold =
       torontoStart < torontoEveningStart && torontoEnd > torontoEveningStart;
 
