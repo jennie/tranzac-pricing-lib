@@ -1250,6 +1250,23 @@ export default class PricingRules {
   ) {
     return { description, cost, rateDescription };
   }
+
+  private calculateHoursAndCost(
+    startTime: Date,
+    endTime: Date,
+    rate: number,
+    type: string
+  ): { hours: number; cost: number } {
+    const hours = differenceInHours(endTime, startTime);
+
+    if (type === "flat") {
+      return { hours, cost: rate };
+    } else if (type === "hourly") {
+      return { hours, cost: hours * rate };
+    }
+
+    throw new Error(`Invalid pricing type: ${type}`);
+  }
 }
 
 function dateTimeToISOString(dateTime: Date): string {
