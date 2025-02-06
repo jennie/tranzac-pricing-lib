@@ -109,12 +109,6 @@ interface AdditionalCosts {
   // Add additional properties if needed.
 }
 
-interface TimePeriod {
-  name: string;
-  startTime: number; // milliseconds since midnight
-  endTime: number;
-}
-
 const TORONTO_TIMEZONE = "America/Toronto";
 const HST_RATE = 0.13; // 13% HST rate
 
@@ -125,25 +119,8 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-interface PeriodCalculationResult {
-  basePrice: number;
-  daytimePrice: number;
-  eveningPrice: number;
-  daytimeHours: number;
-  eveningHours: number;
-  daytimeRate: number;
-  eveningRate: number;
-  daytimeRateType: string;
-  eveningRateType: string;
-  crossoverApplied: boolean;
-  fullDayPrice?: number;
-  actualHours?: number;
-  regularHours?: number;
-  crossoverHours?: number;
-}
-
 export default class PricingRules {
-  private timePeriods: TimePeriod[] | null;
+  private timePeriods: any[] | null;
   private rules: Record<string, any> | null;
   private additionalCosts: AdditionalCosts | null;
   private taxCache = new Map<number, number>();
@@ -630,8 +607,6 @@ export default class PricingRules {
         eveningRateType,
         crossoverApplied,
         actualHours,
-        regularHours,
-        crossoverHours,
       } = this.calculateRoomPrice(
         startDateTime,
         endDateTime,
@@ -729,21 +704,13 @@ export default class PricingRules {
     endDateTime: Date,
     dayRules: any,
     isPrivate: boolean
-  ): PeriodCalculationResult {
+  ) {
     console.log("=== calculateRoomPrice Debug ===");
     console.log("Start DateTime:", startDateTime);
     console.log("End DateTime:", endDateTime);
 
-    const eveningPeriod = this.getTimePeriod("evening");
-    if (!eveningPeriod) {
-      throw new Error("Evening time period not found");
-    }
-
-    const eveningStartTime = this.setTimeForDate(
-      startDateTime,
-      eveningPeriod.startTime
-    );
-    console.log("Evening starts at:", eveningStartTime);
+    const eveningStartTime = new Date(startDateTime);
+    eveningStartTime.setHours(18, 0, 0, 0);
 
     let basePrice = 0;
     let daytimePrice = 0;
@@ -753,47 +720,43 @@ export default class PricingRules {
     let daytimeRate = 0;
     let eveningRate = 0;
     let crossoverApplied = false;
-    let actualHours = 0;
-    let regularHours = 0;
-    let crossoverHours = 0;
-
-    // Calculate total booking hours at the start
-    const totalBookingHours = differenceInHours(endDateTime, startDateTime);
 
     if (startDateTime < eveningStartTime && dayRules.daytime) {
       const pricingRate = dayRules.daytime[isPrivate ? "private" : "public"];
       daytimeRate = pricingRate;
 
       // Calculate actual hours before evening
-      regularHours = differenceInHours(
+      const hoursBeforeEvening = differenceInHours(
         endDateTime < eveningStartTime ? endDateTime : eveningStartTime,
         startDateTime
       );
 
       // Calculate crossover hours if applicable
-      crossoverHours =
+      const crossoverHours =
         endDateTime > eveningStartTime
           ? differenceInHours(endDateTime, eveningStartTime)
           : 0;
 
-      actualHours = regularHours + crossoverHours;
       console.log("Hours calculation:", {
-        regularHours,
+        hoursBeforeEvening,
         crossoverHours,
         minimumHours: dayRules.daytime.minimumHours,
       });
 
       // Calculate prices
-      if (actualHours < (dayRules.daytime.minimumHours || 0)) {
+      if (
+        hoursBeforeEvening + crossoverHours <
+        (dayRules.daytime.minimumHours || 0)
+      ) {
         // If total hours are less than minimum, charge minimum at regular rate
         daytimeHours = dayRules.daytime.minimumHours;
         daytimePrice = pricingRate * dayRules.daytime.minimumHours;
         crossoverApplied = false;
       } else {
         // Calculate regular and crossover portions
-        daytimeHours = actualHours;
+        daytimeHours = hoursBeforeEvening + crossoverHours;
         daytimePrice =
-          regularHours * pricingRate +
+          hoursBeforeEvening * pricingRate +
           crossoverHours * (dayRules.daytime.crossoverRate || pricingRate);
         crossoverApplied = crossoverHours > 0;
       }
@@ -815,7 +778,6 @@ export default class PricingRules {
       basePrice += eveningPrice;
     }
 
-    // Apply minimum hours if needed
     if (dayRules.minimumHours && totalBookingHours < dayRules.minimumHours) {
       const ratio = dayRules.minimumHours / totalBookingHours;
       basePrice *= ratio;
@@ -833,7 +795,7 @@ export default class PricingRules {
       daytimeRate,
       eveningRate,
       crossoverApplied,
-      regularHours,
+      regularHours: hoursBeforeEvening,
       crossoverHours,
     });
 
@@ -848,9 +810,6 @@ export default class PricingRules {
       daytimeRateType: dayRules.daytime?.type || "",
       eveningRateType: dayRules.evening?.type || "",
       crossoverApplied,
-      actualHours,
-      regularHours,
-      crossoverHours,
     };
   }
 
@@ -877,18 +836,11 @@ export default class PricingRules {
     let additionalCosts: AdditionalCost[] = [];
     const customLineItems: any[] = [];
 
-    const eveningPeriod = this.getTimePeriod("evening");
-    if (!eveningPeriod) {
-      throw new Error("Evening time period not found");
-    }
-
-    const venueOpeningTime = this.setTimeForDate(
-      new Date(startTime),
-      eveningPeriod.startTime
-    );
+    // Early Open Staff calculation
+    const venueOpeningTime = new Date(startTime);
+    venueOpeningTime.setHours(18, 0, 0, 0); // Assuming venue opens at 6 PM
     const bookingStartTime = new Date(startTime);
 
-    // Early Open Staff calculation
     if (bookingStartTime < venueOpeningTime) {
       const earlyOpenHours = Math.ceil(
         differenceInHours(venueOpeningTime, bookingStartTime)
@@ -1250,10 +1202,10 @@ export default class PricingRules {
     eveningRate,
     eveningRateType,
     crossoverApplied,
-    fullDayPrice = 0,
+    fullDayPrice,
     isFullDay,
   }: BookingRates): string {
-    if (isFullDay && fullDayPrice) {
+    if (isFullDay) {
       return `$${fullDayPrice}/day`;
     }
 
@@ -1282,48 +1234,10 @@ export default class PricingRules {
   // NEW: Added helper method to create a cost item.
   private createCostItem(
     description: string,
-    cost: number | undefined,
+    cost: number,
     rateDescription: string
   ) {
-    return {
-      description,
-      cost: cost || 0, // Provide default value if cost is undefined
-      rateDescription,
-    };
-  }
-
-  private getTimePeriod(name: string): TimePeriod | null {
-    if (!this.timePeriods) return null;
-    return this.timePeriods.find((period) => period.name === name) || null;
-  }
-
-  private getTimeFromMillis(millis: number): {
-    hours: number;
-    minutes: number;
-  } {
-    const hours = Math.floor(millis / (1000 * 60 * 60));
-    const minutes = Math.floor((millis % (1000 * 60 * 60)) / (1000 * 60));
-    return { hours, minutes };
-  }
-
-  private setTimeForDate(date: Date, timeInMillis: number): Date {
-    const { hours, minutes } = this.getTimeFromMillis(timeInMillis);
-    const newDate = new Date(date);
-    newDate.setHours(hours, minutes, 0, 0);
-    return newDate;
-  }
-
-  private calculateHoursAndCost(
-    start: Date,
-    end: Date,
-    rate: number,
-    rateType: string
-  ): { hours: number; cost: number } {
-    const hours = differenceInHours(end, start);
-    return {
-      hours,
-      cost: rateType === "flat" ? rate : rate * hours,
-    };
+    return { description, cost, rateDescription };
   }
 }
 
