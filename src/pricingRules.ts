@@ -766,53 +766,27 @@ export default class PricingRules {
       const pricingRate = dayRules.daytime[isPrivate ? "private" : "public"];
       daytimeRate = pricingRate;
 
-      // Add debug logging for crossover rate calculation
-      console.log("=== Daytime Rate Calculation ===");
-      console.log("Booking crosses evening:", bookingCrossesEveningThreshold);
-      console.log("Daytime Rate:", pricingRate);
-      console.log(
-        "Crossover Rate Available:",
-        !!dayRules.daytime.crossoverRate
-      );
-      console.log("Crossover Rate:", dayRules.daytime.crossoverRate);
+      // First calculate actual hours
+      const actualHours = differenceInHours(daytimeEndTime, startDateTime);
+      daytimeHours = actualHours;
 
-      if (bookingCrossesEveningThreshold && dayRules.daytime.crossoverRate) {
-        crossoverApplied = true;
-        const { hours, cost } = calculateHoursAndCost(
-          startDateTime,
-          daytimeEndTime,
-          dayRules.daytime.crossoverRate,
-          dayRules.daytime.type
-        );
-        console.log("Crossover calculation:", { hours, cost });
-        daytimeHours = hours;
-        daytimePrice = cost;
-      } else {
-        const { hours, cost } = calculateHoursAndCost(
-          startDateTime,
-          daytimeEndTime,
-          pricingRate,
-          dayRules.daytime.type
-        );
-        console.log("Regular daytime calculation:", { hours, cost });
-        daytimeHours = hours;
-        daytimePrice = cost;
-      }
-
-      // Add minimum hours check debug
-      console.log("=== Minimum Hours Check ===");
-      console.log("Minimum Hours Required:", dayRules.daytime.minimumHours);
-      console.log("Actual Hours:", daytimeHours);
-
-      // Check if minimum hours should be applied
+      // Check minimum hours first
       if (
         dayRules.daytime.minimumHours &&
-        daytimeHours < dayRules.daytime.minimumHours
+        actualHours < dayRules.daytime.minimumHours
       ) {
-        console.log("Applying minimum hours adjustment");
-        const adjustedCost = pricingRate * dayRules.daytime.minimumHours;
-        console.log("Adjusted Cost:", adjustedCost);
-        daytimePrice = adjustedCost;
+        daytimeHours = dayRules.daytime.minimumHours;
+        daytimePrice = pricingRate * dayRules.daytime.minimumHours;
+        crossoverApplied = false;
+      } else if (
+        bookingCrossesEveningThreshold &&
+        dayRules.daytime.crossoverRate
+      ) {
+        // Only apply crossover rate if we're not using minimum hours
+        crossoverApplied = true;
+        daytimePrice = dayRules.daytime.crossoverRate * actualHours;
+      } else {
+        daytimePrice = pricingRate * actualHours;
       }
 
       basePrice += daytimePrice;
