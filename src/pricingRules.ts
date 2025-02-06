@@ -695,7 +695,9 @@ export default class PricingRules {
             dayRules.daytime?.minimumHours &&
             daytimeHours === dayRules.daytime.minimumHours
               ? `${actualHours} hours (minimum ${dayRules.daytime.minimumHours} hours required)`
-              : `${daytimeHours} hours at ${formatCurrency(daytimeRate)}/hour`,
+              : `${daytimeHours} hours at ${formatCurrency(daytimeRate)}/hour${
+                  crossoverApplied ? " (crossover rate)" : ""
+                }`,
         },
         eveningCostItem: {
           description: "Evening Hours",
@@ -750,18 +752,62 @@ export default class PricingRules {
     dayRules: any,
     isPrivate: boolean
   ) {
-    const eveningStartTime = new Date(startDateTime);
-    eveningStartTime.setHours(17, 0, 0, 0); // Keep at 5pm (17:00)
+    // Initialize variables at the start
+    let daytimePrice = 0;
+    let eveningPrice = 0;
+    let daytimeHours = 0;
+    let eveningHours = 0;
+    let daytimeRate = 0;
+    let eveningRate = 0;
+    let crossoverApplied = false;
+    let actualHours = 0;
 
-    // Convert times to Toronto timezone for comparison
     const torontoStart = toZonedTime(startDateTime, TORONTO_TIMEZONE);
     const torontoEnd = toZonedTime(endDateTime, TORONTO_TIMEZONE);
-    const torontoEveningStart = toZonedTime(eveningStartTime, TORONTO_TIMEZONE);
+    const torontoEveningStart = new Date(torontoStart);
+    torontoEveningStart.setHours(17, 0, 0, 0);
 
-    const totalBookingHours = differenceInHours(torontoEnd, torontoStart);
     const bookingCrossesEveningThreshold =
       torontoStart < torontoEveningStart && torontoEnd > torontoEveningStart;
 
+    // Calculate daytime portion
+    if (torontoStart < torontoEveningStart) {
+      const daytimeEndTime = bookingCrossesEveningThreshold
+        ? torontoEveningStart
+        : torontoEnd;
+
+      let daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
+
+      // Apply crossover rate if applicable
+      if (bookingCrossesEveningThreshold && dayRules.daytime.crossoverRate) {
+        daytimeRate = dayRules.daytime.crossoverRate;
+        crossoverApplied = true;
+      }
+
+      const daytimeHours = differenceInHours(daytimeEndTime, torontoStart);
+      daytimePrice = daytimeRate * daytimeHours;
+
+      // Add crossover rate info to the subDescription
+      const subDescription = `${daytimeHours} hours at ${formatCurrency(
+        daytimeRate
+      )}/hour${crossoverApplied ? " (crossover rate)" : ""}`;
+    }
+
+    // Calculate evening portion
+    if (torontoEnd > torontoEveningStart && dayRules.evening) {
+      const effectiveStart =
+        torontoStart > torontoEveningStart ? torontoStart : torontoEveningStart;
+      const { hours, cost } = this.calculateHoursAndCost(
+        effectiveStart,
+        torontoEnd,
+        dayRules.evening[isPrivate ? "private" : "public"],
+        dayRules.evening.type
+      );
+      eveningHours = hours;
+      eveningPrice = cost;
+    }
+
+    // Calculate full day portion
     if (dayRules.fullDay) {
       const rate = dayRules.fullDay[isPrivate ? "private" : "public"];
       const { hours, cost } = this.calculateHoursAndCost(
@@ -786,56 +832,9 @@ export default class PricingRules {
       };
     }
 
-    let basePrice = 0;
-    let daytimePrice = 0;
-    let eveningPrice = 0;
-    let daytimeHours = 0;
-    let eveningHours = 0;
-    let daytimeRate = 0;
-    let eveningRate = 0;
-    let crossoverApplied = false;
-    let actualHours = 0;
-
-    if (torontoStart < torontoEveningStart && dayRules.daytime) {
-      const daytimeEndTime = bookingCrossesEveningThreshold
-        ? torontoEveningStart
-        : torontoEnd;
-      const pricingRate = dayRules.daytime[isPrivate ? "private" : "public"];
-      daytimeRate = pricingRate;
-
-      // Calculate actual hours first
-      const actualHours = differenceInHours(daytimeEndTime, torontoStart);
-
-      // Check if we should use crossover rate
-      if (bookingCrossesEveningThreshold && dayRules.daytime.crossoverRate) {
-        crossoverApplied = true;
-        daytimeRate = dayRules.daytime.crossoverRate;
-      }
-
-      // Apply minimum hours after determining rate
-      daytimeHours = Math.max(actualHours, dayRules.daytime.minimumHours || 0);
-      daytimePrice = daytimeRate * daytimeHours;
-
-      basePrice += daytimePrice;
-    }
-
-    if (torontoEnd > torontoEveningStart && dayRules.evening) {
-      const effectiveStart =
-        torontoStart > torontoEveningStart ? torontoStart : torontoEveningStart;
-      const { hours, cost } = this.calculateHoursAndCost(
-        effectiveStart,
-        torontoEnd,
-        dayRules.evening[isPrivate ? "private" : "public"],
-        dayRules.evening.type
-      );
-      eveningHours = hours;
-      eveningPrice = cost;
-      basePrice += eveningPrice;
-    }
-
+    // Calculate minimum hours
     if (dayRules.minimumHours && totalBookingHours < dayRules.minimumHours) {
       const ratio = dayRules.minimumHours / totalBookingHours;
-      basePrice *= ratio;
       daytimePrice *= ratio;
       eveningPrice *= ratio;
     }
@@ -843,7 +842,6 @@ export default class PricingRules {
     // Add final calculation debug
     console.log("=== Final Calculation Results ===");
     console.log({
-      basePrice,
       daytimePrice,
       eveningPrice,
       daytimeHours,
@@ -854,7 +852,7 @@ export default class PricingRules {
     });
 
     return {
-      basePrice,
+      basePrice: 0,
       daytimePrice,
       eveningPrice,
       fullDayPrice: 0,
@@ -1204,72 +1202,52 @@ export default class PricingRules {
       if (earlyOpenHours > 0) {
         perSlotCosts.push({
           description: `Early Open Staff (${earlyOpenHours} hours)`,
-          subDescription: "Additional staff for early opening",
-          cost: Number(earlyOpenHours) * 30,
+          cost: 0,
           isRequired: true,
-        } as Cost);
+        });
       }
     }
 
-    // Add any other per-slot costs here
+    // Per-slot resources
+    const perSlotResources = ["door_staff", "piano_tuning"];
+
+    for (const resourceId of perSlotResources) {
+      const config = this.additionalCosts?.resources.find(
+        (r: any) => r.id === resourceId
+      );
+      if (config) {
+        let cost =
+          config.type === "hourly"
+            ? config?.cost
+              ? Number(config.cost) *
+                  differenceInHours(parseISO(endTime), parseISO(startTime)) || 0
+              : 0
+            : config?.cost || 0;
+        perSlotCosts.push({
+          description: config.description,
+          cost: Number(cost) || 0,
+          isRequired: false,
+        });
+      }
+    }
 
     return perSlotCosts;
   }
 
-  calculatePeriodPrice(
-    startTime: Date,
-    endTime: Date,
-    rules: any,
-    isPrivate: boolean
-  ) {
-    const isEvening = this.isEveningTime(startTime);
-    const periodRules = isEvening ? rules.evening : rules.daytime;
-
-    if (!periodRules) {
-      throw new Error(
-        `No rules found for ${isEvening ? "evening" : "daytime"} period`
-      );
-    }
-
-    const rate = periodRules[isPrivate ? "private" : "public"];
-    const hours = Math.min(
-      (Number(endTime) - Number(startTime)) / 3600000,
-      isEvening ? 12 : 24 - new Date(startTime).getHours()
-    );
-
-    if (periodRules.type === "flat") {
-      return { price: rate, hours };
-    } else if (periodRules.type === "hourly") {
-      const effectiveHours = Math.max(hours, periodRules.minimumHours || 0);
-      return { price: effectiveHours * rate, hours };
-    }
-
-    throw new Error(
-      `Invalid pricing type for ${isEvening ? "evening" : "daytime"} period`
-    );
-  }
-  generateRateDescription({
-    daytimeHours,
-    daytimePrice,
-    daytimeRate,
-    daytimeRateType,
-    eveningHours = 0,
-    eveningPrice,
-    eveningRate,
-    eveningRateType,
-    crossoverApplied,
-    fullDayPrice,
-    isFullDay,
-  }: BookingRates): string {
-    if (isFullDay) {
-      return `$${fullDayPrice}/day`;
-    }
-
-    const formatRate = (price: number, hours: number, type: string) => {
-      if (type === "flat") return "Flat rate";
-      const rate = price / hours;
-      return `$${rate.toFixed(2)}/hour`;
-    };
+  generateRateDescription(rate: BookingRates): string {
+    const {
+      daytimeHours,
+      daytimePrice,
+      daytimeRate,
+      daytimeRateType,
+      eveningHours,
+      eveningPrice,
+      eveningRate,
+      eveningRateType,
+      crossoverApplied,
+      fullDayPrice,
+      isFullDay,
+    } = rate;
 
     if ((daytimeHours || 0) > 0) {
       const rateStr = formatRate(
@@ -1280,89 +1258,24 @@ export default class PricingRules {
       return crossoverApplied ? `${rateStr} (crossover rate)` : rateStr;
     }
 
-    if (eveningHours > 0) {
-      return formatRate(eveningPrice || 0, eveningHours, eveningRateType || "");
+    if ((eveningHours || 0) > 0) {
+      const rateStr = formatRate(
+        eveningPrice || 0,
+        eveningHours || 0,
+        eveningRateType || ""
+      );
+      return rateStr;
+    }
+
+    if (isFullDay && fullDayPrice) {
+      const rateStr = formatRate(
+        fullDayPrice,
+        daytimeHours || 0,
+        daytimeRateType || ""
+      );
+      return rateStr;
     }
 
     return "";
   }
-
-  // NEW: Added helper method to create a cost item.
-  private createCostItem(
-    description: string,
-    cost: number,
-    rateDescription: string
-  ) {
-    return { description, cost, rateDescription };
-  }
-
-  private calculateHoursAndCost(
-    startTime: Date,
-    endTime: Date,
-    rate: number,
-    type: string
-  ): { hours: number; cost: number } {
-    const hours = differenceInHours(endTime, startTime);
-
-    if (type === "flat") {
-      return { hours, cost: rate };
-    } else if (type === "hourly") {
-      return { hours, cost: hours * rate };
-    }
-
-    throw new Error(`Invalid pricing type: ${type}`);
-  }
-
-  private createEstimate(
-    booking: Booking,
-    estimates: any[],
-    perSlotCosts: any[],
-    slotTotal: number,
-    customLineItems: any[]
-  ): CostEstimate {
-    return {
-      id: booking.id || uuidv4(),
-      date: new Date(booking.date || booking.startTime),
-      start: new Date(booking.startTime),
-      end: new Date(booking.endTime),
-      estimates,
-      perSlotCosts,
-      slotTotal,
-      roomSlugs: booking.roomSlugs,
-      isPrivate: booking.isPrivate,
-      resources: booking.resources,
-      expectedAttendance: booking.expectedAttendance,
-      customLineItems,
-      // Add these fields to match what the UI expects
-      subtotal: slotTotal,
-      tax: slotTotal * 0.13, // 13% HST
-      total: slotTotal * 1.13,
-      daytimeHours: estimates.reduce(
-        (sum, est) => sum + (est.daytimeHours || 0),
-        0
-      ),
-      eveningHours: estimates.reduce(
-        (sum, est) => sum + (est.eveningHours || 0),
-        0
-      ),
-      daytimePrice: estimates.reduce(
-        (sum, est) => sum + (est.daytimePrice || 0),
-        0
-      ),
-      eveningPrice: estimates.reduce(
-        (sum, est) => sum + (est.eveningPrice || 0),
-        0
-      ),
-      daytimeRate: estimates[0]?.daytimeRate || 0,
-      eveningRate: estimates[0]?.eveningRate || 0,
-      crossoverApplied: estimates[0]?.crossoverApplied || false,
-    };
-  }
-}
-
-function dateTimeToISOString(dateTime: Date): string {
-  if (!isValid(dateTime)) {
-    throw new Error("Invalid date passed to dateTimeToISOString");
-  }
-  return formatISO(dateTime);
 }
