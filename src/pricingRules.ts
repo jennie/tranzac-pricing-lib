@@ -109,6 +109,12 @@ interface AdditionalCosts {
   // Add additional properties if needed.
 }
 
+interface TimePeriod {
+  name: string;
+  startTime: number; // milliseconds since midnight
+  endTime: number;
+}
+
 const TORONTO_TIMEZONE = "America/Toronto";
 const HST_RATE = 0.13; // 13% HST rate
 
@@ -120,7 +126,7 @@ function formatCurrency(amount: number): string {
 }
 
 export default class PricingRules {
-  private timePeriods: any[] | null;
+  private timePeriods: TimePeriod[] | null;
   private rules: Record<string, any> | null;
   private additionalCosts: AdditionalCosts | null;
   private taxCache = new Map<number, number>();
@@ -705,57 +711,20 @@ export default class PricingRules {
     dayRules: any,
     isPrivate: boolean
   ) {
-    // Add debug logging at the start
     console.log("=== calculateRoomPrice Debug ===");
     console.log("Start DateTime:", startDateTime);
     console.log("End DateTime:", endDateTime);
-    console.log("Day Rules:", JSON.stringify(dayRules, null, 2));
-    console.log("Is Private:", isPrivate);
 
-    const calculateHoursAndCost = (
-      start: Date,
-      end: Date,
-      rate: number,
-      rateType: string
-    ) => {
-      const hours = differenceInHours(end, start);
-      return {
-        hours,
-        cost: rateType === "flat" ? rate : rate * hours,
-        hourlyRate: rateType === "flat" ? null : rate,
-      };
-    };
-
-    const eveningStartTime = new Date(startDateTime);
-    eveningStartTime.setHours(17, 0, 0, 0);
-
-    const totalBookingHours = differenceInHours(endDateTime, startDateTime);
-    const bookingCrossesEveningThreshold =
-      startDateTime < eveningStartTime && endDateTime > eveningStartTime;
-
-    if (dayRules.fullDay) {
-      const rate = dayRules.fullDay[isPrivate ? "private" : "public"];
-      const { hours, cost } = calculateHoursAndCost(
-        startDateTime,
-        endDateTime,
-        rate,
-        dayRules.fullDay.type
-      );
-      return {
-        basePrice: cost,
-        fullDayPrice: cost,
-        daytimeHours: hours,
-        eveningHours: 0,
-        daytimePrice: cost,
-        eveningPrice: 0,
-        daytimeRate: rate,
-        eveningRate: 0,
-        daytimeRateType: dayRules.fullDay.type,
-        eveningRateType: "",
-        crossoverApplied: false,
-        actualHours: hours,
-      };
+    const eveningPeriod = this.getTimePeriod("evening");
+    if (!eveningPeriod) {
+      throw new Error("Evening time period not found");
     }
+
+    const eveningStartTime = this.setTimeForDate(
+      startDateTime,
+      eveningPeriod.startTime
+    );
+    console.log("Evening starts at:", eveningStartTime);
 
     let basePrice = 0;
     let daytimePrice = 0;
@@ -765,36 +734,46 @@ export default class PricingRules {
     let daytimeRate = 0;
     let eveningRate = 0;
     let crossoverApplied = false;
-    let actualHours = 0;
 
     if (startDateTime < eveningStartTime && dayRules.daytime) {
-      const daytimeEndTime = bookingCrossesEveningThreshold
-        ? eveningStartTime
-        : endDateTime;
       const pricingRate = dayRules.daytime[isPrivate ? "private" : "public"];
       daytimeRate = pricingRate;
 
-      // First calculate actual hours
-      actualHours = differenceInHours(daytimeEndTime, startDateTime);
-      daytimeHours = actualHours;
+      // Calculate actual hours before evening
+      const hoursBeforeEvening = differenceInHours(
+        endDateTime < eveningStartTime ? endDateTime : eveningStartTime,
+        startDateTime
+      );
 
-      // Check minimum hours first
+      // Calculate crossover hours if applicable
+      const crossoverHours =
+        endDateTime > eveningStartTime
+          ? differenceInHours(endDateTime, eveningStartTime)
+          : 0;
+
+      console.log("Hours calculation:", {
+        hoursBeforeEvening,
+        crossoverHours,
+        minimumHours: dayRules.daytime.minimumHours,
+        eveningStartTime: eveningStartTime.toISOString(),
+      });
+
+      // Calculate prices
       if (
-        dayRules.daytime.minimumHours &&
-        actualHours < dayRules.daytime.minimumHours
+        hoursBeforeEvening + crossoverHours <
+        (dayRules.daytime.minimumHours || 0)
       ) {
+        // If total hours are less than minimum, charge minimum at regular rate
         daytimeHours = dayRules.daytime.minimumHours;
         daytimePrice = pricingRate * dayRules.daytime.minimumHours;
         crossoverApplied = false;
-      } else if (
-        bookingCrossesEveningThreshold &&
-        dayRules.daytime.crossoverRate
-      ) {
-        // Only apply crossover rate if we're not using minimum hours
-        crossoverApplied = true;
-        daytimePrice = dayRules.daytime.crossoverRate * actualHours;
       } else {
-        daytimePrice = pricingRate * actualHours;
+        // Calculate regular and crossover portions
+        daytimeHours = hoursBeforeEvening + crossoverHours;
+        daytimePrice =
+          hoursBeforeEvening * pricingRate +
+          crossoverHours * (dayRules.daytime.crossoverRate || pricingRate);
+        crossoverApplied = crossoverHours > 0;
       }
 
       basePrice += daytimePrice;
@@ -803,7 +782,7 @@ export default class PricingRules {
     if (endDateTime > eveningStartTime && dayRules.evening) {
       const effectiveStart =
         startDateTime > eveningStartTime ? startDateTime : eveningStartTime;
-      const { hours, cost } = calculateHoursAndCost(
+      const { hours, cost } = this.calculateHoursAndCost(
         effectiveStart,
         endDateTime,
         dayRules.evening[isPrivate ? "private" : "public"],
@@ -822,8 +801,7 @@ export default class PricingRules {
     }
 
     // Add final calculation debug
-    console.log("=== Final Calculation Results ===");
-    console.log({
+    console.log("=== Final Calculation Results ===", {
       basePrice,
       daytimePrice,
       eveningPrice,
@@ -832,13 +810,14 @@ export default class PricingRules {
       daytimeRate,
       eveningRate,
       crossoverApplied,
+      regularHours: hoursBeforeEvening,
+      crossoverHours,
     });
 
     return {
       basePrice,
       daytimePrice,
       eveningPrice,
-      fullDayPrice: 0,
       daytimeHours,
       eveningHours,
       daytimeRate,
@@ -846,7 +825,6 @@ export default class PricingRules {
       daytimeRateType: dayRules.daytime?.type || "",
       eveningRateType: dayRules.evening?.type || "",
       crossoverApplied,
-      actualHours,
     };
   }
 
@@ -873,11 +851,18 @@ export default class PricingRules {
     let additionalCosts: AdditionalCost[] = [];
     const customLineItems: any[] = [];
 
-    // Early Open Staff calculation
-    const venueOpeningTime = new Date(startTime);
-    venueOpeningTime.setHours(18, 0, 0, 0); // Assuming venue opens at 6 PM
+    const eveningPeriod = this.getTimePeriod("evening");
+    if (!eveningPeriod) {
+      throw new Error("Evening time period not found");
+    }
+
+    const venueOpeningTime = this.setTimeForDate(
+      new Date(startTime),
+      eveningPeriod.startTime
+    );
     const bookingStartTime = new Date(startTime);
 
+    // Early Open Staff calculation
     if (bookingStartTime < venueOpeningTime) {
       const earlyOpenHours = Math.ceil(
         differenceInHours(venueOpeningTime, bookingStartTime)
@@ -1275,6 +1260,27 @@ export default class PricingRules {
     rateDescription: string
   ) {
     return { description, cost, rateDescription };
+  }
+
+  private getTimePeriod(name: string): TimePeriod | null {
+    if (!this.timePeriods) return null;
+    return this.timePeriods.find((period) => period.name === name) || null;
+  }
+
+  private getTimeFromMillis(millis: number): {
+    hours: number;
+    minutes: number;
+  } {
+    const hours = Math.floor(millis / (1000 * 60 * 60));
+    const minutes = Math.floor((millis % (1000 * 60 * 60)) / (1000 * 60));
+    return { hours, minutes };
+  }
+
+  private setTimeForDate(date: Date, timeInMillis: number): Date {
+    const { hours, minutes } = this.getTimeFromMillis(timeInMillis);
+    const newDate = new Date(date);
+    newDate.setHours(hours, minutes, 0, 0);
+    return newDate;
   }
 }
 
