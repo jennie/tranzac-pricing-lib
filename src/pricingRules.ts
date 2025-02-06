@@ -695,9 +695,7 @@ export default class PricingRules {
             dayRules.daytime?.minimumHours &&
             daytimeHours === dayRules.daytime.minimumHours
               ? `${actualHours} hours (minimum ${dayRules.daytime.minimumHours} hours required)`
-              : `${daytimeHours} hours at ${formatCurrency(daytimeRate)}/hour${
-                  crossoverApplied ? " (crossover rate)" : ""
-                }`,
+              : `${daytimeHours} hours at ${formatCurrency(daytimeRate)}/hour`,
         },
         eveningCostItem: {
           description: "Evening Hours",
@@ -786,11 +784,6 @@ export default class PricingRules {
 
       const daytimeHours = differenceInHours(daytimeEndTime, torontoStart);
       daytimePrice = daytimeRate * daytimeHours;
-
-      // Add crossover rate info to the subDescription
-      const subDescription = `${daytimeHours} hours at ${formatCurrency(
-        daytimeRate
-      )}/hour${crossoverApplied ? " (crossover rate)" : ""}`;
     }
 
     // Calculate evening portion
