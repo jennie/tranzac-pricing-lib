@@ -109,6 +109,14 @@ interface AdditionalCosts {
   // Add additional properties if needed.
 }
 
+interface Room {
+  id: string;
+  name: string;
+  slug: string;
+  eveningRate?: number;
+  daytimeRate?: number;
+}
+
 const TORONTO_TIMEZONE = "America/Toronto";
 const HST_RATE = 0.13; // 13% HST rate
 
@@ -522,12 +530,14 @@ export default class PricingRules {
       !booking.startTime ||
       !booking.endTime ||
       !booking.roomSlugs ||
-      booking.roomSlugs.length === 0
+      booking.roomSlugs.length === 0 ||
+      !booking.date
     ) {
       console.error("Booking is missing required fields:", {
         startTime: booking.startTime,
         endTime: booking.endTime,
         roomSlugs: booking.roomSlugs,
+        date: booking.date,
       });
       throw new Error("Invalid booking: " + JSON.stringify(booking, null, 2));
     }
@@ -582,13 +592,19 @@ export default class PricingRules {
       }
     }
 
+    // Ensure date is valid before passing to getDayRules
+    const bookingDate = new Date(date);
+    if (isNaN(bookingDate.getTime())) {
+      throw new Error(`Invalid date: ${date}`);
+    }
+
     for (const roomSlug of roomSlugs) {
       if (!this.rules) throw new Error("Rules are not initialized");
       const roomRules = this.rules[roomSlug];
       if (!roomRules)
         throw new Error(`No pricing rules found for room: ${roomSlug}`);
 
-      const dayRules = this.getDayRules(roomRules, new Date(date));
+      const dayRules = this.getDayRules(roomRules, bookingDate);
       if (!dayRules)
         throw new Error(
           `No pricing rules found for room ${roomSlug} on ${currentDay}`
@@ -1356,6 +1372,10 @@ export default class PricingRules {
 
   // When getting the day rules, pass the parent rules to the period rules
   private getDayRules(roomRules: any, date: Date): any {
+    if (!(date instanceof Date) || isNaN(date.getTime())) {
+      throw new Error("Invalid date passed to getDayRules");
+    }
+
     const dayOfWeek = format(date, "EEEE");
     const rules = roomRules[dayOfWeek] || roomRules["all"];
 
