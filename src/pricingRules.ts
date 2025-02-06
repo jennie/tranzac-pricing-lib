@@ -759,17 +759,14 @@ export default class PricingRules {
     dayRules: any,
     isPrivate: boolean
   ) {
-    // Initialize variables at the start
-    let daytimePrice = 0;
-    let eveningPrice = 0;
-    let daytimeHours = 0;
-    let eveningHours = 0;
-    let daytimeRate = 0;
-    let eveningRate = 0;
-    let crossoverApplied = false;
-    let actualHours = 0;
+    // Add debug logging
+    console.log("calculateRoomPrice inputs:", {
+      startDateTime,
+      endDateTime,
+      dayRules,
+      isPrivate,
+    });
 
-    // Add error checking
     if (!dayRules) {
       throw new Error("No pricing rules found for this day");
     }
@@ -779,8 +776,14 @@ export default class PricingRules {
     const torontoEveningStart = new Date(torontoStart);
     torontoEveningStart.setHours(17, 0, 0, 0);
 
-    const totalBookingHours = differenceInHours(torontoEnd, torontoStart);
+    // Debug timezone conversions
+    console.log("Toronto times:", {
+      torontoStart,
+      torontoEnd,
+      torontoEveningStart,
+    });
 
+    const totalBookingHours = differenceInHours(torontoEnd, torontoStart);
     const bookingCrossesEveningThreshold =
       torontoStart < torontoEveningStart && torontoEnd > torontoEveningStart;
 
@@ -793,6 +796,10 @@ export default class PricingRules {
       // Safely access daytime rates
       const publicRate = dayRules.daytime?.public;
       const privateRate = dayRules.daytime?.private;
+
+      // Debug rates
+      console.log("Daytime rates:", { publicRate, privateRate });
+
       if (!publicRate || !privateRate) {
         throw new Error(
           "Missing public or private rate in daytime pricing rules"
@@ -807,8 +814,16 @@ export default class PricingRules {
         crossoverApplied = true;
       }
 
-      const daytimeHours = differenceInHours(daytimeEndTime, torontoStart);
+      daytimeHours = differenceInHours(daytimeEndTime, torontoStart);
       daytimePrice = daytimeRate * daytimeHours;
+
+      // Debug final daytime calculations
+      console.log("Daytime calculations:", {
+        daytimeHours,
+        daytimeRate,
+        daytimePrice,
+        crossoverApplied,
+      });
     }
 
     // Calculate evening portion
