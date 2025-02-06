@@ -705,39 +705,23 @@ export default class PricingRules {
     dayRules: any,
     isPrivate: boolean
   ) {
-    // Add debug logging at the start
-    console.log("=== calculateRoomPrice Debug ===");
-    console.log("Start DateTime:", startDateTime);
-    console.log("End DateTime:", endDateTime);
-    console.log("Day Rules:", JSON.stringify(dayRules, null, 2));
-    console.log("Is Private:", isPrivate);
-
-    const calculateHoursAndCost = (
-      start: Date,
-      end: Date,
-      rate: number,
-      rateType: string
-    ) => {
-      const hours = differenceInHours(end, start);
-      return {
-        hours,
-        cost: rateType === "flat" ? rate : rate * hours,
-        hourlyRate: rateType === "flat" ? null : rate,
-      };
-    };
-
     const eveningStartTime = new Date(startDateTime);
-    eveningStartTime.setHours(17, 0, 0, 0);
+    eveningStartTime.setHours(17, 0, 0, 0); // Keep at 5pm (17:00)
 
-    const totalBookingHours = differenceInHours(endDateTime, startDateTime);
+    // Convert times to Toronto timezone for comparison
+    const torontoStart = toZonedTime(startDateTime, TORONTO_TIMEZONE);
+    const torontoEnd = toZonedTime(endDateTime, TORONTO_TIMEZONE);
+    const torontoEveningStart = toZonedTime(eveningStartTime, TORONTO_TIMEZONE);
+
+    const totalBookingHours = differenceInHours(torontoEnd, torontoStart);
     const bookingCrossesEveningThreshold =
-      startDateTime < eveningStartTime && endDateTime > eveningStartTime;
+      torontoStart < torontoEveningStart && torontoEnd > torontoEveningStart;
 
     if (dayRules.fullDay) {
       const rate = dayRules.fullDay[isPrivate ? "private" : "public"];
-      const { hours, cost } = calculateHoursAndCost(
-        startDateTime,
-        endDateTime,
+      const { hours, cost } = this.calculateHoursAndCost(
+        torontoStart,
+        torontoEnd,
         rate,
         dayRules.fullDay.type
       );
@@ -767,15 +751,15 @@ export default class PricingRules {
     let crossoverApplied = false;
     let actualHours = 0;
 
-    if (startDateTime < eveningStartTime && dayRules.daytime) {
+    if (torontoStart < torontoEveningStart && dayRules.daytime) {
       const daytimeEndTime = bookingCrossesEveningThreshold
-        ? eveningStartTime
-        : endDateTime;
+        ? torontoEveningStart
+        : torontoEnd;
       const pricingRate = dayRules.daytime[isPrivate ? "private" : "public"];
       daytimeRate = pricingRate;
 
       // Calculate actual hours first
-      const actualHours = differenceInHours(daytimeEndTime, startDateTime);
+      const actualHours = differenceInHours(daytimeEndTime, torontoStart);
 
       // Check if we should use crossover rate
       if (bookingCrossesEveningThreshold && dayRules.daytime.crossoverRate) {
@@ -790,12 +774,12 @@ export default class PricingRules {
       basePrice += daytimePrice;
     }
 
-    if (endDateTime > eveningStartTime && dayRules.evening) {
+    if (torontoEnd > torontoEveningStart && dayRules.evening) {
       const effectiveStart =
-        startDateTime > eveningStartTime ? startDateTime : eveningStartTime;
-      const { hours, cost } = calculateHoursAndCost(
+        torontoStart > torontoEveningStart ? torontoStart : torontoEveningStart;
+      const { hours, cost } = this.calculateHoursAndCost(
         effectiveStart,
-        endDateTime,
+        torontoEnd,
         dayRules.evening[isPrivate ? "private" : "public"],
         dayRules.evening.type
       );
