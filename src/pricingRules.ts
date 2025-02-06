@@ -535,7 +535,9 @@ export default class PricingRules {
 
   // Helper method to determine if a given time is during evening hours
   private isEveningTime(time: Date): boolean {
-    return time.getHours() >= 17; // 5 PM or later
+    const timeZone = "America/Toronto";
+    const localTime = toZonedTime(time, timeZone);
+    return localTime.getHours() >= 17;
   }
 
   // Helper methods remain the same
@@ -1319,12 +1321,31 @@ export default class PricingRules {
     rate: number,
     type: string
   ): { hours: number; cost: number } {
-    const hours = differenceInHours(endTime, startTime);
+    // Convert to local time zone
+    const timeZone = "America/Toronto";
+    const localStartTime = toZonedTime(startTime, timeZone);
+    const localEndTime = toZonedTime(endTime, timeZone);
+
+    // Create 5 PM boundary in local time
+    const periodBoundary = new Date(localStartTime);
+    periodBoundary.setHours(17, 0, 0, 0);
+
+    // Calculate actual period end time
+    const actualEndTime = this.isEveningTime(localStartTime)
+      ? localEndTime
+      : new Date(Math.min(localEndTime.getTime(), periodBoundary.getTime()));
+
+    // Calculate milliseconds difference and convert to hours
+    const diffMs = actualEndTime.getTime() - localStartTime.getTime();
+    const exactHours = diffMs / (1000 * 60 * 60);
+
+    // Round up to the next whole hour
+    const roundedHours = Math.ceil(exactHours);
 
     if (type === "flat") {
-      return { hours, cost: rate };
+      return { hours: roundedHours, cost: rate };
     } else if (type === "hourly") {
-      return { hours, cost: hours * rate };
+      return { hours: roundedHours, cost: roundedHours * rate };
     }
 
     throw new Error(`Invalid pricing type: ${type}`);
