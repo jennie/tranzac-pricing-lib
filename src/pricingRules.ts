@@ -729,6 +729,7 @@ export default class PricingRules {
     let eveningHours = 0;
     let daytimeRate = 0;
     let eveningRate = 0;
+    let daytimeRateType = "";
     let crossoverApplied = false;
     let daytimeCostItem = null;
     let eveningCostItem = null;
@@ -741,28 +742,33 @@ export default class PricingRules {
     const bookingCrossesEveningThreshold =
       startDateTime < eveningStartTime && endDateTime > eveningStartTime;
 
+    // Calculate daytime costs
     if (startDateTime < eveningStartTime && dayRules.daytime) {
       const daytimeEndTime = bookingCrossesEveningThreshold
         ? eveningStartTime
         : endDateTime;
-      const pricingRate = dayRules.daytime[isPrivate ? "private" : "public"];
-      const {
-        hours,
-        cost,
-        hourlyRate,
-        crossoverApplied: isCrossover,
-      } = this.calculateHoursAndCost(
-        startDateTime,
-        daytimeEndTime,
-        pricingRate,
-        dayRules.daytime.type,
-        dayRules.daytime.crossoverRate
-      );
 
-      daytimeHours = hours;
-      daytimePrice = cost;
-      daytimeRate = hourlyRate || pricingRate;
-      crossoverApplied = isCrossover;
+      const minimumHours = dayRules.daytime.minimumHours || 0;
+      const actualHours = differenceInHours(daytimeEndTime, startDateTime);
+      const appliedHours = Math.max(actualHours, minimumHours);
+
+      daytimeRateType = dayRules.daytime.type;
+      daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
+
+      // Calculate price using applied hours when hourly
+      daytimePrice =
+        daytimeRateType === "hourly" ? daytimeRate * appliedHours : daytimeRate;
+
+      daytimeCostItem = {
+        description: "Daytime Hours",
+        cost: daytimePrice,
+        rateType: daytimeRateType,
+        hours: actualHours,
+        rate: daytimeRate,
+        minimumHours: minimumHours,
+        minimumApplied: actualHours < minimumHours,
+      };
+
       basePrice += daytimePrice;
     }
 
