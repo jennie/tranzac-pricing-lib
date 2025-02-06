@@ -732,6 +732,7 @@ export default class PricingRules {
     let daytimeCostItem = null;
     let eveningCostItem = null;
     let eveningRateType = "";
+    let daytimeRateType = "";
 
     const eveningStartTime = new Date(startDateTime);
     eveningStartTime.setHours(17, 0, 0, 0); // 5 PM
