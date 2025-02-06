@@ -239,23 +239,31 @@ export default class PricingRules {
       }
 
       // Changed: Replace flatMap with reduce and add explicit types for destructured parameters.
-      const bookingPromises = Object.entries(data.rentalDates).reduce((acc: Promise<any>[], [date, bookings]: [string, any]) => {
-        if (!Array.isArray(bookings)) {
-          console.error(`Expected an array of bookings for date ${date}, but got:`, bookings);
-          return acc;
-        }
-        if (isNaN(new Date(date).getTime())) {
-          console.warn("Invalid date found in rentalDates:", date);
-        }
-        const promises = bookings.map(async (booking: any) => {
-          try {
-            const preparedBooking: Booking =
-              this.prepareBookingForPricing(booking);
-            if (process.env.NODE_ENV === "development") {
-              console.log("Prepared booking in getPrice:", preparedBooking);
-            }
-            const { estimates, perSlotCosts, slotTotal, slotCustomLineItems } =
-              await this.calculatePrice({
+      const bookingPromises = Object.entries(data.rentalDates).reduce(
+        (acc: Promise<any>[], [date, bookings]: [string, any]) => {
+          if (!Array.isArray(bookings)) {
+            console.error(
+              `Expected an array of bookings for date ${date}, but got:`,
+              bookings
+            );
+            return acc;
+          }
+          if (isNaN(new Date(date).getTime())) {
+            console.warn("Invalid date found in rentalDates:", date);
+          }
+          const promises = bookings.map(async (booking: any) => {
+            try {
+              const preparedBooking: Booking =
+                this.prepareBookingForPricing(booking);
+              if (process.env.NODE_ENV === "development") {
+                console.log("Prepared booking in getPrice:", preparedBooking);
+              }
+              const {
+                estimates,
+                perSlotCosts,
+                slotTotal,
+                slotCustomLineItems,
+              } = await this.calculatePrice({
                 ...preparedBooking,
                 date,
                 resources: preparedBooking.resources || [],
@@ -263,113 +271,115 @@ export default class PricingRules {
                 expectedAttendance:
                   Number(preparedBooking.expectedAttendance) || 0,
               });
-            if (process.env.NODE_ENV === "development") {
-              console.log(
-                "slotCustomLineItems in getPrice:",
-                slotCustomLineItems
-              );
-            }
-
-            const formattedEstimates = estimates.map((estimate) => ({
-              roomSlug: estimate.roomSlug || "",
-              basePrice: estimate.basePrice || 0,
-              daytimeHours: estimate.daytimeHours || 0,
-              eveningHours: estimate.eveningHours || 0,
-              daytimePrice: estimate.daytimePrice || 0,
-              eveningPrice: estimate.eveningPrice || 0,
-              fullDayPrice: estimate.fullDayPrice || 0,
-              daytimeRate: estimate.daytimeRate || 0,
-              daytimeRateType: estimate.daytimeRateType || "",
-              eveningRate: estimate.eveningRate || 0,
-              eveningRateType: estimate.eveningRateType || "",
-              additionalCosts: Array.isArray(estimate.additionalCosts)
-                ? estimate.additionalCosts.map((cost: Cost) => ({
-                    id: cost.id || uuidv4(),
-                    description: cost.description || "",
-                    subDescription: cost.subDescription || "",
-                    cost: Number(cost.cost) || 0,
-                    isRequired: cost.isRequired || false,
-                  }))
-                : [],
-              totalCost: estimate.totalCost || 0,
-              rateDescription: estimate.rateDescription || "",
-              totalBookingHours: estimate.totalBookingHours || 0,
-              isFullDay: estimate.isFullDay || false,
-              daytimeDescription: estimate.daytimeDescription || "",
-              eveningDescription: estimate.eveningDescription || "",
-              daytimeCostItem: estimate.daytimeCostItem,
-              eveningCostItem: estimate.eveningCostItem,
-              fullDayCostItem: estimate.fullDayCostItem,
-            }));
-
-            const formattedPerSlotCosts = perSlotCosts.map((cost) => ({
-              id: cost.id || uuidv4(),
-              description: cost.description,
-              subDescription: cost.subDescription,
-              cost: Number(cost.cost) || 0,
-              isRequired: cost.isRequired || false, // Include isRequired
-            }));
-
-            const estimateTotal = formattedEstimates.reduce(
-              (total, estimate) => {
-                const additionalCostsTotal = estimate.additionalCosts.reduce(
-                  (sum: any, cost: { cost: any }) =>
-                    sum + (typeof cost.cost === "number" ? cost.cost : 0),
-                  0
+              if (process.env.NODE_ENV === "development") {
+                console.log(
+                  "slotCustomLineItems in getPrice:",
+                  slotCustomLineItems
                 );
+              }
 
-                return total + estimate.totalCost + additionalCostsTotal;
-              },
-              0
-            );
+              const formattedEstimates = estimates.map((estimate) => ({
+                roomSlug: estimate.roomSlug || "",
+                basePrice: estimate.basePrice || 0,
+                daytimeHours: estimate.daytimeHours || 0,
+                eveningHours: estimate.eveningHours || 0,
+                daytimePrice: estimate.daytimePrice || 0,
+                eveningPrice: estimate.eveningPrice || 0,
+                fullDayPrice: estimate.fullDayPrice || 0,
+                daytimeRate: estimate.daytimeRate || 0,
+                daytimeRateType: estimate.daytimeRateType || "",
+                eveningRate: estimate.eveningRate || 0,
+                eveningRateType: estimate.eveningRateType || "",
+                additionalCosts: Array.isArray(estimate.additionalCosts)
+                  ? estimate.additionalCosts.map((cost: Cost) => ({
+                      id: cost.id || uuidv4(),
+                      description: cost.description || "",
+                      subDescription: cost.subDescription || "",
+                      cost: Number(cost.cost) || 0,
+                      isRequired: cost.isRequired || false,
+                    }))
+                  : [],
+                totalCost: estimate.totalCost || 0,
+                rateDescription: estimate.rateDescription || "",
+                totalBookingHours: estimate.totalBookingHours || 0,
+                isFullDay: estimate.isFullDay || false,
+                daytimeDescription: estimate.daytimeDescription || "",
+                eveningDescription: estimate.eveningDescription || "",
+                daytimeCostItem: estimate.daytimeCostItem,
+                eveningCostItem: estimate.eveningCostItem,
+                fullDayCostItem: estimate.fullDayCostItem,
+              }));
 
-            const perSlotCostsTotal = formattedPerSlotCosts.reduce(
-              (total: any, cost: { cost: any }) => total + cost.cost,
-              0
-            );
+              const formattedPerSlotCosts = perSlotCosts.map((cost) => ({
+                id: cost.id || uuidv4(),
+                description: cost.description,
+                subDescription: cost.subDescription,
+                cost: Number(cost.cost) || 0,
+                isRequired: cost.isRequired || false, // Include isRequired
+              }));
 
-            const totalForThisBooking = estimateTotal + perSlotCostsTotal;
+              const estimateTotal = formattedEstimates.reduce(
+                (total, estimate) => {
+                  const additionalCostsTotal = estimate.additionalCosts.reduce(
+                    (sum: any, cost: { cost: any }) =>
+                      sum + (typeof cost.cost === "number" ? cost.cost : 0),
+                    0
+                  );
 
-            costEstimates.push({
-              id: booking.id || uuidv4(),
-              date: new Date(date),
-              start: new Date(preparedBooking.startTime),
-              end: new Date(preparedBooking.endTime),
-              estimates: formattedEstimates,
-              perSlotCosts: formattedPerSlotCosts,
-              slotTotal: slotTotal,
-              roomSlugs: preparedBooking.roomSlugs,
-              isPrivate: booking.private,
-              resources: preparedBooking.resources,
-              expectedAttendance: preparedBooking.expectedAttendance,
-              customLineItems: slotCustomLineItems,
-            });
+                  return total + estimate.totalCost + additionalCostsTotal;
+                },
+                0
+              );
 
-            // NEW: Store slotCustomLineItems if they exist
-            if (slotCustomLineItems && slotCustomLineItems.length > 0) {
-              customLineItems[booking.id] = slotCustomLineItems;
+              const perSlotCostsTotal = formattedPerSlotCosts.reduce(
+                (total: any, cost: { cost: any }) => total + cost.cost,
+                0
+              );
+
+              const totalForThisBooking = estimateTotal + perSlotCostsTotal;
+
+              costEstimates.push({
+                id: booking.id || uuidv4(),
+                date: new Date(date),
+                start: new Date(preparedBooking.startTime),
+                end: new Date(preparedBooking.endTime),
+                estimates: formattedEstimates,
+                perSlotCosts: formattedPerSlotCosts,
+                slotTotal: slotTotal,
+                roomSlugs: preparedBooking.roomSlugs,
+                isPrivate: booking.private,
+                resources: preparedBooking.resources,
+                expectedAttendance: preparedBooking.expectedAttendance,
+                customLineItems: slotCustomLineItems,
+              });
+
+              // NEW: Store slotCustomLineItems if they exist
+              if (slotCustomLineItems && slotCustomLineItems.length > 0) {
+                customLineItems[booking.id] = slotCustomLineItems;
+              }
+
+              grandTotal += slotTotal;
+            } catch (error: any) {
+              console.error(
+                `Error calculating price for booking ${booking.id}:`,
+                error
+              );
+              costEstimates.push({
+                id: booking.id || uuidv4(),
+                date: new Date(date),
+                start: new Date(booking.startTime),
+                end: new Date(booking.endTime),
+                estimates: [],
+                perSlotCosts: [],
+                slotTotal: 0,
+                error: error.message,
+              });
             }
-
-            grandTotal += slotTotal;
-          } catch (error: any) {
-            console.error(
-              `Error calculating price for booking ${booking.id}:`,
-              error
-            );
-            costEstimates.push({
-              id: booking.id || uuidv4(),
-              date: new Date(date),
-              start: new Date(booking.startTime),
-              end: new Date(booking.endTime),
-              estimates: [],
-              perSlotCosts: [],
-              slotTotal: 0,
-              error: error.message,
-            });
-          }
-        });
-        return acc.concat(promises);
-      }, []);
+          });
+          return acc.concat(promises);
+        },
+        []
+      );
 
       const parallelResults = await Promise.all(bookingPromises);
       const tax = this.calculateTax(grandTotal);
@@ -631,18 +641,18 @@ export default class PricingRules {
           // Changed: Replace "estimate.isFullDay" with check on dayRules.fullDay.
           description: dayRules.fullDay ? "Full Day Rate" : "Daytime Hours",
           cost: daytimePrice || 0,
-          rateType: daytimeRateType || 'hourly',
+          rateType: daytimeRateType || "hourly",
           hours: daytimeHours || 0,
           rate: daytimeRate || 0,
           crossoverApplied: crossoverApplied || false,
-          isFullDay: !!dayRules.fullDay
+          isFullDay: !!dayRules.fullDay,
         },
         eveningCostItem: {
           description: "Evening Hours",
           cost: eveningPrice || 0,
-          rateType: eveningRateType || 'hourly',
+          rateType: eveningRateType || "hourly",
           hours: eveningHours || 0,
-          rate: eveningRate || 0
+          rate: eveningRate || 0,
         },
         fullDayCostItem: this.createCostItem(
           "Full Day Rate",
@@ -685,16 +695,21 @@ export default class PricingRules {
 
   private calculateRoomPrice(
     startDateTime: Date,
-    endDateTime: Date,  
+    endDateTime: Date,
     dayRules: any,
     isPrivate: boolean
   ) {
-    const calculateHoursAndCost = (start: Date, end: Date, rate: number, rateType: string) => {
+    const calculateHoursAndCost = (
+      start: Date,
+      end: Date,
+      rate: number,
+      rateType: string
+    ) => {
       const hours = differenceInHours(end, start);
-      return { 
-        hours, 
+      return {
+        hours,
         cost: rateType === "flat" ? rate : rate * hours,
-        hourlyRate: rateType === "flat" ? null : rate
+        hourlyRate: rateType === "flat" ? null : rate,
       };
     };
 
@@ -702,11 +717,17 @@ export default class PricingRules {
     eveningStartTime.setHours(17, 0, 0, 0);
 
     const totalBookingHours = differenceInHours(endDateTime, startDateTime);
-    const bookingCrossesEveningThreshold = startDateTime < eveningStartTime && endDateTime > eveningStartTime;
+    const bookingCrossesEveningThreshold =
+      startDateTime < eveningStartTime && endDateTime > eveningStartTime;
 
     if (dayRules.fullDay) {
       const rate = dayRules.fullDay[isPrivate ? "private" : "public"];
-      const { hours, cost } = calculateHoursAndCost(startDateTime, endDateTime, rate, dayRules.fullDay.type);
+      const { hours, cost } = calculateHoursAndCost(
+        startDateTime,
+        endDateTime,
+        rate,
+        dayRules.fullDay.type
+      );
       return {
         basePrice: cost,
         fullDayPrice: cost,
@@ -717,8 +738,8 @@ export default class PricingRules {
         daytimeRate: rate,
         eveningRate: 0,
         daytimeRateType: dayRules.fullDay.type,
-        eveningRateType: '',
-        crossoverApplied: false
+        eveningRateType: "",
+        crossoverApplied: false,
       };
     }
 
@@ -732,7 +753,9 @@ export default class PricingRules {
     let crossoverApplied = false;
 
     if (startDateTime < eveningStartTime && dayRules.daytime) {
-      const daytimeEndTime = bookingCrossesEveningThreshold ? eveningStartTime : endDateTime;
+      const daytimeEndTime = bookingCrossesEveningThreshold
+        ? eveningStartTime
+        : endDateTime;
       const pricingRate = dayRules.daytime[isPrivate ? "private" : "public"];
       daytimeRate = pricingRate;
 
@@ -760,7 +783,8 @@ export default class PricingRules {
     }
 
     if (endDateTime > eveningStartTime && dayRules.evening) {
-      const effectiveStart = startDateTime > eveningStartTime ? startDateTime : eveningStartTime;
+      const effectiveStart =
+        startDateTime > eveningStartTime ? startDateTime : eveningStartTime;
       const { hours, cost } = calculateHoursAndCost(
         effectiveStart,
         endDateTime,
@@ -788,9 +812,9 @@ export default class PricingRules {
       eveningHours,
       daytimeRate,
       eveningRate,
-      daytimeRateType: dayRules.daytime?.type || '',
-      eveningRateType: dayRules.evening?.type || '',
-      crossoverApplied
+      daytimeRateType: dayRules.daytime?.type || "",
+      eveningRateType: dayRules.evening?.type || "",
+      crossoverApplied,
     };
   }
 
@@ -852,10 +876,13 @@ export default class PricingRules {
     // Per-slot resources
     const perSlotResources = ["door_staff", "piano_tuning"];
 
-    const resourceConfigMap = this.additionalCosts?.resources.reduce((map, resource) => {
-      map[resource.id] = resource;
-      return map;
-    }, {} as Record<string, any>);
+    const resourceConfigMap = this.additionalCosts?.resources.reduce(
+      (map, resource) => {
+        map[resource.id] = resource;
+        return map;
+      },
+      {} as Record<string, any>
+    );
 
     // Replace nested loops with single pass over resources:
     for (const resourceId of resources) {
@@ -1186,28 +1213,86 @@ export default class PricingRules {
     if (isFullDay) {
       return `$${fullDayPrice}/day`;
     }
-  
+
     const formatRate = (price: number, hours: number, type: string) => {
-      if (type === 'flat') return 'Flat rate';
+      if (type === "flat") return "Flat rate";
       const rate = price / hours;
       return `$${rate.toFixed(2)}/hour`;
     };
-  
+
     if ((daytimeHours || 0) > 0) {
-      const rateStr = formatRate(daytimePrice || 0, daytimeHours || 0, daytimeRateType || '');
+      const rateStr = formatRate(
+        daytimePrice || 0,
+        daytimeHours || 0,
+        daytimeRateType || ""
+      );
       return crossoverApplied ? `${rateStr} (crossover rate)` : rateStr;
     }
-  
+
     if (eveningHours > 0) {
-      return formatRate(eveningPrice || 0, eveningHours, eveningRateType || '');
+      return formatRate(eveningPrice || 0, eveningHours, eveningRateType || "");
     }
-  
-    return '';
+
+    return "";
   }
 
   // NEW: Added helper method to create a cost item.
-  private createCostItem(description: string, cost: number, rateDescription: string) {
+  private createCostItem(
+    description: string,
+    cost: number,
+    rateDescription: string
+  ) {
     return { description, cost, rateDescription };
+  }
+
+  private calculatePeriodCost(
+    startTime: Date,
+    endTime: Date,
+    periodRules: any,
+    isEvening: boolean,
+    isPrivate: boolean
+  ): { price: number; hours: number } {
+    if (!periodRules) {
+      throw new Error(
+        `No rules found for ${isEvening ? "evening" : "daytime"} period`
+      );
+    }
+
+    const rate = periodRules[isPrivate ? "private" : "public"];
+    const hours = Math.min(
+      (Number(endTime) - Number(startTime)) / 3600000,
+      isEvening ? 12 : 24 - new Date(startTime).getHours()
+    );
+
+    // Check if this is a crossover period and use crossover rate if applicable
+    const isCrossoverPeriod = this.isCrossoverPeriod(startTime, endTime);
+    const effectiveRate =
+      isCrossoverPeriod && periodRules.crossoverRate
+        ? periodRules.crossoverRate
+        : rate;
+
+    if (periodRules.type === "flat") {
+      return { price: effectiveRate, hours };
+    } else if (periodRules.type === "hourly") {
+      const effectiveHours = Math.max(hours, periodRules.minimumHours || 0);
+      return { price: effectiveHours * effectiveRate, hours };
+    }
+
+    throw new Error(
+      `Invalid pricing type for ${isEvening ? "evening" : "daytime"} period`
+    );
+  }
+
+  // Add helper method to check for crossover period
+  private isCrossoverPeriod(startTime: Date, endTime: Date): boolean {
+    // Define your crossover period logic here
+    // For example, if crossover is between regular hours and evening hours
+    const startHour = startTime.getHours();
+    const endHour = endTime.getHours();
+
+    // Example: Consider it a crossover if the booking spans regular hours (before 5pm)
+    // and evening hours (after 5pm)
+    return startHour < 17 && endHour >= 17;
   }
 }
 
