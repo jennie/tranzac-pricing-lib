@@ -722,32 +722,12 @@ export default class PricingRules {
     dayRules: any,
     isPrivate: boolean
   ): BookingRates {
-    const calculateHoursAndCost = (
-      start: Date,
-      end: Date,
-      rate: number,
-      rateType: string,
-      crossoverRate?: number
-    ) => {
-      const hours = differenceInHours(end, start);
-      const effectiveRate =
-        this.isCrossoverPeriod(start, end) && crossoverRate
-          ? crossoverRate
-          : rate;
-      return {
-        hours,
-        cost: rateType === "flat" ? rate : effectiveRate * hours,
-        hourlyRate: rateType === "flat" ? null : effectiveRate,
-        crossoverApplied: effectiveRate !== rate,
-      };
-    };
-
     let basePrice = 0;
-    let daytimeHours = 0;
     let daytimePrice = 0;
-    let daytimeRate = 0;
-    let eveningHours = 0;
     let eveningPrice = 0;
+    let daytimeHours = 0;
+    let eveningHours = 0;
+    let daytimeRate = 0;
     let eveningRate = 0;
     let crossoverApplied = false;
     let daytimeCostItem = null;
@@ -771,7 +751,7 @@ export default class PricingRules {
         cost,
         hourlyRate,
         crossoverApplied: isCrossover,
-      } = calculateHoursAndCost(
+      } = this.calculateHoursAndCost(
         startDateTime,
         daytimeEndTime,
         pricingRate,
@@ -789,7 +769,7 @@ export default class PricingRules {
     if (endDateTime > eveningStartTime && dayRules.evening) {
       const effectiveStart =
         startDateTime > eveningStartTime ? startDateTime : eveningStartTime;
-      const { hours, cost } = calculateHoursAndCost(
+      const { hours, cost } = this.calculateHoursAndCost(
         effectiveStart,
         endDateTime,
         dayRules.evening[isPrivate ? "private" : "public"],
@@ -821,16 +801,25 @@ export default class PricingRules {
       eveningRate = dayRules.evening[isPrivate ? "private" : "public"];
       eveningRateType = dayRules.evening.type;
 
-      // Get minimum hours directly from the parent dayRules
-      const minimumHours = dayRules.minimumHours || 0;
+      // Get minimum hours from dayRules or its evening.parent reference
+      const minimumHours =
+        dayRules.minimumHours || dayRules.evening?.parent?.minimumHours || 0;
 
-      // Log the values we're working with
-      console.log("[PricingRules] Evening pricing details:", {
-        dayRules,
-        minimumHours,
+      // Calculate the applied hours (use minimum if actual hours are less)
+      const appliedHours = Math.max(eveningHours, minimumHours);
+
+      // Calculate evening price based on applied hours
+      if (eveningRateType === "hourly") {
+        eveningPrice = eveningRate * appliedHours;
+      }
+
+      console.log("[PricingRules] Evening pricing calculation:", {
         eveningHours,
+        minimumHours,
+        appliedHours,
         eveningRate,
         eveningPrice,
+        eveningRateType,
       });
 
       eveningCostItem = {
@@ -842,12 +831,6 @@ export default class PricingRules {
         minimumHours: minimumHours,
         minimumApplied: eveningHours < minimumHours,
       };
-
-      // If we're under minimum hours, adjust the price
-      if (eveningHours < minimumHours) {
-        eveningPrice = minimumHours * eveningRate;
-        eveningCostItem.cost = eveningPrice;
-      }
     }
 
     return {
@@ -1462,6 +1445,26 @@ export default class PricingRules {
     });
 
     return rules;
+  }
+
+  private calculateHoursAndCost(
+    start: Date,
+    end: Date,
+    rate: number,
+    rateType: string,
+    crossoverRate?: number
+  ) {
+    const hours = differenceInHours(end, start);
+    const effectiveRate =
+      this.isCrossoverPeriod(start, end) && crossoverRate
+        ? crossoverRate
+        : rate;
+    return {
+      hours,
+      cost: rateType === "flat" ? rate : effectiveRate * hours,
+      hourlyRate: rateType === "flat" ? null : effectiveRate,
+      crossoverApplied: effectiveRate !== rate,
+    };
   }
 }
 
