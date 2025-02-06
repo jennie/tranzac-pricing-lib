@@ -729,7 +729,6 @@ export default class PricingRules {
     let eveningHours = 0;
     let daytimeRate = 0;
     let eveningRate = 0;
-    let daytimeRateType = "";
     let crossoverApplied = false;
     let daytimeCostItem = null;
     let eveningCostItem = null;
@@ -742,33 +741,28 @@ export default class PricingRules {
     const bookingCrossesEveningThreshold =
       startDateTime < eveningStartTime && endDateTime > eveningStartTime;
 
-    // Calculate daytime costs
     if (startDateTime < eveningStartTime && dayRules.daytime) {
       const daytimeEndTime = bookingCrossesEveningThreshold
         ? eveningStartTime
         : endDateTime;
+      const pricingRate = dayRules.daytime[isPrivate ? "private" : "public"];
+      const {
+        hours,
+        cost,
+        hourlyRate,
+        crossoverApplied: isCrossover,
+      } = this.calculateHoursAndCost(
+        startDateTime,
+        daytimeEndTime,
+        pricingRate,
+        dayRules.daytime.type,
+        dayRules.daytime.crossoverRate
+      );
 
-      const minimumHours = dayRules.daytime.minimumHours || 0;
-      const actualHours = differenceInHours(daytimeEndTime, startDateTime);
-      const appliedHours = Math.max(actualHours, minimumHours);
-
-      daytimeRateType = dayRules.daytime.type;
-      daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
-
-      // Calculate price using applied hours when hourly
-      daytimePrice =
-        daytimeRateType === "hourly" ? daytimeRate * appliedHours : daytimeRate;
-
-      daytimeCostItem = {
-        description: "Daytime Hours",
-        cost: daytimePrice,
-        rateType: daytimeRateType,
-        hours: actualHours,
-        rate: daytimeRate,
-        minimumHours: minimumHours,
-        minimumApplied: actualHours < minimumHours,
-      };
-
+      daytimeHours = hours;
+      daytimePrice = cost;
+      daytimeRate = hourlyRate || pricingRate;
+      crossoverApplied = isCrossover;
       basePrice += daytimePrice;
     }
 
@@ -1303,6 +1297,13 @@ export default class PricingRules {
     rate: number;
     minimumApplied?: boolean;
   } {
+    console.log("[PricingRules] Period rules received:", {
+      periodRules,
+      parent: periodRules.parent,
+      minimumHours: periodRules.minimumHours,
+      parentMinimumHours: periodRules.parent?.minimumHours,
+    });
+
     if (!periodRules) {
       throw new Error(
         `No rules found for ${isEvening ? "evening" : "daytime"} period`
@@ -1311,12 +1312,22 @@ export default class PricingRules {
 
     const rate = periodRules[isPrivate ? "private" : "public"];
     const actualHours = (Number(endTime) - Number(startTime)) / 3600000;
+    const hours = Math.min(
+      actualHours,
+      isEvening ? 12 : 24 - new Date(startTime).getHours()
+    );
 
-    // Get minimumHours directly from period rules
-    const minimumHours = periodRules.minimumHours || 0;
+    // Get minimumHours from parent rules if not found in period rules
+    const minimumHours =
+      periodRules.minimumHours || periodRules.parent?.minimumHours || 0;
 
-    // Calculate the effective hours (either actual or minimum, whichever is greater)
-    const effectiveHours = Math.max(actualHours, minimumHours);
+    console.log("[PricingRules] Calculated minimum hours:", {
+      periodMinimumHours: periodRules.minimumHours,
+      parentMinimumHours: periodRules.parent?.minimumHours,
+      finalMinimumHours: minimumHours,
+      actualHours,
+      minimumApplied: actualHours < minimumHours,
+    });
 
     // Check if this is a crossover period and use crossover rate if applicable
     const isCrossoverPeriod = this.isCrossoverPeriod(startTime, endTime);
@@ -1328,12 +1339,13 @@ export default class PricingRules {
     if (periodRules.type === "flat") {
       return {
         price: effectiveRate,
-        hours: actualHours,
+        hours,
         rate: effectiveRate,
-        minimumHours,
-        minimumApplied: false,
+        minimumHours: 0,
       };
     } else if (periodRules.type === "hourly") {
+      // Apply minimum hours to price calculation
+      const effectiveHours = Math.max(hours, minimumHours);
       const price = effectiveHours * effectiveRate;
 
       return {
