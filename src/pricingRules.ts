@@ -588,7 +588,7 @@ export default class PricingRules {
       if (!roomRules)
         throw new Error(`No pricing rules found for room: ${roomSlug}`);
 
-      const dayRules = roomRules[currentDay] || roomRules["all"];
+      const dayRules = this.getDayRules(roomRules, new Date(date));
       if (!dayRules)
         throw new Error(
           `No pricing rules found for room ${roomSlug} on ${currentDay}`
@@ -1224,10 +1224,28 @@ export default class PricingRules {
   // NEW: Added helper method to create a cost item.
   private createCostItem(
     description: string,
-    cost: number,
-    rateDescription: string
-  ) {
-    return { description, cost, rateDescription };
+    periodCost: any,
+    rateType: string
+  ): any {
+    console.log("[PricingRules] Creating cost item:", {
+      description,
+      periodCost,
+      rateType,
+    });
+
+    const costItem = {
+      description,
+      cost: periodCost.price,
+      rateType,
+      hours: periodCost.hours,
+      rate: periodCost.rate,
+      minimumHours: periodCost.minimumHours,
+      minimumApplied: periodCost.minimumApplied,
+    };
+
+    console.log("[PricingRules] Created cost item:", costItem);
+
+    return costItem;
   }
 
   private calculatePeriodCost(
@@ -1236,7 +1254,20 @@ export default class PricingRules {
     periodRules: any,
     isEvening: boolean,
     isPrivate: boolean
-  ): { price: number; hours: number } {
+  ): {
+    price: number;
+    hours: number;
+    minimumHours?: number;
+    rate: number;
+    minimumApplied?: boolean;
+  } {
+    console.log("[PricingRules] Period rules received:", {
+      periodRules,
+      parent: periodRules.parent,
+      minimumHours: periodRules.minimumHours,
+      parentMinimumHours: periodRules.parent?.minimumHours,
+    });
+
     if (!periodRules) {
       throw new Error(
         `No rules found for ${isEvening ? "evening" : "daytime"} period`
@@ -1244,10 +1275,23 @@ export default class PricingRules {
     }
 
     const rate = periodRules[isPrivate ? "private" : "public"];
+    const actualHours = (Number(endTime) - Number(startTime)) / 3600000;
     const hours = Math.min(
-      (Number(endTime) - Number(startTime)) / 3600000,
+      actualHours,
       isEvening ? 12 : 24 - new Date(startTime).getHours()
     );
+
+    // Get minimumHours from parent rules if not found in period rules
+    const minimumHours =
+      periodRules.minimumHours || periodRules.parent?.minimumHours || 0;
+
+    console.log("[PricingRules] Calculated minimum hours:", {
+      periodMinimumHours: periodRules.minimumHours,
+      parentMinimumHours: periodRules.parent?.minimumHours,
+      finalMinimumHours: minimumHours,
+      actualHours,
+      minimumApplied: actualHours < minimumHours,
+    });
 
     // Check if this is a crossover period and use crossover rate if applicable
     const isCrossoverPeriod = this.isCrossoverPeriod(startTime, endTime);
@@ -1257,10 +1301,24 @@ export default class PricingRules {
         : rate;
 
     if (periodRules.type === "flat") {
-      return { price: effectiveRate, hours };
+      return {
+        price: effectiveRate,
+        hours,
+        rate: effectiveRate,
+        minimumHours: 0,
+      };
     } else if (periodRules.type === "hourly") {
-      const effectiveHours = Math.max(hours, periodRules.minimumHours || 0);
-      return { price: effectiveHours * effectiveRate, hours };
+      // Apply minimum hours to price calculation
+      const effectiveHours = Math.max(hours, minimumHours);
+      const price = effectiveHours * effectiveRate;
+
+      return {
+        price,
+        hours: actualHours,
+        rate: effectiveRate,
+        minimumHours,
+        minimumApplied: actualHours < minimumHours,
+      };
     }
 
     throw new Error(
@@ -1278,6 +1336,53 @@ export default class PricingRules {
     // Example: Consider it a crossover if the booking spans regular hours (before 5pm)
     // and evening hours (after 5pm)
     return startHour < 17 && endHour >= 17;
+  }
+
+  // Add logging for rate determination
+  private getEffectiveRate(
+    room: Room,
+    isEvening: boolean,
+    isPrivate: boolean
+  ): number {
+    const rate = isEvening ? room.eveningRate : room.daytimeRate;
+    console.log(`[PricingRules] Getting effective rate for ${room.name}:`, {
+      isEvening,
+      isPrivate,
+      baseRate: rate,
+      room,
+    });
+    return rate || 0;
+  }
+
+  // When getting the day rules, pass the parent rules to the period rules
+  private getDayRules(roomRules: any, date: Date): any {
+    const dayOfWeek = format(date, "EEEE");
+    const rules = roomRules[dayOfWeek] || roomRules["all"];
+
+    if (!rules) return null;
+
+    console.log("[PricingRules] Day rules before parent reference:", {
+      dayOfWeek,
+      rules,
+      minimumHours: rules.minimumHours,
+    });
+
+    // Add parent reference to period rules
+    if (rules.daytime) {
+      rules.daytime.parent = rules;
+    }
+    if (rules.evening) {
+      rules.evening.parent = rules;
+    }
+
+    console.log("[PricingRules] Day rules after parent reference:", {
+      dayOfWeek,
+      rules,
+      eveningMinimumHours: rules.evening?.parent?.minimumHours,
+      daytimeMinimumHours: rules.daytime?.parent?.minimumHours,
+    });
+
+    return rules;
   }
 }
 
