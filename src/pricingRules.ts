@@ -1252,15 +1252,24 @@ export default class PricingRules {
       ? new Date(Math.max(localStartTime.getTime(), periodBoundary.getTime()))
       : localStartTime;
 
-    // Calculate hours and round up
+    // Calculate exact hours (don't round up here)
     const diffMs = actualEndTime.getTime() - actualStartTime.getTime();
-    const hours = Math.ceil(diffMs / (1000 * 60 * 60));
+    const exactHours = diffMs / (1000 * 60 * 60);
+
+    // Round up hours only for price calculation
+    const roundedHours = Math.ceil(exactHours);
 
     if (periodRules.type === "flat") {
-      return { price: rate, hours };
+      return { price: rate, hours: exactHours }; // Return exact hours
     } else if (periodRules.type === "hourly") {
-      const effectiveHours = Math.max(hours, periodRules.minimumHours || 0);
-      return { price: effectiveHours * rate, hours };
+      const effectiveHours = Math.max(
+        roundedHours,
+        periodRules.minimumHours || 0
+      );
+      return {
+        price: effectiveHours * rate,
+        hours: exactHours, // Return exact hours
+      };
     }
 
     throw new Error(
@@ -1335,17 +1344,20 @@ export default class PricingRules {
       ? localEndTime
       : new Date(Math.min(localEndTime.getTime(), periodBoundary.getTime()));
 
-    // Calculate milliseconds difference and convert to hours
+    // Calculate exact hours (don't round up here)
     const diffMs = actualEndTime.getTime() - localStartTime.getTime();
     const exactHours = diffMs / (1000 * 60 * 60);
-
-    // Round up to the next whole hour
+    
+    // Round up hours only for price calculation
     const roundedHours = Math.ceil(exactHours);
 
     if (type === "flat") {
-      return { hours: roundedHours, cost: rate };
+      return { hours: exactHours, cost: rate };
     } else if (type === "hourly") {
-      return { hours: roundedHours, cost: roundedHours * rate };
+      return { 
+        hours: exactHours,
+        cost: roundedHours * rate // Use rounded hours for cost calculation
+      };
     }
 
     throw new Error(`Invalid pricing type: ${type}`);
