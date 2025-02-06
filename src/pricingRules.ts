@@ -803,7 +803,7 @@ export default class PricingRules {
       const appliedHours = Math.max(actualHours, minimumHours);
 
       eveningRateType = dayRules.evening.type;
-      eveningRate = this.getEffectiveRate(room, true, isPrivate);
+      eveningRate = dayRules.evening[isPrivate ? "private" : "public"];
 
       // Calculate price using applied hours when hourly
       eveningPrice =
