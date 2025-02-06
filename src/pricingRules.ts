@@ -1347,16 +1347,16 @@ export default class PricingRules {
     // Calculate exact hours (don't round up here)
     const diffMs = actualEndTime.getTime() - localStartTime.getTime();
     const exactHours = diffMs / (1000 * 60 * 60);
-    
+
     // Round up hours only for price calculation
     const roundedHours = Math.ceil(exactHours);
 
     if (type === "flat") {
       return { hours: exactHours, cost: rate };
     } else if (type === "hourly") {
-      return { 
+      return {
         hours: exactHours,
-        cost: roundedHours * rate // Use rounded hours for cost calculation
+        cost: roundedHours * rate, // Use rounded hours for cost calculation
       };
     }
 
