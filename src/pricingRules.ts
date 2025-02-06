@@ -130,6 +130,13 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
+function formatRate(price: number, hours: number, type: string): string {
+  if (type === "flat") {
+    return `${formatCurrency(price)} flat rate`;
+  }
+  return `${hours} hours at ${formatCurrency(price / hours)}/hour`;
+}
+
 export default class PricingRules {
   private timePeriods: any[] | null;
   private rules: Record<string, any> | null;
@@ -1277,5 +1284,38 @@ export default class PricingRules {
     }
 
     return "";
+  }
+
+  private createCostItem(
+    description: string,
+    cost: number,
+    subDescription?: string
+  ): Cost {
+    return {
+      id: uuidv4(),
+      description,
+      subDescription,
+      cost,
+    };
+  }
+
+  private calculateHoursAndCost(
+    startTime: Date,
+    endTime: Date,
+    rate: number,
+    type: string
+  ): { hours: number; cost: number } {
+    const hours = differenceInHours(endTime, startTime);
+    return {
+      hours,
+      cost: type === "flat" ? rate : hours * rate,
+    };
+  }
+
+  private calculateMinimumHours(dayRules: any, actualHours: number) {
+    if (dayRules.minimumHours && actualHours < dayRules.minimumHours) {
+      const ratio = dayRules.minimumHours / actualHours;
+      // Rest of the minimum hours calculation...
+    }
   }
 }
