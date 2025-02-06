@@ -1233,31 +1233,30 @@ export default class PricingRules {
 
     const rate = periodRules[isPrivate ? "private" : "public"];
 
-    // Calculate the period boundary (5:00 PM)
-    const bookingDate = new Date(startTime);
-    const periodBoundary = new Date(bookingDate);
+    // Calculate the 5 PM boundary for the given date
+    const periodBoundary = new Date(startTime);
     periodBoundary.setHours(17, 0, 0, 0);
 
-    // Calculate actual end time based on period
+    // Calculate the actual period end time
     const actualEndTime = isEvening
       ? endTime
-      : new Date(Math.min(Number(endTime), Number(periodBoundary)));
-    const actualStartTime = isEvening
-      ? Math.max(Number(startTime), Number(periodBoundary))
-      : Number(startTime);
+      : new Date(Math.min(endTime.getTime(), periodBoundary.getTime()));
 
-    // Calculate hours and round up to the next full hour
-    const hours = (Number(actualEndTime) - actualStartTime) / (1000 * 60 * 60);
-    const roundedHours = Math.ceil(hours);
+    // Calculate the actual period start time
+    const actualStartTime = isEvening
+      ? new Date(Math.max(startTime.getTime(), periodBoundary.getTime()))
+      : startTime;
+
+    // Calculate exact milliseconds difference
+    const diffMs = actualEndTime.getTime() - actualStartTime.getTime();
+    // Convert to hours and round up to nearest hour
+    const hours = Math.ceil(diffMs / (1000 * 60 * 60));
 
     if (periodRules.type === "flat") {
-      return { price: rate, hours: roundedHours };
+      return { price: rate, hours };
     } else if (periodRules.type === "hourly") {
-      const effectiveHours = Math.max(
-        roundedHours,
-        periodRules.minimumHours || 0
-      );
-      return { price: effectiveHours * rate, hours: roundedHours };
+      const effectiveHours = Math.max(hours, periodRules.minimumHours || 0);
+      return { price: effectiveHours * rate, hours };
     }
 
     throw new Error(
