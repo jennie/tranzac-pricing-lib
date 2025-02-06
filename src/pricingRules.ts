@@ -75,6 +75,9 @@ interface BookingRates {
   fullDayPrice?: number;
   crossoverApplied?: boolean;
   isFullDay?: boolean;
+  daytimeCostItem?: any;
+  eveningCostItem?: any;
+  fullDayCostItem?: any;
 }
 
 interface Cost {
@@ -747,6 +750,9 @@ export default class PricingRules {
     let eveningPrice = 0;
     let eveningRate = 0;
     let crossoverApplied = false;
+    let daytimeCostItem = null;
+    let eveningCostItem = null;
+    let eveningRateType = "";
 
     const eveningStartTime = new Date(startDateTime);
     eveningStartTime.setHours(17, 0, 0, 0); // 5 PM
