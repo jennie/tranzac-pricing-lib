@@ -721,6 +721,9 @@ export default class PricingRules {
     let crossoverApplied = false;
     let actualHours = 0;
 
+    // Move this to the top level since it's used in multiple places
+    const totalBookingHours = differenceInHours(endDateTime, startDateTime);
+
     const eveningStartTime = this.getEveningStartTime(startDateTime);
     const bookingCrossesEveningThreshold =
       startDateTime < eveningStartTime && endDateTime > eveningStartTime;
@@ -734,7 +737,6 @@ export default class PricingRules {
 
       // Calculate actual hours
       actualHours = differenceInHours(daytimeEndTime, startDateTime);
-      const totalBookingHours = differenceInHours(endDateTime, startDateTime);
 
       // Key change: Check if we should apply crossover rate first
       if (bookingCrossesEveningThreshold && dayRules.daytime.crossoverRate) {
