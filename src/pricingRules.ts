@@ -750,16 +750,6 @@ export default class PricingRules {
     dayRules: any,
     isPrivate: boolean
   ) {
-    // Initialize variables at the start
-    let daytimePrice = 0;
-    let eveningPrice = 0;
-    let daytimeHours = 0;
-    let eveningHours = 0;
-    let daytimeRate = 0;
-    let eveningRate = 0;
-    let crossoverApplied = false;
-    let actualHours = 0;
-
     const torontoStart = toZonedTime(startDateTime, TORONTO_TIMEZONE);
     const torontoEnd = toZonedTime(endDateTime, TORONTO_TIMEZONE);
     const torontoEveningStart = new Date(torontoStart);
