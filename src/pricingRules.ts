@@ -789,16 +789,7 @@ export default class PricingRules {
 
     // Calculate evening costs
     if (eveningHours > 0 && dayRules.evening) {
-      console.log("[PricingRules] Evening calculation start:", {
-        dayRules,
-        minimumHours: dayRules.minimumHours,
-        parentMinHours: dayRules.evening?.parent?.minimumHours,
-        effectiveMinHours:
-          dayRules.minimumHours || dayRules.evening?.parent?.minimumHours || 0,
-      });
-
-      const minimumHours =
-        dayRules.minimumHours || dayRules.evening?.parent?.minimumHours || 0;
+      const minimumHours = dayRules.minimumHours || 0;
       const actualHours = eveningHours;
       const appliedHours = Math.max(actualHours, minimumHours);
 
@@ -809,26 +800,15 @@ export default class PricingRules {
       eveningPrice =
         eveningRateType === "hourly" ? eveningRate * appliedHours : eveningRate;
 
-      console.log("[PricingRules] Evening price calculation:", {
-        minimumHours,
-        actualHours,
-        appliedHours,
-        eveningRate,
-        eveningPrice,
-        eveningRateType,
-      });
-
       eveningCostItem = {
         description: "Evening Hours",
         cost: eveningPrice,
         rateType: eveningRateType,
         hours: actualHours,
         rate: eveningRate,
-        minimumHours, // Add this explicitly
-        minimumApplied: actualHours < minimumHours, // Add this explicitly
+        minimumHours: dayRules.minimumHours || 0, // Use dayRules.minimumHours directly
+        minimumApplied: actualHours < minimumHours, // Compare actual vs minimum
       };
-
-      console.log("[PricingRules] Created evening cost item:", eveningCostItem);
     }
 
     return {
