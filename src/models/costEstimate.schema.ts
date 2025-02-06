@@ -71,6 +71,23 @@ export interface ICostEstimate extends Document {
   rentalRequestId: string;
   createdAt: Date; // Add these
   updatedAt: Date; // timestamp fields
+  roomSlug: string;
+  basePrice: number;
+  daytimeHours?: number;
+  eveningHours?: number;
+  daytimePrice?: number;
+  eveningPrice?: number;
+  fullDayPrice?: number;
+  daytimeRate?: number;
+  daytimeRateType?: string;
+  eveningRate?: number;
+  eveningRateType?: string;
+  daytimeMinHours?: number;
+  eveningMinHours?: number;
+  daytimeMinimumHours?: number;
+  eveningMinimumHours?: number;
+  additionalCosts?: any[];
+  totalCost: number;
 }
 
 export const CostEstimateSchemaDefinition = {
@@ -128,7 +145,7 @@ export const CostEstimateSchemaDefinition = {
               description: { type: String, required: true },
               subDescription: { type: String },
               cost: { type: Number, required: true },
-              isRequired: { type: Boolean, default: false }, // Add this line
+              isRequired: { type: Boolean, default: false },
             },
           ],
           customLineItems: [
@@ -163,6 +180,23 @@ export const CostEstimateSchemaDefinition = {
   ],
   currentVersion: { type: Number, required: true },
   status: { type: String, required: true },
+  roomSlug: { type: String, required: true },
+  basePrice: { type: Number, required: true },
+  daytimeHours: Number,
+  eveningHours: Number,
+  daytimePrice: Number,
+  eveningPrice: Number,
+  fullDayPrice: Number,
+  daytimeRate: Number,
+  daytimeRateType: String,
+  eveningRate: Number,
+  eveningRateType: String,
+  daytimeMinHours: Number,
+  eveningMinHours: Number,
+  daytimeMinimumHours: Number,
+  eveningMinimumHours: Number,
+  additionalCosts: Array,
+  totalCost: { type: Number, required: true },
 };
 
 // Factory functions to create models
