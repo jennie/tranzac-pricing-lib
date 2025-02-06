@@ -100,6 +100,16 @@ interface CostEstimate {
   expectedAttendance?: number;
   customLineItems?: any[];
   error?: string;
+  subtotal: number;
+  tax: number;
+  total: number;
+  daytimeHours: number;
+  eveningHours: number;
+  daytimePrice: number;
+  eveningPrice: number;
+  daytimeRate: number;
+  eveningRate: number;
+  crossoverApplied: boolean;
 }
 
 // NEW: Added interface AdditionalCosts to define the expected structure.
@@ -351,6 +361,16 @@ export default class PricingRules {
                 resources: preparedBooking.resources,
                 expectedAttendance: preparedBooking.expectedAttendance,
                 customLineItems: slotCustomLineItems,
+                subtotal: slotTotal,
+                tax: slotTotal * 0.13,
+                total: slotTotal * 1.13,
+                daytimeHours: formattedEstimates.reduce((sum, est) => sum + (est.daytimeHours || 0), 0),
+                eveningHours: formattedEstimates.reduce((sum, est) => sum + (est.eveningHours || 0), 0),
+                daytimePrice: formattedEstimates.reduce((sum, est) => sum + (est.daytimePrice || 0), 0),
+                eveningPrice: formattedEstimates.reduce((sum, est) => sum + (est.eveningPrice || 0), 0),
+                daytimeRate: formattedEstimates[0]?.daytimeRate || 0,
+                eveningRate: formattedEstimates[0]?.eveningRate || 0,
+                crossoverApplied: formattedEstimates[0]?.crossoverApplied || false
               });
 
               // NEW: Store slotCustomLineItems if they exist
@@ -373,6 +393,16 @@ export default class PricingRules {
                 perSlotCosts: [],
                 slotTotal: 0,
                 error: error.message,
+                subtotal: 0,
+                tax: 0,
+                total: 0,
+                daytimeHours: 0,
+                eveningHours: 0,
+                daytimePrice: 0,
+                eveningPrice: 0,
+                daytimeRate: 0,
+                eveningRate: 0,
+                crossoverApplied: false
               });
             }
           });
@@ -1084,7 +1114,6 @@ export default class PricingRules {
             subDescription,
             cost,
           };
-        }
 
       case "projector":
         if (projectorIncluded) {
@@ -1266,6 +1295,40 @@ export default class PricingRules {
     }
 
     throw new Error(`Invalid pricing type: ${type}`);
+  }
+
+  private createEstimate(
+    booking: Booking,
+    estimates: any[],
+    perSlotCosts: any[],
+    slotTotal: number,
+    customLineItems: any[]
+  ): CostEstimate {
+    return {
+      id: booking.id || uuidv4(),
+      date: new Date(booking.date || booking.startTime),
+      start: new Date(booking.startTime),
+      end: new Date(booking.endTime),
+      estimates,
+      perSlotCosts,
+      slotTotal,
+      roomSlugs: booking.roomSlugs,
+      isPrivate: booking.isPrivate,
+      resources: booking.resources,
+      expectedAttendance: booking.expectedAttendance,
+      customLineItems,
+      // Add these fields to match what the UI expects
+      subtotal: slotTotal,
+      tax: slotTotal * 0.13, // 13% HST
+      total: slotTotal * 1.13,
+      daytimeHours: estimates.reduce((sum, est) => sum + (est.daytimeHours || 0), 0),
+      eveningHours: estimates.reduce((sum, est) => sum + (est.eveningHours || 0), 0),
+      daytimePrice: estimates.reduce((sum, est) => sum + (est.daytimePrice || 0), 0),
+      eveningPrice: estimates.reduce((sum, est) => sum + (est.eveningPrice || 0), 0),
+      daytimeRate: estimates[0]?.daytimeRate || 0,
+      eveningRate: estimates[0]?.eveningRate || 0,
+      crossoverApplied: estimates[0]?.crossoverApplied || false
+    };
   }
 }
 
