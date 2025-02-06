@@ -12,6 +12,7 @@ import { formatISO, parseISO, isValid, differenceInHours, sub } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
 
 interface Booking {
+  id?: string;
   resources: string[];
   isPrivate?: boolean;
   expectedAttendance?: number;
@@ -300,6 +301,7 @@ export default class PricingRules {
                 daytimeRateType: estimate.daytimeRateType || "",
                 eveningRate: estimate.eveningRate || 0,
                 eveningRateType: estimate.eveningRateType || "",
+                crossoverApplied: estimate.crossoverApplied || false,
                 additionalCosts: Array.isArray(estimate.additionalCosts)
                   ? estimate.additionalCosts.map((cost: Cost) => ({
                       id: cost.id || uuidv4(),
@@ -364,13 +366,26 @@ export default class PricingRules {
                 subtotal: slotTotal,
                 tax: slotTotal * 0.13,
                 total: slotTotal * 1.13,
-                daytimeHours: formattedEstimates.reduce((sum, est) => sum + (est.daytimeHours || 0), 0),
-                eveningHours: formattedEstimates.reduce((sum, est) => sum + (est.eveningHours || 0), 0),
-                daytimePrice: formattedEstimates.reduce((sum, est) => sum + (est.daytimePrice || 0), 0),
-                eveningPrice: formattedEstimates.reduce((sum, est) => sum + (est.eveningPrice || 0), 0),
+                daytimeHours: formattedEstimates.reduce(
+                  (sum, est) => sum + (est.daytimeHours || 0),
+                  0
+                ),
+                eveningHours: formattedEstimates.reduce(
+                  (sum, est) => sum + (est.eveningHours || 0),
+                  0
+                ),
+                daytimePrice: formattedEstimates.reduce(
+                  (sum, est) => sum + (est.daytimePrice || 0),
+                  0
+                ),
+                eveningPrice: formattedEstimates.reduce(
+                  (sum, est) => sum + (est.eveningPrice || 0),
+                  0
+                ),
                 daytimeRate: formattedEstimates[0]?.daytimeRate || 0,
                 eveningRate: formattedEstimates[0]?.eveningRate || 0,
-                crossoverApplied: formattedEstimates[0]?.crossoverApplied || false
+                crossoverApplied:
+                  formattedEstimates[0]?.crossoverApplied || false,
               });
 
               // NEW: Store slotCustomLineItems if they exist
@@ -402,7 +417,7 @@ export default class PricingRules {
                 eveningPrice: 0,
                 daytimeRate: 0,
                 eveningRate: 0,
-                crossoverApplied: false
+                crossoverApplied: false,
               });
             }
           });
@@ -1114,6 +1129,7 @@ export default class PricingRules {
             subDescription,
             cost,
           };
+        }
 
       case "projector":
         if (projectorIncluded) {
@@ -1321,13 +1337,25 @@ export default class PricingRules {
       subtotal: slotTotal,
       tax: slotTotal * 0.13, // 13% HST
       total: slotTotal * 1.13,
-      daytimeHours: estimates.reduce((sum, est) => sum + (est.daytimeHours || 0), 0),
-      eveningHours: estimates.reduce((sum, est) => sum + (est.eveningHours || 0), 0),
-      daytimePrice: estimates.reduce((sum, est) => sum + (est.daytimePrice || 0), 0),
-      eveningPrice: estimates.reduce((sum, est) => sum + (est.eveningPrice || 0), 0),
+      daytimeHours: estimates.reduce(
+        (sum, est) => sum + (est.daytimeHours || 0),
+        0
+      ),
+      eveningHours: estimates.reduce(
+        (sum, est) => sum + (est.eveningHours || 0),
+        0
+      ),
+      daytimePrice: estimates.reduce(
+        (sum, est) => sum + (est.daytimePrice || 0),
+        0
+      ),
+      eveningPrice: estimates.reduce(
+        (sum, est) => sum + (est.eveningPrice || 0),
+        0
+      ),
       daytimeRate: estimates[0]?.daytimeRate || 0,
       eveningRate: estimates[0]?.eveningRate || 0,
-      crossoverApplied: estimates[0]?.crossoverApplied || false
+      crossoverApplied: estimates[0]?.crossoverApplied || false,
     };
   }
 }
