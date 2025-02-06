@@ -708,9 +708,8 @@ export default class PricingRules {
     console.log("=== calculateRoomPrice Debug ===");
     console.log("Start DateTime:", startDateTime);
     console.log("End DateTime:", endDateTime);
-
-    const eveningStartTime = new Date(startDateTime);
-    eveningStartTime.setHours(18, 0, 0, 0);
+    console.log("Day Rules:", JSON.stringify(dayRules, null, 2));
+    console.log("Is Private:", isPrivate);
 
     let basePrice = 0;
     let daytimePrice = 0;
@@ -721,44 +720,58 @@ export default class PricingRules {
     let eveningRate = 0;
     let crossoverApplied = false;
 
+    // Convert to Toronto timezone for calculations
+    const torontoTZ = "America/Toronto";
+    const eveningStartTime = this.getEveningStartTime(startDateTime);
+    const bookingCrossesEveningThreshold =
+      startDateTime < eveningStartTime && endDateTime > eveningStartTime;
+
+    console.log("Evening threshold check:", {
+      eveningStartTime,
+      bookingCrossesEveningThreshold,
+      startDateTime,
+      endDateTime,
+    });
+
     if (startDateTime < eveningStartTime && dayRules.daytime) {
+      const daytimeEndTime = bookingCrossesEveningThreshold
+        ? eveningStartTime
+        : endDateTime;
       const pricingRate = dayRules.daytime[isPrivate ? "private" : "public"];
       daytimeRate = pricingRate;
 
-      // Calculate actual hours before evening
-      const hoursBeforeEvening = differenceInHours(
-        endDateTime < eveningStartTime ? endDateTime : eveningStartTime,
-        startDateTime
-      );
+      // Calculate actual hours first
+      const actualHours = differenceInHours(daytimeEndTime, startDateTime);
 
-      // Calculate crossover hours if applicable
-      const crossoverHours =
-        endDateTime > eveningStartTime
-          ? differenceInHours(endDateTime, eveningStartTime)
-          : 0;
-
-      console.log("Hours calculation:", {
-        hoursBeforeEvening,
-        crossoverHours,
+      console.log("Daytime calculation:", {
+        actualHours,
         minimumHours: dayRules.daytime.minimumHours,
+        crossoverRate: dayRules.daytime.crossoverRate,
+        bookingCrossesEvening: bookingCrossesEveningThreshold,
       });
 
-      // Calculate prices
-      if (
-        hoursBeforeEvening + crossoverHours <
-        (dayRules.daytime.minimumHours || 0)
-      ) {
-        // If total hours are less than minimum, charge minimum at regular rate
-        daytimeHours = dayRules.daytime.minimumHours;
-        daytimePrice = pricingRate * dayRules.daytime.minimumHours;
-        crossoverApplied = false;
+      // Apply crossover rate if applicable
+      if (bookingCrossesEveningThreshold && dayRules.daytime.crossoverRate) {
+        crossoverApplied = true;
+        daytimeHours = actualHours;
+        daytimePrice = actualHours * dayRules.daytime.crossoverRate;
+        console.log("Applied crossover rate:", {
+          hours: daytimeHours,
+          rate: dayRules.daytime.crossoverRate,
+          price: daytimePrice,
+        });
       } else {
-        // Calculate regular and crossover portions
-        daytimeHours = hoursBeforeEvening + crossoverHours;
-        daytimePrice =
-          hoursBeforeEvening * pricingRate +
-          crossoverHours * (dayRules.daytime.crossoverRate || pricingRate);
-        crossoverApplied = crossoverHours > 0;
+        // Apply minimum hours if not using crossover rate
+        daytimeHours = Math.max(
+          actualHours,
+          dayRules.daytime.minimumHours || 0
+        );
+        daytimePrice = daytimeHours * pricingRate;
+        console.log("Applied regular rate:", {
+          hours: daytimeHours,
+          rate: pricingRate,
+          price: daytimePrice,
+        });
       }
 
       basePrice += daytimePrice;
@@ -786,7 +799,8 @@ export default class PricingRules {
     }
 
     // Add final calculation debug
-    console.log("=== Final Calculation Results ===", {
+    console.log("=== Final Calculation Results ===");
+    console.log({
       basePrice,
       daytimePrice,
       eveningPrice,
@@ -795,14 +809,13 @@ export default class PricingRules {
       daytimeRate,
       eveningRate,
       crossoverApplied,
-      regularHours: hoursBeforeEvening,
-      crossoverHours,
     });
 
     return {
       basePrice,
       daytimePrice,
       eveningPrice,
+      fullDayPrice: 0,
       daytimeHours,
       eveningHours,
       daytimeRate,
@@ -810,6 +823,7 @@ export default class PricingRules {
       daytimeRateType: dayRules.daytime?.type || "",
       eveningRateType: dayRules.evening?.type || "",
       crossoverApplied,
+      actualHours,
     };
   }
 
