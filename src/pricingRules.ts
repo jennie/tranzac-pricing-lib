@@ -789,7 +789,7 @@ export default class PricingRules {
 
     // Calculate evening costs
     if (eveningHours > 0 && dayRules.evening) {
-      const minimumHours = dayRules.minimumHours || 0;
+      const minimumHours = dayRules.evening.minimumHours || 0;
       const actualHours = eveningHours;
       const appliedHours = Math.max(actualHours, minimumHours);
 
@@ -806,8 +806,8 @@ export default class PricingRules {
         rateType: eveningRateType,
         hours: actualHours,
         rate: eveningRate,
-        minimumHours: dayRules.minimumHours || 0, // Use dayRules.minimumHours directly
-        minimumApplied: actualHours < minimumHours, // Compare actual vs minimum
+        minimumHours: minimumHours,
+        minimumApplied: actualHours < minimumHours,
       };
     }
 
@@ -1401,11 +1401,26 @@ export default class PricingRules {
 
     if (!rules) return null;
 
-    console.log("[PricingRules] Day rules before parent reference:", {
+    console.log("[PricingRules] Day rules before processing:", {
       dayOfWeek,
       rules,
-      minimumHours: rules.minimumHours,
+      eveningMinHours: rules.evening?.minimumHours,
+      daytimeMinHours: rules.daytime?.minimumHours,
     });
+
+    // If minimumHours is at the top level, move it to the periods
+    if (rules.minimumHours) {
+      if (rules.evening) {
+        rules.evening.minimumHours =
+          rules.evening.minimumHours || rules.minimumHours;
+      }
+      if (rules.daytime) {
+        rules.daytime.minimumHours =
+          rules.daytime.minimumHours || rules.minimumHours;
+      }
+      // Remove top-level minimumHours after distributing
+      delete rules.minimumHours;
+    }
 
     // Add parent reference to period rules
     if (rules.daytime) {
@@ -1415,11 +1430,11 @@ export default class PricingRules {
       rules.evening.parent = rules;
     }
 
-    console.log("[PricingRules] Day rules after parent reference:", {
+    console.log("[PricingRules] Day rules after processing:", {
       dayOfWeek,
       rules,
-      eveningMinimumHours: rules.evening?.parent?.minimumHours,
-      daytimeMinimumHours: rules.daytime?.parent?.minimumHours,
+      eveningMinHours: rules.evening?.minimumHours,
+      daytimeMinHours: rules.daytime?.minimumHours,
     });
 
     return rules;
