@@ -705,19 +705,57 @@ export default class PricingRules {
     dayRules: any,
     isPrivate: boolean
   ) {
-    console.log("=== Price Calculation Debug ===");
-    const eveningStartTime = this.getEveningStartTime(startDateTime);
+    // Add debug logging at the start
+    console.log("=== calculateRoomPrice Debug ===");
+    console.log("Start DateTime:", startDateTime);
+    console.log("End DateTime:", endDateTime);
+    console.log("Day Rules:", JSON.stringify(dayRules, null, 2));
+    console.log("Is Private:", isPrivate);
+
+    const calculateHoursAndCost = (
+      start: Date,
+      end: Date,
+      rate: number,
+      rateType: string
+    ) => {
+      const hours = differenceInHours(end, start);
+      return {
+        hours,
+        cost: rateType === "flat" ? rate : rate * hours,
+        hourlyRate: rateType === "flat" ? null : rate,
+      };
+    };
+
+    const eveningStartTime = new Date(startDateTime);
+    eveningStartTime.setHours(17, 0, 0, 0);
+
+    const totalBookingHours = differenceInHours(endDateTime, startDateTime);
     const bookingCrossesEveningThreshold =
       startDateTime < eveningStartTime && endDateTime > eveningStartTime;
 
-    console.log({
-      startDateTime: startDateTime.toISOString(),
-      endDateTime: endDateTime.toISOString(),
-      eveningStartTime: eveningStartTime.toISOString(),
-      bookingCrossesEveningThreshold,
-      hasMinimumHours: !!dayRules.daytime?.minimumHours,
-      hasCrossoverRate: !!dayRules.daytime?.crossoverRate,
-    });
+    if (dayRules.fullDay) {
+      const rate = dayRules.fullDay[isPrivate ? "private" : "public"];
+      const { hours, cost } = calculateHoursAndCost(
+        startDateTime,
+        endDateTime,
+        rate,
+        dayRules.fullDay.type
+      );
+      return {
+        basePrice: cost,
+        fullDayPrice: cost,
+        daytimeHours: hours,
+        eveningHours: 0,
+        daytimePrice: cost,
+        eveningPrice: 0,
+        daytimeRate: rate,
+        eveningRate: 0,
+        daytimeRateType: dayRules.fullDay.type,
+        eveningRateType: "",
+        crossoverApplied: false,
+        actualHours: hours,
+      };
+    }
 
     let basePrice = 0;
     let daytimePrice = 0;
@@ -727,6 +765,7 @@ export default class PricingRules {
     let daytimeRate = 0;
     let eveningRate = 0;
     let crossoverApplied = false;
+    let actualHours = 0;
 
     if (startDateTime < eveningStartTime && dayRules.daytime) {
       const daytimeEndTime = bookingCrossesEveningThreshold
@@ -738,39 +777,15 @@ export default class PricingRules {
       // Calculate actual hours first
       const actualHours = differenceInHours(daytimeEndTime, startDateTime);
 
-      // Determine if we should use minimum hours
-      const minimumHours = dayRules.daytime.minimumHours || 0;
-      const shouldUseMinimumHours = minimumHours > actualHours;
-
-      // Determine if we should use crossover rate
-      const shouldUseCrossoverRate =
-        bookingCrossesEveningThreshold &&
-        dayRules.daytime.crossoverRate &&
-        !shouldUseMinimumHours; // Don't apply crossover if using minimum hours
-
-      console.log("Daytime Calculation:", {
-        actualHours,
-        minimumHours,
-        shouldUseMinimumHours,
-        shouldUseCrossoverRate,
-        regularRate: pricingRate,
-        crossoverRate: dayRules.daytime.crossoverRate,
-      });
-
-      if (shouldUseMinimumHours) {
-        daytimeHours = minimumHours;
-        daytimePrice = pricingRate * minimumHours;
-        crossoverApplied = false;
-      } else if (shouldUseCrossoverRate) {
-        daytimeHours = actualHours;
-        daytimePrice = dayRules.daytime.crossoverRate * actualHours;
+      // Check if we should use crossover rate
+      if (bookingCrossesEveningThreshold && dayRules.daytime.crossoverRate) {
         crossoverApplied = true;
-        daytimeRate = dayRules.daytime.crossoverRate; // Update rate for display
-      } else {
-        daytimeHours = actualHours;
-        daytimePrice = pricingRate * actualHours;
-        crossoverApplied = false;
+        daytimeRate = dayRules.daytime.crossoverRate;
       }
+
+      // Apply minimum hours after determining rate
+      daytimeHours = Math.max(actualHours, dayRules.daytime.minimumHours || 0);
+      daytimePrice = daytimeRate * daytimeHours;
 
       basePrice += daytimePrice;
     }
@@ -797,15 +812,8 @@ export default class PricingRules {
     }
 
     // Add final calculation debug
-    console.log("Final Price Components:", {
-      basePrice,
-      daytimePrice,
-      daytimeHours,
-      daytimeRate,
-      crossoverApplied,
-    });
-
-    return {
+    console.log("=== Final Calculation Results ===");
+    console.log({
       basePrice,
       daytimePrice,
       eveningPrice,
@@ -813,9 +821,22 @@ export default class PricingRules {
       eveningHours,
       daytimeRate,
       eveningRate,
+      crossoverApplied,
+    });
+
+    return {
+      basePrice,
+      daytimePrice,
+      eveningPrice,
+      fullDayPrice: 0,
+      daytimeHours,
+      eveningHours,
+      daytimeRate,
+      eveningRate,
       daytimeRateType: dayRules.daytime?.type || "",
       eveningRateType: dayRules.evening?.type || "",
       crossoverApplied,
+      actualHours,
     };
   }
 
