@@ -769,24 +769,35 @@ export default class PricingRules {
     let crossoverApplied = false;
     let actualHours = 0;
 
+    // Add error checking
+    if (!dayRules) {
+      throw new Error("No pricing rules found for this day");
+    }
+
     const torontoStart = toZonedTime(startDateTime, TORONTO_TIMEZONE);
     const torontoEnd = toZonedTime(endDateTime, TORONTO_TIMEZONE);
     const torontoEveningStart = new Date(torontoStart);
     torontoEveningStart.setHours(17, 0, 0, 0);
 
-    // Calculate total booking hours
     const totalBookingHours = differenceInHours(torontoEnd, torontoStart);
 
     const bookingCrossesEveningThreshold =
       torontoStart < torontoEveningStart && torontoEnd > torontoEveningStart;
 
     // Calculate daytime portion
-    if (torontoStart < torontoEveningStart) {
+    if (torontoStart < torontoEveningStart && dayRules.daytime) {
       const daytimeEndTime = bookingCrossesEveningThreshold
         ? torontoEveningStart
         : torontoEnd;
 
-      let daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
+      // Safely access daytime rates
+      const publicRate = dayRules.daytime?.public;
+      const privateRate = dayRules.daytime?.private;
+      if (!publicRate || !privateRate) {
+        throw new Error("Missing public or private rate in daytime pricing rules");
+      }
+
+      let daytimeRate = isPrivate ? privateRate : publicRate;
 
       // Apply crossover rate if applicable
       if (bookingCrossesEveningThreshold && dayRules.daytime.crossoverRate) {
@@ -796,11 +807,6 @@ export default class PricingRules {
 
       const daytimeHours = differenceInHours(daytimeEndTime, torontoStart);
       daytimePrice = daytimeRate * daytimeHours;
-
-      // Add crossover rate info to the subDescription
-      const subDescription = `${daytimeHours} hours at ${formatCurrency(
-        daytimeRate
-      )}/hour${crossoverApplied ? " (crossover rate)" : ""}`;
     }
 
     // Calculate evening portion
@@ -1137,7 +1143,6 @@ export default class PricingRules {
             subDescription,
             cost,
           };
-        }
 
       case "projector":
         if (projectorIncluded) {
