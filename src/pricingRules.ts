@@ -821,15 +821,22 @@ export default class PricingRules {
       eveningRate = dayRules.evening[isPrivate ? "private" : "public"];
       eveningRateType = dayRules.evening.type;
 
-      // Create evening cost item with minimum hours info
+      // Get minimum hours from the parent rules
+      const minimumHours = dayRules.minimumHours || 0;
+      console.log("[PricingRules] Evening minimum hours:", {
+        minimumHours,
+        actualHours: eveningHours,
+        dayRules,
+      });
+
       eveningCostItem = {
         description: "Evening Hours",
         cost: eveningPrice,
         rateType: eveningRateType,
         hours: eveningHours,
         rate: eveningRate,
-        minimumHours: dayRules.minimumHours || 0, // Get from parent rules
-        minimumApplied: eveningHours < (dayRules.minimumHours || 0), // Check against parent rules
+        minimumHours,
+        minimumApplied: eveningHours < minimumHours,
       };
     }
 
