@@ -606,6 +606,7 @@ export default class PricingRules {
         daytimeRateType,
         eveningRateType,
         crossoverApplied,
+        actualHours,
       } = this.calculateRoomPrice(
         startDateTime,
         endDateTime,
@@ -641,7 +642,7 @@ export default class PricingRules {
           description: dayRules.fullDay ? "Full Day Rate" : "Daytime Hours",
           cost: daytimePrice || 0,
           rateType: daytimeRateType || "hourly",
-          hours: daytimeHours || 0, // This will be 3.0 for minimum hours
+          hours: daytimeHours || 0,
           rate: daytimeRate || 0,
           crossoverApplied: crossoverApplied || false,
           isFullDay: !!dayRules.fullDay,
@@ -666,6 +667,7 @@ export default class PricingRules {
         minimumHours: dayRules.minimumHours,
         totalBookingHours,
         isFullDay: !!dayRules.fullDay,
+        actualHours,
       });
 
       slotTotal += basePrice + roomAdditionalCostsTotal;
@@ -751,6 +753,7 @@ export default class PricingRules {
         daytimeRateType: dayRules.fullDay.type,
         eveningRateType: "",
         crossoverApplied: false,
+        actualHours: hours,
       };
     }
 
@@ -762,6 +765,7 @@ export default class PricingRules {
     let daytimeRate = 0;
     let eveningRate = 0;
     let crossoverApplied = false;
+    let actualHours = 0;
 
     if (startDateTime < eveningStartTime && dayRules.daytime) {
       const daytimeEndTime = bookingCrossesEveningThreshold
@@ -771,7 +775,7 @@ export default class PricingRules {
       daytimeRate = pricingRate;
 
       // First calculate actual hours
-      const actualHours = differenceInHours(daytimeEndTime, startDateTime);
+      actualHours = differenceInHours(daytimeEndTime, startDateTime);
       daytimeHours = actualHours;
 
       // Check minimum hours first
@@ -842,6 +846,7 @@ export default class PricingRules {
       daytimeRateType: dayRules.daytime?.type || "",
       eveningRateType: dayRules.evening?.type || "",
       crossoverApplied,
+      actualHours,
     };
   }
 
