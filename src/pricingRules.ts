@@ -823,14 +823,14 @@ export default class PricingRules {
 
       // Get minimum hours directly from the parent dayRules
       const minimumHours = dayRules.minimumHours || 0;
-      
+
       // Log the values we're working with
       console.log("[PricingRules] Evening pricing details:", {
         dayRules,
         minimumHours,
         eveningHours,
         eveningRate,
-        eveningPrice
+        eveningPrice,
       });
 
       eveningCostItem = {
@@ -840,7 +840,7 @@ export default class PricingRules {
         hours: eveningHours,
         rate: eveningRate,
         minimumHours: minimumHours,
-        minimumApplied: eveningHours < minimumHours
+        minimumApplied: eveningHours < minimumHours,
       };
 
       // If we're under minimum hours, adjust the price
@@ -1137,6 +1137,7 @@ export default class PricingRules {
             subDescription,
             cost,
           };
+        }
 
       case "projector":
         if (projectorIncluded) {
