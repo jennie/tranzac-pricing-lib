@@ -534,9 +534,8 @@ export default class PricingRules {
   }
 
   // Helper method to determine if a given time is during evening hours
-  isEveningTime(time: Date) {
-    const hour = time.getHours();
-    return hour >= 17 || hour < 5;
+  private isEveningTime(time: Date): boolean {
+    return time.getHours() >= 17; // 5 PM or later
   }
 
   // Helper methods remain the same
@@ -1222,7 +1221,16 @@ export default class PricingRules {
     rules: any,
     isPrivate: boolean
   ) {
-    const isEvening = this.isEveningTime(startTime);
+    // Convert UTC times to local time zone
+    const timeZone = "America/Toronto";
+    const localStartTime = toZonedTime(startTime, timeZone);
+    const localEndTime = toZonedTime(endTime, timeZone);
+
+    // Create the 5 PM boundary in local time
+    const periodBoundary = new Date(localStartTime);
+    periodBoundary.setHours(17, 0, 0, 0);
+
+    const isEvening = this.isEveningTime(localStartTime);
     const periodRules = isEvening ? rules.evening : rules.daytime;
 
     if (!periodRules) {
@@ -1233,23 +1241,17 @@ export default class PricingRules {
 
     const rate = periodRules[isPrivate ? "private" : "public"];
 
-    // Calculate the 5 PM boundary for the given date
-    const periodBoundary = new Date(startTime);
-    periodBoundary.setHours(17, 0, 0, 0);
-
-    // Calculate the actual period end time
+    // Calculate actual period times in local time
     const actualEndTime = isEvening
-      ? endTime
-      : new Date(Math.min(endTime.getTime(), periodBoundary.getTime()));
+      ? localEndTime
+      : new Date(Math.min(localEndTime.getTime(), periodBoundary.getTime()));
 
-    // Calculate the actual period start time
     const actualStartTime = isEvening
-      ? new Date(Math.max(startTime.getTime(), periodBoundary.getTime()))
-      : startTime;
+      ? new Date(Math.max(localStartTime.getTime(), periodBoundary.getTime()))
+      : localStartTime;
 
-    // Calculate exact milliseconds difference
+    // Calculate hours and round up
     const diffMs = actualEndTime.getTime() - actualStartTime.getTime();
-    // Convert to hours and round up to nearest hour
     const hours = Math.ceil(diffMs / (1000 * 60 * 60));
 
     if (periodRules.type === "flat") {
