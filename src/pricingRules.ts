@@ -801,20 +801,56 @@ export default class PricingRules {
       eveningPrice *= ratio;
     }
 
+    // Calculate evening costs
+    if (eveningHours > 0 && dayRules.evening) {
+      const eveningCost = this.calculatePeriodCost(
+        eveningStartTime,
+        endDateTime,
+        dayRules.evening,
+        true,
+        isPrivate
+      );
+
+      eveningPrice = eveningCost.price;
+      eveningRate = dayRules.evening[isPrivate ? "private" : "public"];
+      eveningRateType = dayRules.evening.type;
+
+      // Create evening cost item with minimum hours info
+      eveningCostItem = {
+        description: "Evening Hours",
+        cost: eveningPrice,
+        rateType: eveningRateType,
+        hours: eveningHours,
+        rate: eveningRate,
+        minimumHours: dayRules.minimumHours || 0, // Get from parent rules
+        minimumApplied: eveningHours < (dayRules.minimumHours || 0), // Check against parent rules
+      };
+    }
+
     return {
       basePrice,
+      daytimeHours,
+      eveningHours,
       daytimePrice,
       eveningPrice,
       fullDayPrice: 0,
-      daytimeHours,
-      eveningHours,
-      daytimeRate: crossoverApplied
-        ? dayRules.daytime.crossoverRate
-        : daytimeRate,
+      daytimeRate,
       eveningRate,
       daytimeRateType: dayRules.daytime?.type || "",
       eveningRateType: dayRules.evening?.type || "",
       crossoverApplied,
+      daytimeCostItem,
+      eveningCostItem,
+      fullDayCostItem: this.createCostItem(
+        "Full Day Rate",
+        0,
+        this.generateRateDescription({
+          basePrice: 0,
+          isFullDay: true,
+          fullDayPrice: 0,
+        })
+      ),
+      isFullDay: false,
     };
   }
 
