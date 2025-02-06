@@ -698,87 +698,65 @@ export default class PricingRules {
     endDateTime: Date,
     dayRules: any,
     isPrivate: boolean
-  ) {
+  ): BookingRates {
     const calculateHoursAndCost = (
       start: Date,
       end: Date,
       rate: number,
-      rateType: string
+      rateType: string,
+      crossoverRate?: number
     ) => {
       const hours = differenceInHours(end, start);
+      const effectiveRate =
+        this.isCrossoverPeriod(start, end) && crossoverRate
+          ? crossoverRate
+          : rate;
       return {
         hours,
-        cost: rateType === "flat" ? rate : rate * hours,
-        hourlyRate: rateType === "flat" ? null : rate,
+        cost: rateType === "flat" ? rate : effectiveRate * hours,
+        hourlyRate: rateType === "flat" ? null : effectiveRate,
+        crossoverApplied: effectiveRate !== rate,
       };
     };
 
+    let basePrice = 0;
+    let daytimeHours = 0;
+    let daytimePrice = 0;
+    let daytimeRate = 0;
+    let eveningHours = 0;
+    let eveningPrice = 0;
+    let eveningRate = 0;
+    let crossoverApplied = false;
+
     const eveningStartTime = new Date(startDateTime);
-    eveningStartTime.setHours(17, 0, 0, 0);
+    eveningStartTime.setHours(17, 0, 0, 0); // 5 PM
 
     const totalBookingHours = differenceInHours(endDateTime, startDateTime);
     const bookingCrossesEveningThreshold =
       startDateTime < eveningStartTime && endDateTime > eveningStartTime;
-
-    if (dayRules.fullDay) {
-      const rate = dayRules.fullDay[isPrivate ? "private" : "public"];
-      const { hours, cost } = calculateHoursAndCost(
-        startDateTime,
-        endDateTime,
-        rate,
-        dayRules.fullDay.type
-      );
-      return {
-        basePrice: cost,
-        fullDayPrice: cost,
-        daytimeHours: hours,
-        eveningHours: 0,
-        daytimePrice: cost,
-        eveningPrice: 0,
-        daytimeRate: rate,
-        eveningRate: 0,
-        daytimeRateType: dayRules.fullDay.type,
-        eveningRateType: "",
-        crossoverApplied: false,
-      };
-    }
-
-    let basePrice = 0;
-    let daytimePrice = 0;
-    let eveningPrice = 0;
-    let daytimeHours = 0;
-    let eveningHours = 0;
-    let daytimeRate = 0;
-    let eveningRate = 0;
-    let crossoverApplied = false;
 
     if (startDateTime < eveningStartTime && dayRules.daytime) {
       const daytimeEndTime = bookingCrossesEveningThreshold
         ? eveningStartTime
         : endDateTime;
       const pricingRate = dayRules.daytime[isPrivate ? "private" : "public"];
-      daytimeRate = pricingRate;
+      const {
+        hours,
+        cost,
+        hourlyRate,
+        crossoverApplied: isCrossover,
+      } = calculateHoursAndCost(
+        startDateTime,
+        daytimeEndTime,
+        pricingRate,
+        dayRules.daytime.type,
+        dayRules.daytime.crossoverRate
+      );
 
-      if (bookingCrossesEveningThreshold && dayRules.daytime.crossoverRate) {
-        crossoverApplied = true;
-        const { hours, cost } = calculateHoursAndCost(
-          startDateTime,
-          daytimeEndTime,
-          dayRules.daytime.crossoverRate,
-          dayRules.daytime.type
-        );
-        daytimeHours = hours;
-        daytimePrice = cost;
-      } else {
-        const { hours, cost } = calculateHoursAndCost(
-          startDateTime,
-          daytimeEndTime,
-          pricingRate,
-          dayRules.daytime.type
-        );
-        daytimeHours = hours;
-        daytimePrice = cost;
-      }
+      daytimeHours = hours;
+      daytimePrice = cost;
+      daytimeRate = hourlyRate || pricingRate;
+      crossoverApplied = isCrossover;
       basePrice += daytimePrice;
     }
 
@@ -810,7 +788,9 @@ export default class PricingRules {
       fullDayPrice: 0,
       daytimeHours,
       eveningHours,
-      daytimeRate,
+      daytimeRate: crossoverApplied
+        ? dayRules.daytime.crossoverRate
+        : daytimeRate,
       eveningRate,
       daytimeRateType: dayRules.daytime?.type || "",
       eveningRateType: dayRules.evening?.type || "",
