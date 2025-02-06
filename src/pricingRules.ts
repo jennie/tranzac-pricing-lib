@@ -719,19 +719,11 @@ export default class PricingRules {
     let daytimeRate = 0;
     let eveningRate = 0;
     let crossoverApplied = false;
+    let actualHours = 0;
 
-    // Convert to Toronto timezone for calculations
-    const torontoTZ = "America/Toronto";
     const eveningStartTime = this.getEveningStartTime(startDateTime);
     const bookingCrossesEveningThreshold =
       startDateTime < eveningStartTime && endDateTime > eveningStartTime;
-
-    console.log("Evening threshold check:", {
-      eveningStartTime,
-      bookingCrossesEveningThreshold,
-      startDateTime,
-      endDateTime,
-    });
 
     if (startDateTime < eveningStartTime && dayRules.daytime) {
       const daytimeEndTime = bookingCrossesEveningThreshold
@@ -740,38 +732,22 @@ export default class PricingRules {
       const pricingRate = dayRules.daytime[isPrivate ? "private" : "public"];
       daytimeRate = pricingRate;
 
-      // Calculate actual hours first
-      const actualHours = differenceInHours(daytimeEndTime, startDateTime);
+      // Calculate actual hours
+      actualHours = differenceInHours(daytimeEndTime, startDateTime);
+      const totalBookingHours = differenceInHours(endDateTime, startDateTime);
 
-      console.log("Daytime calculation:", {
-        actualHours,
-        minimumHours: dayRules.daytime.minimumHours,
-        crossoverRate: dayRules.daytime.crossoverRate,
-        bookingCrossesEvening: bookingCrossesEveningThreshold,
-      });
-
-      // Apply crossover rate if applicable
+      // Key change: Check if we should apply crossover rate first
       if (bookingCrossesEveningThreshold && dayRules.daytime.crossoverRate) {
         crossoverApplied = true;
         daytimeHours = actualHours;
         daytimePrice = actualHours * dayRules.daytime.crossoverRate;
-        console.log("Applied crossover rate:", {
-          hours: daytimeHours,
-          rate: dayRules.daytime.crossoverRate,
-          price: daytimePrice,
-        });
       } else {
-        // Apply minimum hours if not using crossover rate
+        // If not using crossover rate, apply minimum hours if needed
         daytimeHours = Math.max(
           actualHours,
           dayRules.daytime.minimumHours || 0
         );
-        daytimePrice = daytimeHours * pricingRate;
-        console.log("Applied regular rate:", {
-          hours: daytimeHours,
-          rate: pricingRate,
-          price: daytimePrice,
-        });
+        daytimePrice = pricingRate * daytimeHours;
       }
 
       basePrice += daytimePrice;
@@ -1252,6 +1228,24 @@ export default class PricingRules {
     rateDescription: string
   ) {
     return { description, cost, rateDescription };
+  }
+
+  private getEveningStartTime(date: Date): Date {
+    const eveningStartHour = 17; // 5 PM Toronto time
+    const result = new Date(date);
+    result.setHours(eveningStartHour, 0, 0, 0);
+    return result;
+  }
+
+  private calculateHoursAndCost(
+    startTime: Date,
+    endTime: Date,
+    rate: number,
+    type: string
+  ): { hours: number; cost: number } {
+    const hours = differenceInHours(endTime, startTime);
+    const cost = type === "flat" ? rate : rate * hours;
+    return { hours, cost };
   }
 }
 
