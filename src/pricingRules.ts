@@ -130,13 +130,6 @@ function formatCurrency(amount: number): string {
   }).format(amount);
 }
 
-function formatRate(price: number, hours: number, type: string): string {
-  if (type === "flat") {
-    return `${formatCurrency(price)} flat rate`;
-  }
-  return `${hours} hours at ${formatCurrency(price / hours)}/hour`;
-}
-
 export default class PricingRules {
   private timePeriods: any[] | null;
   private rules: Record<string, any> | null;
@@ -759,54 +752,31 @@ export default class PricingRules {
     dayRules: any,
     isPrivate: boolean
   ) {
-    // Add debug logging
-    console.log("calculateRoomPrice inputs:", {
-      startDateTime,
-      endDateTime,
-      dayRules,
-      isPrivate,
-    });
-
-    if (!dayRules) {
-      throw new Error("No pricing rules found for this day");
-    }
+    // Initialize variables at the start
+    let daytimePrice = 0;
+    let eveningPrice = 0;
+    let daytimeHours = 0;
+    let eveningHours = 0;
+    let daytimeRate = 0;
+    let eveningRate = 0;
+    let crossoverApplied = false;
+    let actualHours = 0;
 
     const torontoStart = toZonedTime(startDateTime, TORONTO_TIMEZONE);
     const torontoEnd = toZonedTime(endDateTime, TORONTO_TIMEZONE);
     const torontoEveningStart = new Date(torontoStart);
     torontoEveningStart.setHours(17, 0, 0, 0);
 
-    // Debug timezone conversions
-    console.log("Toronto times:", {
-      torontoStart,
-      torontoEnd,
-      torontoEveningStart,
-    });
-
-    const totalBookingHours = differenceInHours(torontoEnd, torontoStart);
     const bookingCrossesEveningThreshold =
       torontoStart < torontoEveningStart && torontoEnd > torontoEveningStart;
 
     // Calculate daytime portion
-    if (torontoStart < torontoEveningStart && dayRules.daytime) {
+    if (torontoStart < torontoEveningStart) {
       const daytimeEndTime = bookingCrossesEveningThreshold
         ? torontoEveningStart
         : torontoEnd;
 
-      // Safely access daytime rates
-      const publicRate = dayRules.daytime?.public;
-      const privateRate = dayRules.daytime?.private;
-
-      // Debug rates
-      console.log("Daytime rates:", { publicRate, privateRate });
-
-      if (!publicRate || !privateRate) {
-        throw new Error(
-          "Missing public or private rate in daytime pricing rules"
-        );
-      }
-
-      let daytimeRate = isPrivate ? privateRate : publicRate;
+      let daytimeRate = dayRules.daytime[isPrivate ? "private" : "public"];
 
       // Apply crossover rate if applicable
       if (bookingCrossesEveningThreshold && dayRules.daytime.crossoverRate) {
@@ -814,16 +784,13 @@ export default class PricingRules {
         crossoverApplied = true;
       }
 
-      daytimeHours = differenceInHours(daytimeEndTime, torontoStart);
+      const daytimeHours = differenceInHours(daytimeEndTime, torontoStart);
       daytimePrice = daytimeRate * daytimeHours;
 
-      // Debug final daytime calculations
-      console.log("Daytime calculations:", {
-        daytimeHours,
-        daytimeRate,
-        daytimePrice,
-        crossoverApplied,
-      });
+      // Add crossover rate info to the subDescription
+      const subDescription = `${daytimeHours} hours at ${formatCurrency(
+        daytimeRate
+      )}/hour${crossoverApplied ? " (crossover rate)" : ""}`;
     }
 
     // Calculate evening portion
@@ -1041,28 +1008,13 @@ export default class PricingRules {
           switch (resourceId) {
             case "bartender":
               if (isPrivate && expectedAttendance > 100) {
-                additionalCosts.push({
-                  id: uuidv4(),
-                  roomSlug,
-                  description,
-                  subDescription: "Comped for large private event",
-                  cost: 0,
-                });
-              } else {
-                const hours = differenceInHours(
-                  parseISO(endTime),
-                  parseISO(startTime)
-                );
-                cost = (Number(config?.cost) || 0) * hours;
-                additionalCosts.push({
-                  id: uuidv4(),
-                  roomSlug,
-                  description,
-                  subDescription,
-                  cost,
-                });
+                cost = 0;
+                subDescription = "Comped for large private event";
+              } else if (config.type === "hourly") {
+                cost = Number(config.cost) * bookingHours;
+                subDescription = `${bookingHours} hours at $${config.cost}/hour`;
               }
-              continue;
+              break;
             case "audio_tech":
               const regularHours = Math.min(bookingHours, 7);
               const overtimeHours = Math.max(0, bookingHours - 7);
@@ -1325,38 +1277,5 @@ export default class PricingRules {
     }
 
     return "";
-  }
-
-  private createCostItem(
-    description: string,
-    cost: number,
-    subDescription?: string
-  ): Cost {
-    return {
-      id: uuidv4(),
-      description,
-      subDescription,
-      cost,
-    };
-  }
-
-  private calculateHoursAndCost(
-    startTime: Date,
-    endTime: Date,
-    rate: number,
-    type: string
-  ): { hours: number; cost: number } {
-    const hours = differenceInHours(endTime, startTime);
-    return {
-      hours,
-      cost: type === "flat" ? rate : hours * rate,
-    };
-  }
-
-  private calculateMinimumHours(dayRules: any, actualHours: number) {
-    if (dayRules.minimumHours && actualHours < dayRules.minimumHours) {
-      const ratio = dayRules.minimumHours / actualHours;
-      // Rest of the minimum hours calculation...
-    }
   }
 }
