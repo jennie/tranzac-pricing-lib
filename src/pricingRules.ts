@@ -879,194 +879,90 @@ export default class PricingRules {
     };
   }
 
-  async calculateAdditionalCosts(booking: any): Promise<{
-    perSlotCosts: AdditionalCost[];
-    additionalCosts: AdditionalCost[];
-    customLineItems: any[];
+  async calculateAdditionalCosts(booking: Booking): Promise<{
+    perSlotCosts: Cost[];
+    additionalCosts: Cost[];
+    customLineItems: Cost[];
   }> {
-    const {
-      resources,
-      roomSlugs,
-      startTime,
-      endTime,
-      isPrivate,
-      expectedAttendance,
-    } = booking;
-    if (process.env.NODE_ENV === "development") {
-      console.log(
-        "=============Booking in calculateAdditionalCosts:===============",
-        booking
-      );
+    const perSlotCosts: Cost[] = [];
+    const additionalCosts: Cost[] = [];
+    const customLineItems: Cost[] = [];
+
+    if (!this.additionalCosts) {
+      console.warn("Additional costs not initialized");
+      return { perSlotCosts, additionalCosts, customLineItems };
     }
-    let perSlotCosts: AdditionalCost[] = [];
-    let additionalCosts: AdditionalCost[] = [];
-    const customLineItems: any[] = [];
 
-    // Early Open Staff calculation
-    const venueOpeningTime = new Date(startTime);
-    venueOpeningTime.setHours(18, 0, 0, 0); // Assuming venue opens at 6 PM
-    const bookingStartTime = new Date(startTime);
-
-    if (bookingStartTime < venueOpeningTime) {
-      const earlyOpenHours = Math.ceil(
-        differenceInHours(venueOpeningTime, bookingStartTime)
-      );
-      if (earlyOpenHours > 0) {
-        const earlyOpenConfig = this.additionalCosts?.conditions.find(
-          (c) => c.condition === "earlyOpen"
+    // Handle resources
+    if (booking.resources) {
+      for (const resourceId of booking.resources) {
+        const resource = this.additionalCosts.resources.find(
+          (r) => r.id === resourceId
         );
-        if (earlyOpenConfig) {
-          perSlotCosts.push({
-            id: uuidv4(),
-            description: earlyOpenConfig.description,
-            subDescription: `${earlyOpenHours} hours`,
-            cost: earlyOpenConfig?.cost
-              ? earlyOpenConfig.cost * earlyOpenHours
-              : 0,
-            isRequired: true,
-          });
-        }
-      }
-    }
 
-    const bookingHours = differenceInHours(
-      parseISO(endTime),
-      parseISO(startTime)
-    );
+        if (!resource) continue;
 
-    // Per-slot resources
-    const perSlotResources = ["door_staff", "piano_tuning"];
+        // Special handling for backline
+        if (resourceId === "backline") {
+          for (const roomSlug of booking.roomSlugs) {
+            const roomBackline = resource.rooms?.[roomSlug];
+            if (roomBackline) {
+              const backlineCost: Cost = {
+                id: uuidv4(),
+                description: roomBackline.description || "Backline",
+                cost: roomBackline.cost,
+                roomSlug,
+                isRequired: false,
+              };
 
-    const resourceConfigMap = this.additionalCosts?.resources.reduce(
-      (map, resource) => {
-        map[resource.id] = resource;
-        return map;
-      },
-      {} as Record<string, any>
-    );
+              // If backline includes projector, add that information to the description
+              if (roomBackline.includes_projector) {
+                backlineCost.subDescription = "Includes projector";
+              }
 
-    // Replace nested loops with single pass over resources:
-    for (const resourceId of resources) {
-      const config = resourceConfigMap && resourceConfigMap[resourceId];
-      if (!config) continue;
+              additionalCosts.push(backlineCost);
 
-      // Calculate costs for per-slot resources
-      if (perSlotResources.includes(resourceId)) {
-        let cost =
-          config.type === "hourly"
-            ? config?.cost
-              ? Number(config.cost) * bookingHours || 0
-              : 0
-            : config?.cost || 0;
-        perSlotCosts.push({
-          id: uuidv4(),
-          description: config.description,
-          subDescription: config.subDescription,
-          cost: Number(cost) || 0,
-          isRequired: false,
-        });
-      }
-
-      // Handle other resources
-      for (const roomSlug of roomSlugs) {
-        const backlineConfig = resourceConfigMap["backline"];
-        const projectorConfig = resourceConfigMap["projector"];
-
-        let projectorIncluded = false;
-
-        // Handle backline
-        if (
-          resourceId === "backline" &&
-          backlineConfig &&
-          backlineConfig.rooms
-        ) {
-          const roomBacklineConfig = backlineConfig.rooms[roomSlug];
-          if (roomBacklineConfig) {
-            additionalCosts.push({
-              id: uuidv4(),
-              roomSlug,
-              description:
-                roomBacklineConfig.description || backlineConfig.description,
-              cost: Number(roomBacklineConfig.cost) || 0,
-            });
-            projectorIncluded = roomBacklineConfig.includes_projector || false;
+              // If projector is also selected separately and backline includes it,
+              // we should remove the separate projector charge for this room
+              if (roomBackline.includes_projector) {
+                const projectorIndex = perSlotCosts.findIndex(
+                  (cost) =>
+                    cost.description === "Projector" &&
+                    cost.roomSlug === roomSlug
+                );
+                if (projectorIndex > -1) {
+                  perSlotCosts.splice(projectorIndex, 1);
+                }
+              }
+            }
           }
-        }
-
-        // Handle projector
-        if (
-          resourceId === "projector" &&
-          !projectorIncluded &&
-          projectorConfig
-        ) {
-          additionalCosts.push({
-            id: uuidv4(),
-            roomSlug,
-            description: projectorConfig.description,
-            cost: Number(projectorConfig.cost) || 0,
-          });
+          continue; // Skip the default resource handling for backline
         }
 
         // Handle other resources
-        if (
-          !perSlotResources.includes(resourceId) &&
-          resourceId !== "backline" &&
-          resourceId !== "projector"
-        ) {
-          let cost = config?.cost || 0;
-          let description = config?.description || "";
-          let subDescription = config?.subDescription || "";
+        const cost: Cost = {
+          id: uuidv4(),
+          description: resource.description,
+          subDescription: resource.subDescription,
+          cost: resource.cost || 0,
+          isRequired: false,
+        };
 
-          switch (resourceId) {
-            case "bartender":
-              if (isPrivate && expectedAttendance > 100) {
-                cost = 0;
-                subDescription = "Comped for large private event";
-              } else if (config.type === "hourly") {
-                cost = Number(config.cost) * bookingHours;
-                subDescription = `${bookingHours} hours at $${config.cost}/hour`;
-              }
-              break;
-            case "audio_tech":
-              const regularHours = Math.min(bookingHours, 7);
-              const overtimeHours = Math.max(0, bookingHours - 7);
-
-              additionalCosts.push({
-                id: uuidv4(),
-                roomSlug,
-                description,
-                subDescription,
-                cost: Number(config.cost) || 0, // Base cost for up to 7 hours
-              });
-
-              if (overtimeHours > 0) {
-                const overtimeConfig = resourceConfigMap["audio_tech_overtime"];
-                if (overtimeConfig) {
-                  additionalCosts.push({
-                    id: uuidv4(),
-                    roomSlug,
-                    description: overtimeConfig.description,
-                    subDescription: overtimeConfig.subDescription,
-                    cost: Number(overtimeConfig?.cost)
-                      ? Number(overtimeConfig.cost) * overtimeHours
-                      : 0,
-                  });
-                }
-              }
-              continue;
-            default:
-              if (config.type === "hourly") {
-                cost = Number(cost) * bookingHours;
-              }
-          }
-
-          additionalCosts.push({
-            id: uuidv4(),
-            roomSlug,
-            description,
-            subDescription,
-            cost: Number(cost),
-          });
+        if (resource.type === "custom") {
+          customLineItems.push(cost);
+        } else if (resource.type === "hourly") {
+          // Calculate hourly costs based on booking duration
+          const hours = differenceInHours(
+            parseISO(booking.endTime),
+            parseISO(booking.startTime)
+          );
+          cost.cost = (resource.cost || 0) * hours;
+          cost.subDescription = `${hours} hours @ ${formatCurrency(
+            resource.cost
+          )}/hour`;
+          perSlotCosts.push(cost);
+        } else {
+          perSlotCosts.push(cost);
         }
       }
     }
