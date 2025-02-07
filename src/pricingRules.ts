@@ -24,6 +24,7 @@ interface Booking {
   endTime: string;
   date?: string;
   costItems?: any[];
+  foodService?: boolean;
 }
 
 interface ResourceDetails {
@@ -892,6 +893,7 @@ export default class PricingRules {
     console.log("[PricingRules] Starting cost calculation for booking:", {
       rooms: booking.roomSlugs,
       resources: booking.resources,
+      foodService: booking.foodService,
     });
 
     const perSlotCosts: Cost[] = [];
@@ -899,13 +901,8 @@ export default class PricingRules {
     const customLineItems: Cost[] = [];
 
     try {
-      if (!this.additionalCosts) {
-        console.warn("[PricingRules] Additional costs not initialized");
-        return { perSlotCosts, additionalCosts, customLineItems };
-      }
-
       // Check if food service is enabled
-      if (booking.resources.includes("food")) {
+      if (booking.foodService) {
         console.log(
           "[PricingRules] Food service enabled, checking cleaning fee"
         );
@@ -933,9 +930,6 @@ export default class PricingRules {
       // Handle resources
       if (booking.resources) {
         for (const resourceId of booking.resources) {
-          // Skip food as it's already handled
-          if (resourceId === "food") continue;
-
           const resource = this.additionalCosts.resources.find(
             (r) => r.id === resourceId
           );
