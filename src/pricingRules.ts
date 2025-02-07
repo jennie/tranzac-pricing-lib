@@ -1149,7 +1149,8 @@ export default class PricingRules {
         if (isPrivate && expectedAttendance > 100) {
           return {
             id: uuidv4(),
-            description: "Comped for large private event",
+            description: resourceConfig?.description || "Bartender",
+            subDescription: "Comped for large private event",
             cost: 0,
             isRequired: true,
           };
@@ -1158,7 +1159,7 @@ export default class PricingRules {
           cost = (Number(resourceConfig?.cost) || 0) * hours;
           return {
             id: uuidv4(),
-            description,
+            description: resourceConfig?.description || "Bartender",
             subDescription: `${hours} hours @ ${formatCurrency(resourceConfig?.cost || 0)}/hour`,
             cost,
           };
