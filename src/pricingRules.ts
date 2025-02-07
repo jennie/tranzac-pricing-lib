@@ -66,12 +66,13 @@ interface BookingDetails {
 }
 
 interface Cost {
-  id?: string; // Add the id property
+  id?: string;
   description: string;
   subDescription?: string;
   cost: number;
-  roomSlug?: string; // Make roomSlug optional in the Cost interface
+  roomSlug?: string;
   isRequired?: boolean;
+  isEditable?: boolean;
 }
 
 interface CostEstimate {
@@ -905,8 +906,15 @@ export default class PricingRules {
         // Special handling for backline
         if (resourceId === "backline") {
           for (const roomSlug of booking.roomSlugs) {
-            const roomBackline = resource.rooms?.[roomSlug];
+            // Convert roomSlug to the format used in the additionalCosts structure
+            const normalizedSlug = roomSlug.replace(/-/g, "_");
+            const roomBackline = resource.rooms?.[normalizedSlug];
+
             if (roomBackline) {
+              console.log(
+                `Found backline config for room ${normalizedSlug}:`,
+                roomBackline
+              );
               const backlineCost: Cost = {
                 id: uuidv4(),
                 description: roomBackline.description || "Backline",
@@ -920,6 +928,10 @@ export default class PricingRules {
                 backlineCost.subDescription = "Includes projector";
               }
 
+              console.log(
+                `Adding backline cost for ${roomSlug}:`,
+                backlineCost
+              );
               additionalCosts.push(backlineCost);
 
               // If projector is also selected separately and backline includes it,
@@ -934,6 +946,10 @@ export default class PricingRules {
                   perSlotCosts.splice(projectorIndex, 1);
                 }
               }
+            } else {
+              console.warn(
+                `No backline config found for room ${normalizedSlug}`
+              );
             }
           }
           continue; // Skip the default resource handling for backline
