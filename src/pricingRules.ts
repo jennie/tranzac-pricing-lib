@@ -822,6 +822,10 @@ export default class PricingRules {
     // Calculate total cost
     const totalCost = daytimePrice + eveningPrice;
 
+    // Extract minimum hours from day rules
+    const daytimeMinHours = dayRules?.daytime?.minimumHours || 0;
+    const eveningMinHours = dayRules?.evening?.minimumHours || 0;
+
     return {
       basePrice: totalCost,
       daytimeHours,
@@ -832,24 +836,42 @@ export default class PricingRules {
       eveningRate,
       daytimeRateType,
       eveningRateType,
+      daytimeMinHours, // Add standardized minimum hours
+      eveningMinHours, // Add standardized minimum hours
       daytimeCostItem: {
-        description: "Daytime Hours",
+        description: this.formatDescription(dayRules?.daytime),
         cost: daytimePrice,
-        rateType: daytimeRateType,
-        hours: daytimeHours,
-        rate: daytimeRate,
-        minimumHours: dayRules.daytime?.minimumHours || 0,
-        minimumApplied: daytimeHours < (dayRules.daytime?.minimumHours || 0),
+        minimumHours: daytimeMinHours, // Add minimum hours to cost item
+        rate: dayRules?.daytime?.rate || 0,
+        rateType: dayRules?.daytime?.type || "hourly",
+        crossoverApplied: false,
       },
       eveningCostItem: {
-        description: "Evening Hours",
+        description: this.formatDescription(dayRules?.evening),
         cost: eveningPrice,
-        rateType: eveningRateType,
-        hours: eveningHours,
-        rate: eveningRate,
-        minimumHours: dayRules.evening?.minimumHours || 0,
-        minimumApplied: eveningHours < (dayRules.evening?.minimumHours || 0),
+        minimumHours: eveningMinHours, // Add minimum hours to cost item
+        rate: dayRules?.evening?.rate || 0,
+        rateType: dayRules?.evening?.type || "hourly",
+        crossoverApplied: false,
       },
+      additionalCosts: [],
+      totalCost,
+      rateDescription: this.generateRateDescription({
+        basePrice: 0,
+        isFullDay: false,
+        fullDayPrice: 0,
+        daytimeHours,
+        daytimePrice,
+        daytimeRate,
+        daytimeRateType,
+        eveningHours,
+        eveningPrice,
+        eveningRate,
+        eveningRateType,
+        crossoverApplied,
+      }),
+      totalBookingHours: daytimeHours + eveningHours,
+      isFullDay: false,
     };
   }
 
@@ -1473,6 +1495,11 @@ export default class PricingRules {
       hourlyRate: rateType === "flat" ? null : effectiveRate,
       crossoverApplied: effectiveRate !== rate,
     };
+  }
+
+  private formatDescription(rules: any): string {
+    if (!rules) return "N/A";
+    return rules.type === "flat" ? "Flat Rate" : "Hourly Rate";
   }
 }
 

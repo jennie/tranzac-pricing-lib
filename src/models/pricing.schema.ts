@@ -30,6 +30,36 @@ export interface IResource {
   value: string;
 }
 
+export interface BookingRates {
+  basePrice: number;
+  daytimeHours: number;
+  eveningHours: number;
+  daytimePrice: number;
+  eveningPrice: number;
+  daytimeRate: number;
+  eveningRate: number;
+  daytimeRateType: string;
+  eveningRateType: string;
+  daytimeMinHours: number;
+  eveningMinHours: number;
+  daytimeCostItem: CostItem;
+  eveningCostItem: CostItem;
+  additionalCosts: any[];
+  totalCost: number;
+  rateDescription: string;
+  totalBookingHours: number;
+  isFullDay: boolean;
+}
+
+export interface CostItem {
+  description: string;
+  cost: number;
+  minimumHours: number;
+  rate: number;
+  rateType: string;
+  crossoverApplied: boolean;
+}
+
 // Declare a module augmentation for the global Process interface
 declare global {
   namespace NodeJS {
