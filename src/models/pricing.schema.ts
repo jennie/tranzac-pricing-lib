@@ -50,6 +50,7 @@ export interface BookingRates {
   totalBookingHours: number;
   isFullDay: boolean;
   crossoverApplied?: boolean;
+  fullDayPrice: number;
 }
 
 export interface CostItem {
