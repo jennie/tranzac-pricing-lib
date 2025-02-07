@@ -64,24 +64,6 @@ interface BookingDetails {
   expectedAttendance: number;
 }
 
-interface BookingRates {
-  basePrice: number;
-  daytimeHours?: number;
-  daytimePrice?: number;
-  daytimeRate?: number;
-  daytimeRateType?: string;
-  eveningHours?: number;
-  eveningPrice?: number;
-  eveningRate?: number;
-  eveningRateType?: string;
-  fullDayPrice?: number;
-  crossoverApplied?: boolean;
-  isFullDay?: boolean;
-  daytimeCostItem?: any;
-  eveningCostItem?: any;
-  fullDayCostItem?: any;
-}
-
 interface Cost {
   id?: string; // Add the id property
   description: string;
