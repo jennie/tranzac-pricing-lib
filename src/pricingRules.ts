@@ -973,6 +973,7 @@ export default class PricingRules {
       // Handle backline specially since it's room-specific
       if (resourceId === "backline") {
         const roomConfig = this.additionalCosts.resources.find(r => r.id === 'backline')?.rooms?.[resourceDetails.roomSlug];
+        console.log("[DEBUG] Backline room config:", { roomSlug: resourceDetails.roomSlug, roomConfig });
         if (roomConfig) {
           const cost: Cost = {
             id: uuidv4(),
@@ -981,6 +982,7 @@ export default class PricingRules {
             isRequired: false,
             isEditable: false
           };
+          console.log("[DEBUG] Created backline cost:", cost);
 
           // If this room's backline includes projector, remove projector cost if it exists
           if (roomConfig.includes_projector) {
@@ -993,8 +995,8 @@ export default class PricingRules {
             });
           }
 
-          // Add the backline cost to perSlotCosts
           perSlotCosts.push(cost);
+          console.log("[DEBUG] perSlotCosts after adding backline:", perSlotCosts);
         }
         continue;
       }
