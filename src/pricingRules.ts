@@ -563,14 +563,11 @@ export default class PricingRules {
 
     const { perSlotCosts, additionalCosts, customLineItems } =
       await this.calculateAdditionalCosts(booking);
-    if (process.env.NODE_ENV === "development") {
-      console.log(
-        "Custom line items from calculateAdditionalCosts:",
-        customLineItems
-      );
-      console.log("Per-slot costs:", perSlotCosts);
-      console.log("Additional costs:", additionalCosts);
-    }
+    console.log("DEBUG: Additional costs calculated:", {
+      perSlotCosts,
+      additionalCosts, // These are the backline costs
+      customLineItems,
+    });
 
     const slotCustomLineItems = [...customLineItems];
 
@@ -632,6 +629,11 @@ export default class PricingRules {
       const roomAdditionalCosts = additionalCosts.filter(
         (cost) => cost.roomSlug === roomSlug
       );
+      console.log(
+        `DEBUG: Additional costs for room ${roomSlug}:`,
+        roomAdditionalCosts
+      );
+
       const roomAdditionalCostsTotal = roomAdditionalCosts.reduce(
         (sum, cost) => sum + (Number(cost.cost) || 0),
         0
@@ -704,6 +706,8 @@ export default class PricingRules {
       0
     );
     slotTotal += customLineItemsTotal;
+
+    console.log("DEBUG: Final estimates with additional costs:", estimates);
 
     if (process.env.NODE_ENV === "development") {
       console.log("Final calculation:");
