@@ -993,6 +993,7 @@ export default class PricingRules {
             });
           }
 
+          // Add the backline cost to perSlotCosts
           perSlotCosts.push(cost);
         }
         continue;
