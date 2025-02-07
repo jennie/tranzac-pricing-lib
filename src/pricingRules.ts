@@ -73,6 +73,8 @@ interface Cost {
   roomSlug?: string;
   isRequired?: boolean;
   isEditable?: boolean;
+  hourlyRate?: number;
+  hours?: number;
 }
 
 interface CostEstimate {
@@ -970,16 +972,28 @@ export default class PricingRules {
 
       // Handle backline specially since it's room-specific
       if (resourceId === "backline") {
-        const roomSpecificCost = resource.rooms?.[resourceDetails.roomSlug];
-        if (roomSpecificCost) {
-          perSlotCosts.push({
+        const roomConfig = this.additionalCosts.resources.find(r => r.id === 'backline')?.rooms?.[resourceDetails.roomSlug];
+        if (roomConfig) {
+          const cost: Cost = {
             id: uuidv4(),
-            description: roomSpecificCost.description || resource.description,
-            subDescription: roomSpecificCost.subDescription || resource.subDescription,
-            cost: roomSpecificCost.cost || 0,
+            description: roomConfig.description || 'Backline',
+            cost: roomConfig.cost,
             isRequired: false,
-            roomSlug: resourceDetails.roomSlug
-          });
+            isEditable: false
+          };
+
+          // If this room's backline includes projector, remove projector cost if it exists
+          if (roomConfig.includes_projector) {
+            const projectorCosts = perSlotCosts.filter(c => c.description?.includes('Projector'));
+            projectorCosts.forEach(pc => {
+              const index = perSlotCosts.indexOf(pc);
+              if (index > -1) {
+                perSlotCosts.splice(index, 1);
+              }
+            });
+          }
+
+          perSlotCosts.push(cost);
         }
         continue;
       }
@@ -1138,11 +1152,16 @@ export default class PricingRules {
         if (roomSpecificCost) {
           cost = roomSpecificCost.cost || 0;
           description = roomSpecificCost.description || description;
+          if (roomSpecificCost.includes_projector) {
+            subDescription = "Includes projector";
+          }
         }
         return {
           description,
           subDescription,
           cost,
+          isRequired: false,
+          isEditable: false
         };
 
       case "bartender":
