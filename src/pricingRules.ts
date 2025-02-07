@@ -4,6 +4,8 @@ import {
   getPricingRuleModel,
   getTimePeriodModel,
   getAdditionalCostModel,
+  BookingRates,
+  CostItem,
 } from "./models/pricing.schema";
 
 import { AdditionalCosts } from "./models/additionalCosts.schema"; // Import the interface
@@ -1135,7 +1137,6 @@ export default class PricingRules {
             subDescription,
             cost,
           };
-        }
 
       case "projector":
         if (projectorIncluded) {
