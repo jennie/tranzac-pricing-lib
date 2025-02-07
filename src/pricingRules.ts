@@ -913,8 +913,6 @@ export default class PricingRules {
     };
   }
 
-
-
   async calculateAdditionalCosts(booking: Booking): Promise<{
     perSlotCosts: Cost[];
     additionalCosts: Cost[];
@@ -975,8 +973,9 @@ export default class PricingRules {
 
     return { perSlotCosts, additionalCosts, customLineItems };
   }
-  calculateResourceCost(
-    resource: string,
+
+  private calculateResourceCost(
+    resourceId: string,
     details: ResourceDetails
   ): Cost | Cost[] | null {
     const {
@@ -988,7 +987,7 @@ export default class PricingRules {
       projectorIncluded,
     } = details;
     const resourceConfig = this.additionalCosts?.resources.find(
-      (r: any) => r.id === resource
+      (r: any) => r.id === resourceId
     );
     if (!resourceConfig) return null;
 
@@ -996,7 +995,7 @@ export default class PricingRules {
     let description: string = resourceConfig?.description || "";
     let subDescription: string = resourceConfig?.subDescription || "";
 
-    switch (resource) {
+    switch (resourceId) {
       case "food":
         return {
           description,
@@ -1020,10 +1019,10 @@ export default class PricingRules {
       case "bartender":
         if (isPrivate && expectedAttendance > 100) {
           return {
-            description,
-            subDescription: "Comped for large private event",
-            cost: 0,
             id: uuidv4(),
+            description: "Comped for large private event",
+            cost: 0,
+            isRequired: true,
           };
         } else {
           const hours = differenceInHours(parseISO(endTime), parseISO(startTime));
