@@ -889,89 +889,110 @@ export default class PricingRules {
     additionalCosts: Cost[];
     customLineItems: Cost[];
   }> {
-    console.log("[PricingRules] Starting cost calculation for booking:", {
-      rooms: booking.roomSlugs,
-      resources: booking.resources,
-    });
-
     const perSlotCosts: Cost[] = [];
     const additionalCosts: Cost[] = [];
     const customLineItems: Cost[] = [];
 
-    try {
-      // Check if food service is enabled
-      if (booking.resources.includes("food")) {
-        console.log(
-          "[PricingRules] Food service enabled, checking cleaning fee"
-        );
-        // Look for food resource which contains cleaning fee
-        const foodResource = this.additionalCosts?.resources.find(
-          (r) => r.id === "food"
-        );
-
-        if (foodResource) {
-          console.log("[PricingRules] Found food resource:", foodResource);
-          additionalCosts.push({
-            id: uuidv4(),
-            description: foodResource.description,
-            subDescription: foodResource.subDescription,
-            cost: foodResource.cost,
-            isRequired: true,
-          });
-        } else {
-          console.warn(
-            "[PricingRules] Food resource not found in configuration"
-          );
-        }
-      }
-
-      // Handle resources
-      if (booking.resources) {
-        for (const resourceId of booking.resources) {
-          const resource = this.additionalCosts?.resources.find(
-            (r) => r.id === resourceId
-          );
-
-          if (!resource) {
-            console.warn(`[PricingRules] Resource not found: ${resourceId}`);
-            continue;
-          }
-
-          // Handle other resources
-          const cost: Cost = {
-            id: uuidv4(),
-            description: resource.description,
-            subDescription: resource.subDescription,
-            cost: resource.cost,
-            isRequired: false,
-          };
-
-          // Add to appropriate array based on resource type
-          if (resource.type === "flat") {
-            additionalCosts.push(cost);
-          } else if (resource.type === "hourly") {
-            const hours = differenceInHours(
-              parseISO(booking.endTime),
-              parseISO(booking.startTime)
-            );
-            cost.cost = resource.cost * hours;
-            cost.subDescription = `${hours} hours @ $${resource.cost}/hour`;
-            additionalCosts.push(cost);
-          }
-        }
-      }
-
-      console.log("[PricingRules] Calculation complete:", {
-        perSlotCosts,
-        additionalCosts,
-        customLineItems,
-      });
-
+    if (!this.additionalCosts) {
+      console.warn("Additional costs not initialized");
       return { perSlotCosts, additionalCosts, customLineItems };
-    } catch (error) {
-      console.error("[PricingRules] Error in calculateAdditionalCosts:", error);
-      throw error;
     }
+
+    // Handle resources
+    if (booking.resources) {
+      for (const resourceId of booking.resources) {
+        const resource = this.additionalCosts.resources.find(
+          (r) => r.id === resourceId
+        );
+
+        if (!resource) continue;
+
+        // Special handling for backline
+        if (resourceId === "backline") {
+          for (const roomSlug of booking.roomSlugs) {
+            // Convert roomSlug to the format used in the additionalCosts structure
+            const normalizedSlug = roomSlug.replace(/-/g, "_");
+            const roomBackline = resource.rooms?.[normalizedSlug];
+
+            if (roomBackline) {
+              console.log(
+                `Found backline config for room ${normalizedSlug}:`,
+                roomBackline
+              );
+              const backlineCost: Cost = {
+                id: uuidv4(),
+                description: roomBackline.description || "Backline",
+                cost: roomBackline.cost,
+                roomSlug,
+                isRequired: false,
+              };
+
+              // If backline includes projector, add that information to the description
+              if (roomBackline.includes_projector) {
+                backlineCost.subDescription = "Includes projector";
+              }
+
+              console.log(
+                `Adding backline cost for ${roomSlug}:`,
+                backlineCost
+              );
+              additionalCosts.push(backlineCost);
+
+              // If projector is also selected separately and backline includes it,
+              // we should remove the separate projector charge for this room
+              if (roomBackline.includes_projector) {
+                const projectorIndex = perSlotCosts.findIndex(
+                  (cost) =>
+                    cost.description === "Projector" &&
+                    cost.roomSlug === roomSlug
+                );
+                if (projectorIndex > -1) {
+                  perSlotCosts.splice(projectorIndex, 1);
+                }
+              }
+            } else {
+              console.warn(
+                `No backline config found for room ${normalizedSlug}`
+              );
+            }
+          }
+          continue; // Skip the default resource handling for backline
+        }
+
+        // Handle other resources
+        const cost: Cost = {
+          id: uuidv4(),
+          description: resource.description,
+          subDescription: resource.subDescription,
+          cost: resource.cost || 0,
+          isRequired: false,
+        };
+
+        if (resource.type === "custom") {
+          customLineItems.push(cost);
+        } else if (resource.type === "hourly") {
+          // Calculate hourly costs based on booking duration
+          const hours = differenceInHours(
+            parseISO(booking.endTime),
+            parseISO(booking.startTime)
+          );
+          cost.cost = (resource.cost || 0) * hours;
+          cost.subDescription = `${hours} hours @ ${formatCurrency(
+            resource.cost
+          )}/hour`;
+          perSlotCosts.push(cost);
+        } else {
+          perSlotCosts.push(cost);
+        }
+      }
+    }
+
+    if (process.env.NODE_ENV === "development") {
+      console.log("Final perSlotCosts:", perSlotCosts);
+      console.log("Final additionalCosts:", additionalCosts);
+      console.log("Final customLineItems:", customLineItems);
+    }
+    return { perSlotCosts, additionalCosts, customLineItems };
   }
 
   calculateResourceCost(
