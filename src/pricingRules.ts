@@ -972,8 +972,14 @@ export default class PricingRules {
 
       // Handle backline specially since it's room-specific
       if (resourceId === "backline") {
-        const roomConfig = this.additionalCosts.resources.find(r => r.id === 'backline')?.rooms?.[resourceDetails.roomSlug];
-        console.log("[DEBUG] Backline room config:", { roomSlug: resourceDetails.roomSlug, roomConfig });
+        // Convert hyphenated room slug to underscore format for config lookup
+        const configRoomSlug = resourceDetails.roomSlug.replace(/-/g, '_');
+        const roomConfig = this.additionalCosts.resources.find(r => r.id === 'backline')?.rooms?.[configRoomSlug];
+        console.log("[DEBUG] Backline room config:", {
+          roomSlug: resourceDetails.roomSlug,
+          configRoomSlug,
+          roomConfig
+        });
         if (roomConfig) {
           const cost: Cost = {
             id: uuidv4(),
