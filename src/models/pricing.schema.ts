@@ -62,6 +62,22 @@ export interface CostItem {
   crossoverApplied: boolean;
 }
 
+// Add this new interface
+export interface RateDescriptionParams {
+  basePrice: number;
+  isFullDay: boolean;
+  fullDayPrice: number;
+  daytimeHours?: number;
+  daytimePrice?: number;
+  daytimeRate?: number;
+  daytimeRateType?: string;
+  eveningHours?: number;
+  eveningPrice?: number;
+  eveningRate?: number;
+  eveningRateType?: string;
+  crossoverApplied?: boolean;
+}
+
 // Declare a module augmentation for the global Process interface
 declare global {
   namespace NodeJS {

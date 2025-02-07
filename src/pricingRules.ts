@@ -6,6 +6,7 @@ import {
   getAdditionalCostModel,
   BookingRates,
   CostItem,
+  RateDescriptionParams,
 } from "./models/pricing.schema";
 
 import { AdditionalCosts } from "./models/additionalCosts.schema"; // Import the interface
@@ -856,6 +857,7 @@ export default class PricingRules {
       }),
       totalBookingHours: daytimeHours + eveningHours,
       isFullDay: false,
+      fullDayPrice: 0,
     };
   }
 
@@ -1238,22 +1240,9 @@ export default class PricingRules {
       `Invalid pricing type for ${isEvening ? "evening" : "daytime"} period`
     );
   }
-  generateRateDescription({
-    daytimeHours,
-    daytimePrice,
-    daytimeRate,
-    daytimeRateType,
-    eveningHours = 0,
-    eveningPrice,
-    eveningRate,
-    eveningRateType,
-    crossoverApplied,
-    fullDayPrice,
-    isFullDay,
-    basePrice = 0,
-  }: BookingRates): string {
-    if (isFullDay) {
-      return `$${fullDayPrice || 0}/day`;
+  generateRateDescription(params: RateDescriptionParams): string {
+    if (params.isFullDay) {
+      return `$${params.fullDayPrice || 0}/day`;
     }
 
     const formatRate = (price: number, hours: number, type: string) => {
@@ -1262,17 +1251,21 @@ export default class PricingRules {
       return `$${rate.toFixed(2)}/hour`;
     };
 
-    if ((daytimeHours || 0) > 0) {
+    if ((params.daytimeHours || 0) > 0) {
       const rateStr = formatRate(
-        daytimePrice || 0,
-        daytimeHours || 0,
-        daytimeRateType || ""
+        params.daytimePrice || 0,
+        params.daytimeHours || 0,
+        params.daytimeRateType || ""
       );
-      return crossoverApplied ? `${rateStr} (crossover rate)` : rateStr;
+      return params.crossoverApplied ? `${rateStr} (crossover rate)` : rateStr;
     }
 
-    if (eveningHours > 0) {
-      return formatRate(eveningPrice || 0, eveningHours, eveningRateType || "");
+    if ((params.eveningHours || 0) > 0) {
+      return formatRate(
+        params.eveningPrice || 0,
+        params.eveningHours || 0,
+        params.eveningRateType || ""
+      );
     }
 
     return "";
