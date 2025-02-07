@@ -899,6 +899,11 @@ export default class PricingRules {
     const customLineItems: Cost[] = [];
 
     try {
+      if (!this.additionalCosts) {
+        console.warn("[PricingRules] Additional costs not initialized");
+        return { perSlotCosts, additionalCosts, customLineItems };
+      }
+
       // Check if food service is enabled
       if (booking.resources.includes("food")) {
         console.log(
@@ -928,6 +933,9 @@ export default class PricingRules {
       // Handle resources
       if (booking.resources) {
         for (const resourceId of booking.resources) {
+          // Skip food as it's already handled
+          if (resourceId === "food") continue;
+
           const resource = this.additionalCosts.resources.find(
             (r) => r.id === resourceId
           );
