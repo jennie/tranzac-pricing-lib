@@ -24,7 +24,6 @@ interface Booking {
   endTime: string;
   date?: string;
   costItems?: any[];
-  foodService?: boolean;
 }
 
 interface ResourceDetails {
@@ -893,7 +892,6 @@ export default class PricingRules {
     console.log("[PricingRules] Starting cost calculation for booking:", {
       rooms: booking.roomSlugs,
       resources: booking.resources,
-      foodService: booking.foodService,
     });
 
     const perSlotCosts: Cost[] = [];
@@ -902,7 +900,7 @@ export default class PricingRules {
 
     try {
       // Check if food service is enabled
-      if (booking.foodService) {
+      if (booking.resources.includes("food")) {
         console.log(
           "[PricingRules] Food service enabled, checking cleaning fee"
         );
