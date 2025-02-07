@@ -274,6 +274,8 @@ export default class PricingRules {
                 );
               }
 
+              // Inside getPrice method where formattedEstimates is created:
+
               const formattedEstimates = estimates.map((estimate) => ({
                 roomSlug: estimate.roomSlug || "",
                 basePrice: estimate.basePrice || 0,
@@ -286,6 +288,9 @@ export default class PricingRules {
                 daytimeRateType: estimate.daytimeRateType || "",
                 eveningRate: estimate.eveningRate || 0,
                 eveningRateType: estimate.eveningRateType || "",
+                // Add these explicitly
+                daytimeMinHours: estimate.daytimeMinHours || 0,
+                eveningMinHours: estimate.eveningMinHours || 0,
                 additionalCosts: Array.isArray(estimate.additionalCosts)
                   ? estimate.additionalCosts.map((cost: Cost) => ({
                       id: cost.id || uuidv4(),
@@ -301,8 +306,14 @@ export default class PricingRules {
                 isFullDay: estimate.isFullDay || false,
                 daytimeDescription: estimate.daytimeDescription || "",
                 eveningDescription: estimate.eveningDescription || "",
-                daytimeCostItem: estimate.daytimeCostItem,
-                eveningCostItem: estimate.eveningCostItem,
+                daytimeCostItem: {
+                  ...estimate.daytimeCostItem,
+                  minimumHours: estimate.daytimeMinHours || 0,
+                },
+                eveningCostItem: {
+                  ...estimate.eveningCostItem,
+                  minimumHours: estimate.eveningMinHours || 0,
+                },
                 fullDayCostItem: estimate.fullDayCostItem,
               }));
 
@@ -627,6 +638,8 @@ export default class PricingRules {
 
       const totalBookingHours = differenceInHours(endDateTime, startDateTime);
 
+      // Inside calculatePrice method, where estimates are created:
+
       estimates.push({
         roomSlug,
         basePrice,
@@ -641,6 +654,9 @@ export default class PricingRules {
         eveningRateType,
         additionalCosts: roomAdditionalCosts,
         totalCost: basePrice + roomAdditionalCostsTotal,
+        // Add these explicitly from dayRules
+        daytimeMinHours: dayRules?.daytime?.minimumHours || 0,
+        eveningMinHours: dayRules?.evening?.minimumHours || 0,
         daytimeCostItem: {
           description: dayRules.fullDay ? "Full Day Rate" : "Daytime Hours",
           cost: daytimePrice || 0,
@@ -649,6 +665,7 @@ export default class PricingRules {
           rate: daytimeRate || 0,
           crossoverApplied: crossoverApplied || false,
           isFullDay: !!dayRules.fullDay,
+          minimumHours: dayRules?.daytime?.minimumHours || 0,
         },
         eveningCostItem: {
           description: "Evening Hours",
@@ -656,6 +673,7 @@ export default class PricingRules {
           rateType: eveningRateType || "hourly",
           hours: eveningHours || 0,
           rate: eveningRate || 0,
+          minimumHours: dayRules?.evening?.minimumHours || 0,
         },
         fullDayCostItem: this.createCostItem(
           "Full Day Rate",
