@@ -907,7 +907,7 @@ export default class PricingRules {
           "[PricingRules] Food service enabled, checking cleaning fee"
         );
         // Look for food resource which contains cleaning fee
-        const foodResource = this.additionalCosts.resources.find(
+        const foodResource = this.additionalCosts?.resources.find(
           (r) => r.id === "food"
         );
 
@@ -930,7 +930,7 @@ export default class PricingRules {
       // Handle resources
       if (booking.resources) {
         for (const resourceId of booking.resources) {
-          const resource = this.additionalCosts.resources.find(
+          const resource = this.additionalCosts?.resources.find(
             (r) => r.id === resourceId
           );
 
