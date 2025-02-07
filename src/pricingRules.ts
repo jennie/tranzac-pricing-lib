@@ -1023,16 +1023,15 @@ export default class PricingRules {
             description,
             subDescription: "Comped for large private event",
             cost: 0,
+            id: uuidv4(),
           };
         } else {
-          const hours = differenceInHours(
-            parseISO(endTime),
-            parseISO(startTime)
-          );
+          const hours = differenceInHours(parseISO(endTime), parseISO(startTime));
           cost = (Number(resourceConfig?.cost) || 0) * hours;
           return {
+            id: uuidv4(),
             description,
-            subDescription,
+            subDescription: `${hours} hours @ ${formatCurrency(resourceConfig?.cost || 0)}/hour`,
             cost,
           };
         }
