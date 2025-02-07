@@ -927,41 +927,152 @@ export default class PricingRules {
       return { perSlotCosts, additionalCosts, customLineItems };
     }
 
-    // Handle resources
-    if (booking.resources) {
-      for (const resourceId of booking.resources) {
-        const resource = this.additionalCosts.resources.find(
-          (r) => r.id === resourceId
+    if (!booking.resources) {
+      return { perSlotCosts, additionalCosts, customLineItems };
+    }
+
+    const resourceDetails: ResourceDetails = {
+      roomSlug: booking.roomSlugs[0],
+      isPrivate: booking.isPrivate || false,
+      expectedAttendance: Number(booking.expectedAttendance) || 0,
+      startTime: booking.startTime,
+      endTime: booking.endTime,
+      projectorIncluded: booking.resources.includes('backline')
+    };
+
+    // Process each resource
+    for (const resourceId of booking.resources) {
+      const resource = this.additionalCosts.resources.find(
+        (r) => r.id === resourceId
+      );
+
+      if (!resource) {
+        console.warn(`Resource ${resourceId} not found in additional costs`);
+        continue;
+      }
+
+      // Skip security as it's handled separately
+      if (resourceId === 'security') continue;
+
+      // Handle food cleaning fee
+      if (resourceId === 'food') {
+        const calculatedCost = this.calculateResourceCost(resourceId, resourceDetails);
+        if (calculatedCost && !Array.isArray(calculatedCost)) {
+          perSlotCosts.push({
+            ...calculatedCost,
+            id: uuidv4(),
+            isRequired: true,
+            subDescription: "Required when food is served"
+          });
+        }
+        continue;
+      }
+
+      // Handle backline specially since it's room-specific
+      if (resourceId === "backline") {
+        const roomSpecificCost = resource.rooms?.[resourceDetails.roomSlug];
+        if (roomSpecificCost) {
+          perSlotCosts.push({
+            id: uuidv4(),
+            description: roomSpecificCost.description || resource.description,
+            subDescription: roomSpecificCost.subDescription || resource.subDescription,
+            cost: roomSpecificCost.cost || 0,
+            isRequired: false,
+            roomSlug: resourceDetails.roomSlug
+          });
+        }
+        continue;
+      }
+
+      // Handle audio tech and overtime
+      if (resourceId === 'audio_tech') {
+        const calculatedCosts = this.calculateResourceCost(resourceId, resourceDetails);
+        if (Array.isArray(calculatedCosts)) {
+          calculatedCosts.forEach(cost => {
+            perSlotCosts.push({
+              ...cost,
+              id: uuidv4(),
+              isRequired: false
+            });
+          });
+        }
+        continue;
+      }
+
+      // Handle bartender with hourly calculation
+      if (resourceId === 'bartender') {
+        const bartenderCost = this.calculateResourceCost(resourceId, resourceDetails);
+        if (bartenderCost && !Array.isArray(bartenderCost)) {
+          perSlotCosts.push({
+            ...bartenderCost,
+            id: uuidv4(),
+            isRequired: false
+          });
+        }
+        continue;
+      }
+
+      // Handle standard hourly resources
+      if (resource.type === 'hourly') {
+        const hours = differenceInHours(
+          parseISO(booking.endTime),
+          parseISO(booking.startTime)
         );
-
-        if (!resource) continue;
-
-        // Skip security as it's handled separately
-        if (resourceId === 'security') continue;
-
-        // Handle backline and other resources as before...
-        if (resourceId === "backline") {
-          // Existing backline handling...
-          continue;
+        const hourlyCost = this.calculateResourceCost(resourceId, resourceDetails);
+        if (hourlyCost && !Array.isArray(hourlyCost)) {
+          perSlotCosts.push({
+            ...hourlyCost,
+            id: uuidv4(),
+            isRequired: false,
+            subDescription: `${hours} hours @ ${formatCurrency(resource.cost)}/hour`
+          });
         }
+        continue;
+      }
 
-        // Handle other resources as before...
-        const cost: Cost = {
+      // Handle flat rate resources
+      if (resource.type === 'flat') {
+        const flatCost = this.calculateResourceCost(resourceId, resourceDetails);
+        if (flatCost && !Array.isArray(flatCost)) {
+          perSlotCosts.push({
+            ...flatCost,
+            id: uuidv4(),
+            isRequired: false
+          });
+        }
+        continue;
+      }
+
+      // Handle custom line items
+      if (resource.type === 'custom') {
+        const customCost = this.calculateResourceCost(resourceId, resourceDetails);
+        if (customCost && !Array.isArray(customCost)) {
+          customLineItems.push({
+            ...customCost,
+            id: uuidv4(),
+            isRequired: false,
+            isEditable: true
+          });
+        }
+      }
+    }
+
+    // Early Open Staff calculation
+    const venueOpeningTime = new Date(booking.startTime);
+    venueOpeningTime.setHours(18, 0, 0, 0);
+
+    if (new Date(booking.startTime) < venueOpeningTime) {
+      const earlyOpenHours = Math.ceil(
+        differenceInHours(venueOpeningTime, new Date(booking.startTime))
+      );
+      if (earlyOpenHours > 0) {
+        perSlotCosts.push({
           id: uuidv4(),
-          description: resource.description,
-          subDescription: resource.subDescription,
-          cost: resource.cost || 0,
-          isRequired: false,
-        };
-
-        if (resource.type === "custom") {
-          customLineItems.push(cost);
-        } else if (resource.type === "hourly") {
-          // Existing hourly resource handling...
-          perSlotCosts.push(cost);
-        } else {
-          perSlotCosts.push(cost);
-        }
+          description: `Early Open Staff (${earlyOpenHours} hours)`,
+          subDescription: "Additional staff for early opening",
+          cost: Number(earlyOpenHours) * 30,
+          isRequired: true,
+        });
       }
     }
 
@@ -969,6 +1080,24 @@ export default class PricingRules {
     const securityItem = this.handleSecurityItem(booking);
     if (securityItem) {
       customLineItems.push(securityItem);
+    }
+
+    // Room-specific additional costs
+    if (booking.roomSlugs) {
+      for (const roomSlug of booking.roomSlugs) {
+        const roomAdditionalCosts = this.additionalCosts.conditions
+          ?.filter(condition => condition.roomSlug === roomSlug)
+          ?.map(condition => ({
+            id: uuidv4(),
+            description: condition.description,
+            subDescription: condition.subDescription,
+            cost: condition.cost || 0,
+            roomSlug: roomSlug,
+            isRequired: condition.isRequired || false
+          })) || [];
+
+        additionalCosts.push(...roomAdditionalCosts);
+      }
     }
 
     return { perSlotCosts, additionalCosts, customLineItems };
