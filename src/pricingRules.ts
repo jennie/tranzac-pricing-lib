@@ -1137,6 +1137,7 @@ export default class PricingRules {
             subDescription,
             cost,
           };
+        }
 
       case "projector":
         if (projectorIncluded) {
