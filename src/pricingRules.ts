@@ -573,97 +573,6 @@ export default class PricingRules {
 
     const slotCustomLineItems = [...customLineItems];
 
-    // Special handling for parking lot which only has full-day rates
-    if (roomSlugs.includes('parking-lot')) {
-      const dayRules = this.rules?.all?.fullDay;
-      if (!dayRules) {
-        console.warn('No full day rules found for parking lot');
-        return {
-          estimates: [],
-          perSlotCosts: [],
-          slotTotal: 0,
-          slotCustomLineItems: [],
-        };
-      }
-
-      // Use full day rate for parking lot
-      const rate = dayRules[isPrivate ? "private" : "public"];
-      const fullDayPrice = rate;
-      const fullDayCostItem = this.createCostItem(
-        "Full Day Rate",
-        fullDayPrice,
-        this.generateRateDescription({
-          basePrice: 0,
-          isFullDay: true,
-          fullDayPrice: fullDayPrice,
-        })
-      );
-
-      estimates.push({
-        roomSlug: 'parking-lot',
-        basePrice: rate,
-        daytimeHours: 0,
-        eveningHours: 0,
-        daytimePrice: rate,
-        eveningPrice: 0,
-        fullDayPrice: rate,
-        daytimeRate: rate,
-        daytimeRateType: "flat",
-        eveningRate: 0,
-        eveningRateType: "flat",
-        daytimeMinHours: 0,
-        eveningMinHours: 0,
-        additionalCosts: [],
-        totalCost: rate,
-        rateDescription: `Flat rate: ${rate}`,
-        totalBookingHours: 24,
-        isFullDay: true,
-        daytimeCostItem: {
-          description: "Full Day Rate",
-          cost: rate,
-          minimumHours: 0,
-          rate: rate,
-          rateType: "flat",
-          crossoverApplied: false,
-        },
-        eveningCostItem: {
-          description: "N/A",
-          cost: 0,
-          minimumHours: 0,
-          rate: 0,
-          rateType: "flat",
-          crossoverApplied: false,
-        },
-        fullDayCostItem: fullDayCostItem,
-      });
-
-      slotTotal += rate;
-      return {
-        estimates,
-        perSlotCosts,
-        slotTotal,
-        slotCustomLineItems,
-      };
-    }
-
-    // Handle security
-    if (resources.includes("security") || roomSlugs.includes("parking-lot")) {
-      const securityConfig = this.additionalCosts?.resources.find(
-        (r) => r.id === "security"
-      );
-      if (securityConfig) {
-        slotCustomLineItems.push({
-          id: uuidv4(),
-          description: securityConfig.description,
-          subDescription:
-            securityConfig.subDescription || "Will quote separately",
-          cost: 0,
-          isEditable: true,
-          isRequired: roomSlugs.includes("parking-lot"),
-        });
-      }
-    }
-
     // Ensure date is valid before passing to getDayRules
     const bookingDate = new Date(date);
     if (isNaN(bookingDate.getTime())) {
@@ -804,6 +713,50 @@ export default class PricingRules {
     dayRules: any,
     isPrivate: boolean
   ): BookingRates {
+    // NEW: Handle full-day pricing if available (e.g. for parking-lot)
+    if (dayRules.fullDay) {
+      const fullDayPrice = dayRules.fullDay[isPrivate ? "private" : "public"];
+      return {
+        basePrice: fullDayPrice,
+        daytimeHours: 0,
+        eveningHours: 0,
+        daytimePrice: 0,
+        eveningPrice: 0,
+        daytimeRate: 0,
+        eveningRate: 0,
+        daytimeRateType: "flat",
+        eveningRateType: "flat",
+        daytimeMinHours: 0,
+        eveningMinHours: 0,
+        daytimeCostItem: {
+          description: "Full Day Rate",
+          cost: fullDayPrice,
+          rateType: "flat",
+          rate: fullDayPrice,
+          minimumHours: 0,
+          crossoverApplied: false,
+        },
+        eveningCostItem: {
+          description: "Full Day Rate",
+          cost: fullDayPrice,
+          rateType: "flat",
+          rate: fullDayPrice,
+          minimumHours: 0,
+          crossoverApplied: false,
+        },
+        additionalCosts: [],
+        totalCost: fullDayPrice,
+        rateDescription: `$${fullDayPrice}/day`,
+        totalBookingHours: differenceInHours(endDateTime, startDateTime),
+        isFullDay: true,
+        fullDayPrice: fullDayPrice,
+      };
+    }
+
+    if (!dayRules) {
+      throw new Error("No pricing rules found for the specified day");
+    }
+
     let basePrice = 0;
     let daytimePrice = 0;
     let eveningPrice = 0;
@@ -964,39 +917,27 @@ export default class PricingRules {
     // If no additional costs initialized, return null
     if (!this.additionalCosts) return null;
 
-    // Check conditions separately for better tracking
-    const securityRequested = booking.resources?.includes('security');
-    const parkingLotBooked = booking.roomSlugs?.includes('parking-lot');
+    // Check both conditions that require security
+    const needsSecurity = booking.resources?.includes('security') ||
+      booking.roomSlugs?.includes('parking-lot');
 
-    console.log('[Security] Checking security requirements:', {
-      securityRequested,
-      parkingLotBooked,
-      resources: booking.resources,
-      roomSlugs: booking.roomSlugs
-    });
-
-    if (!securityRequested && !parkingLotBooked) return null;
+    if (!needsSecurity) return null;
 
     // Find security configuration
     const securityConfig = this.additionalCosts.resources.find(
       (r) => r.id === "security"
     );
 
-    if (!securityConfig) {
-      console.warn('[Security] Security config not found in additional costs');
-      return null;
-    }
+    if (!securityConfig) return null;
 
-    // Create single security cost item with reason
+    // Create single security cost item
     return {
       id: uuidv4(),
       description: securityConfig.description,
-      subDescription: parkingLotBooked
-        ? "Required for parking lot bookings"
-        : (securityConfig.subDescription || "Will quote separately"),
+      subDescription: securityConfig.subDescription || "Will quote separately",
       cost: 0,
       isEditable: true,
-      isRequired: parkingLotBooked
+      isRequired: booking.roomSlugs?.includes('parking-lot'),
     };
   }
 
@@ -1038,7 +979,7 @@ export default class PricingRules {
         continue;
       }
 
-      // Skip security as it's handled by handleSecurityItem
+      // Skip security as it's handled separately
       if (resourceId === 'security') continue;
 
       // Handle food cleaning fee
@@ -1184,9 +1125,9 @@ export default class PricingRules {
       }
     }
 
-    // Handle security with consolidated logic - only add it once
+    // Handle security with consolidated logic
     const securityItem = this.handleSecurityItem(booking);
-    if (securityItem && !customLineItems.some(item => item.description === securityItem.description)) {
+    if (securityItem) {
       customLineItems.push(securityItem);
     }
 
