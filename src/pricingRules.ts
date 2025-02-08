@@ -528,6 +528,26 @@ export default class PricingRules {
     slotTotal: number;
     slotCustomLineItems: any[];
   }> {
+    // Add validation for Southern Cross
+    const SOUTHERN_CROSS_ID = 'southern-cross'; // Replace with actual slug
+    if (booking.roomSlugs.includes(SOUTHERN_CROSS_ID)) {
+      const startTime = new Date(booking.startTime);
+      const endTime = new Date(booking.endTime);
+
+      // Check if booking is on a weekend
+      const day = startTime.getDay();
+      if (day === 0 || day === 6) {
+        throw new Error('Southern Cross is not available for weekend bookings');
+      }
+
+      // Check if booking includes evening hours
+      const startHour = startTime.getHours();
+      const endHour = endTime.getHours();
+      if (startHour >= 17 || endHour >= 17 || startHour < 5 || endHour < 5) {
+        throw new Error('Southern Cross is only available during daytime hours (5 AM - 5 PM)');
+      }
+    }
+
     if (
       !booking.startTime ||
       !booking.endTime ||
