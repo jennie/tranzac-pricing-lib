@@ -1407,6 +1407,7 @@ export default class PricingRules {
       rate: periodCost.rate,
       minimumHours: periodCost.minimumHours,
       minimumApplied: periodCost.minimumApplied,
+      type: periodCost.type || rateType
     };
 
     console.log("[PricingRules] Created cost item:", costItem);
@@ -1426,6 +1427,7 @@ export default class PricingRules {
     minimumHours?: number;
     rate: number;
     minimumApplied?: boolean;
+    type: string;
   } {
     console.log("[PricingRules] Period rules received:", {
       periodRules,
@@ -1472,6 +1474,7 @@ export default class PricingRules {
         hours,
         rate: effectiveRate,
         minimumHours: 0,
+        type: "flat"
       };
     } else if (periodRules.type === "hourly") {
       // Apply minimum hours to price calculation
@@ -1484,6 +1487,7 @@ export default class PricingRules {
         rate: effectiveRate,
         minimumHours,
         minimumApplied: actualHours < minimumHours,
+        type: "hourly"
       };
     }
 
