@@ -110,6 +110,7 @@ interface Room {
 
 const TORONTO_TIMEZONE = "America/Toronto";
 const HST_RATE = 0.13; // 13% HST rate
+const SOUTHERN_CROSS_ID = "DhqLkkzvQmKvCDMubndPjw";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -544,7 +545,7 @@ export default class PricingRules {
       const startHour = startTime.getHours();
       const endHour = endTime.getHours();
       if (startHour >= 17 || endHour >= 17 || startHour < 5 || endHour < 5) {
-        throw new Error('Southern Cross is only available during daytime hours (5 AM - 5 PM)');
+        throw new Error('Southern Cross is only available during daytime hours (before 5 PM)');
       }
     }
 
@@ -627,7 +628,8 @@ export default class PricingRules {
         startDateTime,
         endDateTime,
         dayRules,
-        isPrivate
+        isPrivate,
+        roomSlug
       );
 
       const roomAdditionalCosts = additionalCosts.filter(
@@ -731,7 +733,8 @@ export default class PricingRules {
     startDateTime: Date,
     endDateTime: Date,
     dayRules: any,
-    isPrivate: boolean
+    isPrivate: boolean,
+    roomSlug: string
   ): BookingRates {
     // NEW: Handle full-day pricing if available (e.g. for parking-lot)
     if (dayRules.fullDay) {
@@ -812,7 +815,8 @@ export default class PricingRules {
         daytimeEndTime,
         pricingRate,
         dayRules.daytime.type,
-        dayRules.daytime.crossoverRate
+        dayRules.daytime.crossoverRate,
+        roomSlug
       );
 
       daytimeHours = hours;
@@ -829,7 +833,9 @@ export default class PricingRules {
         effectiveStart,
         endDateTime,
         dayRules.evening[isPrivate ? "private" : "public"],
-        dayRules.evening.type
+        dayRules.evening.type,
+        undefined,
+        roomSlug
       );
       eveningHours = hours;
       eveningPrice = cost;
@@ -1420,7 +1426,8 @@ export default class PricingRules {
     endTime: Date,
     periodRules: any,
     isEvening: boolean,
-    isPrivate: boolean
+    isPrivate: boolean,
+    roomSlug: string
   ): {
     price: number;
     hours: number;
@@ -1449,9 +1456,15 @@ export default class PricingRules {
       isEvening ? 12 : 24 - new Date(startTime).getHours()
     );
 
+    // Check if this is Southern Cross during 11am-4pm
+    const isSouthernCrossSpecialHours = roomSlug === SOUTHERN_CROSS_ID &&
+      startTime.getHours() >= 11 &&
+      endTime.getHours() <= 16;
+
     // Get minimumHours from parent rules if not found in period rules
-    const minimumHours =
-      periodRules.minimumHours || periodRules.parent?.minimumHours || 0;
+    // Set to 0 for Southern Cross during special hours
+    const minimumHours = isSouthernCrossSpecialHours ? 0 :
+      (periodRules.minimumHours || periodRules.parent?.minimumHours || 0);
 
     console.log("[PricingRules] Calculated minimum hours:", {
       periodMinimumHours: periodRules.minimumHours,
@@ -1459,6 +1472,9 @@ export default class PricingRules {
       finalMinimumHours: minimumHours,
       actualHours,
       minimumApplied: actualHours < minimumHours,
+      isSouthernCrossSpecialHours,
+      roomSlug,
+      timeRange: `${startTime.getHours()}:00-${endTime.getHours()}:00`
     });
 
     // Check if this is a crossover period and use crossover rate if applicable
@@ -1579,18 +1595,27 @@ export default class PricingRules {
     end: Date,
     rate: number,
     rateType: string,
-    crossoverRate?: number
+    crossoverRate?: number,
+    roomSlug?: string
   ) {
     const hours = differenceInHours(end, start);
+
+    // Check for Southern Cross special hours
+    const isSouthernCrossSpecialHours = roomSlug === SOUTHERN_CROSS_ID &&
+      start.getHours() >= 11 &&
+      end.getHours() <= 16;
+
     const effectiveRate =
       this.isCrossoverPeriod(start, end) && crossoverRate
         ? crossoverRate
         : rate;
+
     return {
       hours,
       cost: rateType === "flat" ? rate : effectiveRate * hours,
       hourlyRate: rateType === "flat" ? null : effectiveRate,
       crossoverApplied: effectiveRate !== rate,
+      isSouthernCrossSpecialHours
     };
   }
 
