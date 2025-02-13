@@ -840,6 +840,33 @@ export default class PricingRules {
       basePrice += daytimePrice;
     }
 
+    // Add evening pricing calculation
+    if (endDateTime > eveningStartTime && dayRules.evening) {
+      const eveningStartDateTime = bookingCrossesEveningThreshold
+        ? eveningStartTime
+        : startDateTime;
+      const pricingRate = dayRules.evening[isPrivate ? "private" : "public"];
+      const {
+        hours,
+        cost,
+        hourlyRate,
+        crossoverApplied: isCrossover,
+      } = this.calculateHoursAndCost(
+        eveningStartDateTime,
+        endDateTime,
+        pricingRate,
+        dayRules.evening.type,
+        dayRules.evening.crossoverRate,
+        roomSlug
+      );
+
+      eveningHours = hours;
+      eveningPrice = cost;
+      eveningRate = hourlyRate || pricingRate;
+      eveningRateType = dayRules.evening.type;
+      basePrice += eveningPrice;
+    }
+
     // Rest of the function remains the same...
 
     return {
