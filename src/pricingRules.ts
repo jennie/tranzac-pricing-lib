@@ -222,7 +222,7 @@ export default class PricingRules {
 
   async getPrice(data: any): Promise<{
     costEstimates: CostEstimate[];
-    customLineItems: Record<string, any[]>; // NEW: Added to return type
+    customLineItems: Record<string, any[]>;
     grandTotal: number;
     tax: number;
     totalWithTax: number;
@@ -230,8 +230,7 @@ export default class PricingRules {
     try {
       await this.initialize();
       const costEstimates: CostEstimate[] = [];
-      let grandTotal = 0;
-      const customLineItems: Record<string, any[]> = {}; // NEW: Added to store custom line items
+      const customLineItems: Record<string, any[]> = {};
 
       if (!data.rentalDates || typeof data.rentalDates !== "object") {
         console.error("Invalid rentalDates structure:", data.rentalDates);
@@ -348,34 +347,40 @@ export default class PricingRules {
               );
 
               const totalForThisBooking = estimateTotal + perSlotCostsTotal;
+              console.log("Booking calculation details:", {
+                estimateTotal,
+                perSlotCostsTotal,
+                totalForThisBooking,
+                slotTotal
+              });
 
-              costEstimates.push({
+              const costEstimate = {
                 id: booking.id || uuidv4(),
                 date: new Date(date),
                 start: new Date(preparedBooking.startTime),
                 end: new Date(preparedBooking.endTime),
                 estimates: formattedEstimates,
                 perSlotCosts: formattedPerSlotCosts,
-                slotTotal: slotTotal,
+                slotTotal,
                 roomSlugs: preparedBooking.roomSlugs,
                 isPrivate: booking.private,
                 resources: preparedBooking.resources,
                 expectedAttendance: preparedBooking.expectedAttendance,
                 customLineItems: slotCustomLineItems,
-              });
+              };
 
               // NEW: Store slotCustomLineItems if they exist
               if (slotCustomLineItems && slotCustomLineItems.length > 0) {
                 customLineItems[booking.id] = slotCustomLineItems;
               }
 
-              grandTotal += slotTotal;
+              return costEstimate;
             } catch (error: any) {
               console.error(
                 `Error calculating price for booking ${booking.id}:`,
                 error
               );
-              costEstimates.push({
+              return {
                 id: booking.id || uuidv4(),
                 date: new Date(date),
                 start: new Date(booking.startTime),
@@ -384,7 +389,7 @@ export default class PricingRules {
                 perSlotCosts: [],
                 slotTotal: 0,
                 error: error.message,
-              });
+              };
             }
           });
           return acc.concat(promises);
@@ -392,23 +397,24 @@ export default class PricingRules {
         []
       );
 
-      const parallelResults = await Promise.all(bookingPromises);
+      const resolvedCostEstimates = await Promise.all(bookingPromises);
+      costEstimates.push(...resolvedCostEstimates);
+
+      // Calculate grandTotal after all promises have resolved
+      const grandTotal = costEstimates.reduce((total, estimate) => total + estimate.slotTotal, 0);
+
+      console.log("Before tax calculation - grandTotal:", grandTotal);
       const tax = this.calculateTax(grandTotal);
+      console.log("Calculated tax:", tax);
       const totalWithTax = this.calculateTotalWithTax(grandTotal);
+      console.log("Calculated totalWithTax:", totalWithTax);
       console.log("Final costEstimates:", costEstimates);
       console.log("Final customLineItems:", customLineItems);
-      // CHANGED: Added customLineItems to the return object
+
       return { costEstimates, customLineItems, grandTotal, tax, totalWithTax };
     } catch (error: any) {
       console.error("Error in getPrice method:", error);
-      // CHANGED: Added customLineItems to the error return
-      return {
-        costEstimates: [],
-        customLineItems: {},
-        grandTotal: 0,
-        tax: 0,
-        totalWithTax: 0,
-      };
+      throw error;
     }
   }
 

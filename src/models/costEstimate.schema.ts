@@ -4,11 +4,20 @@ export let mongoosePromise: Promise<typeof import("mongoose")> | null = import(
   "mongoose"
 );
 
-export interface ICostEstimateVersion {
+export interface IStatusHistory {
+  status: string;
+  timestamp: Date;
+  changedBy: string;
+}
+
+// Removing ICostEstimateVersion and directly using its fields in ICostEstimate
+export interface ICostEstimate extends Document {
   rentalRequestId: string;
-  version: number;
-  label?: string;
-  estimates: Array<{
+  createdAt: Date;
+  updatedAt: Date;
+
+  // Core cost estimates data (moved from versions)
+  costEstimates: Array<{
     id: string;
     date: Date;
     start: Date;
@@ -48,29 +57,28 @@ export interface ICostEstimateVersion {
     perSlotCosts: any[];
     slotTotal: number;
   }>;
+
+  // Financial info (moved from versions)
+  totalCost: number;
   tax: number;
   totalWithTax: number;
-  statusHistory: IStatusHistory[];
-  contractPdf: {
+  discountValue?: number;
+  discountType?: 'flat' | 'percentage';
+  discountDescription?: string;
+  depositInvoiceUrl?: string;
+  balanceInvoiceUrl?: string;
+
+  // Contract data (moved from versions)
+  contractPdf?: {
     data: Buffer;
     contentType: string;
   };
-  depositInvoiceUrl: string;
-  balanceInvoiceUrl: string;
-}
 
-export interface IStatusHistory {
+  // Status tracking
   status: string;
-  timestamp: Date;
-  changedBy: string;
-}
-
-export interface ICostEstimate extends Document {
-  versions: ICostEstimateVersion[];
   statusHistory: IStatusHistory[];
-  rentalRequestId: string;
-  createdAt: Date; // Add these
-  updatedAt: Date; // timestamp fields
+
+  // Room info (preserved from original)
   roomSlug: string;
   basePrice: number;
   daytimeHours?: number;
@@ -87,59 +95,33 @@ export interface ICostEstimate extends Document {
   daytimeMinimumHours?: number;
   eveningMinimumHours?: number;
   additionalCosts?: any[];
-  totalCost: number;
+  acceptanceToken?: string;
 }
 
 export const CostEstimateSchemaDefinition = {
   rentalRequestId: { type: String, required: true },
-  versions: [
+
+  // Cost estimates (moved from versions)
+  costEstimates: [
     {
-      version: { type: Number, required: true },
-      label: { type: String, required: false },
-      costEstimates: [
+      id: { type: String, required: true },
+      date: { type: Date, required: true },
+      start: { type: Date, required: true },
+      end: { type: Date, required: true },
+      estimates: [
         {
-          id: { type: String, required: true },
-          date: { type: Date, required: true },
-          start: { type: Date, required: true },
-          end: { type: Date, required: true },
-          estimates: [
-            {
-              roomSlug: { type: String, required: true },
-              basePrice: { type: Number, required: true },
-              daytimeHours: { type: Number, default: 0 },
-              eveningHours: { type: Number, default: 0 },
-              daytimePrice: { type: Number, default: 0 },
-              eveningPrice: { type: Number, default: 0 },
-              fullDayPrice: { type: Number, default: 0 },
-              daytimeRate: { type: Number },
-              daytimeRateType: { type: String },
-              eveningRate: { type: Number },
-              eveningRateType: { type: String },
-              additionalCosts: [
-                {
-                  id: { type: String, required: true },
-                  description: { type: String, required: true },
-                  subDescription: { type: String },
-                  cost: { type: Number, required: true },
-                  isRequired: { type: Boolean, default: false },
-                },
-              ],
-              totalCost: { type: Number, required: true },
-              rateDescription: { type: String },
-              minimumHours: { type: Number },
-              totalBookingHours: { type: Number },
-              isFullDay: { type: Boolean },
-              daytimeCostItem: {
-                description: { type: String },
-                cost: { type: Number },
-              },
-              eveningCostItem: {
-                description: { type: String },
-                cost: { type: Number },
-              },
-            },
-          ],
-          perSlotCosts: [
+          roomSlug: { type: String, required: true },
+          basePrice: { type: Number, required: true },
+          daytimeHours: { type: Number, default: 0 },
+          eveningHours: { type: Number, default: 0 },
+          daytimePrice: { type: Number, default: 0 },
+          eveningPrice: { type: Number, default: 0 },
+          fullDayPrice: { type: Number, default: 0 },
+          daytimeRate: { type: Number },
+          daytimeRateType: { type: String },
+          eveningRate: { type: Number },
+          eveningRateType: { type: String },
+          additionalCosts: [
             {
               id: { type: String, required: true },
               description: { type: String, required: true },
@@ -148,38 +130,71 @@ export const CostEstimateSchemaDefinition = {
               isRequired: { type: Boolean, default: false },
             },
           ],
-          customLineItems: [
-            {
-              id: String,
-              description: String,
-              subDescription: String,
-              cost: Number,
-              isEditable: Boolean,
-              isRequired: Boolean,
-            },
-          ],
-          slotTotal: { type: Number, required: true },
+          totalCost: { type: Number, required: true },
+          rateDescription: { type: String },
+          minimumHours: { type: Number },
+          totalBookingHours: { type: Number },
+          isFullDay: { type: Boolean },
+          daytimeCostItem: {
+            description: { type: String },
+            cost: { type: Number },
+          },
+          eveningCostItem: {
+            description: { type: String },
+            cost: { type: Number },
+          },
         },
       ],
-      totalCost: { type: Number, required: true },
-      createdAt: { type: Date, required: true },
-      depositInvoiceUrl: { type: String, default: null },
-      balanceInvoiceUrl: { type: String, default: null },
-      contractPdf: {
-        data: { type: Buffer },
-        contentType: { type: String },
-      },
-      statusHistory: [
+      perSlotCosts: [
         {
-          status: { type: String, required: true },
-          changedBy: { type: String, required: true },
-          timestamp: { type: Date, default: Date.now },
+          id: { type: String, required: true },
+          description: { type: String, required: true },
+          subDescription: { type: String },
+          cost: { type: Number, required: true },
+          isRequired: { type: Boolean, default: false },
         },
       ],
+      customLineItems: [
+        {
+          id: String,
+          description: String,
+          subDescription: String,
+          cost: Number,
+          isEditable: Boolean,
+          isRequired: Boolean,
+        },
+      ],
+      slotTotal: { type: Number, required: true },
     },
   ],
-  currentVersion: { type: Number, required: true },
+
+  // Financial info (moved from versions)
+  totalCost: { type: Number, required: true },
+  tax: { type: Number, default: 0 },
+  totalWithTax: { type: Number, default: 0 },
+  discountValue: { type: Number },
+  discountType: { type: String, enum: ['flat', 'percentage'] },
+  discountDescription: { type: String },
+  depositInvoiceUrl: { type: String, default: null },
+  balanceInvoiceUrl: { type: String, default: null },
+
+  // Contract data (moved from versions)
+  contractPdf: {
+    data: Buffer,
+    contentType: String,
+  },
+
+  // Status tracking
   status: { type: String, required: true },
+  statusHistory: [
+    {
+      status: { type: String, required: true },
+      changedBy: { type: String, required: true },
+      timestamp: { type: Date, default: Date.now },
+    },
+  ],
+
+  // Room info (preserved from original)
   roomSlug: { type: String, required: true },
   basePrice: { type: Number, required: true },
   daytimeHours: Number,
@@ -196,25 +211,48 @@ export const CostEstimateSchemaDefinition = {
   daytimeMinimumHours: Number,
   eveningMinimumHours: Number,
   additionalCosts: Array,
-  totalCost: { type: Number, required: true },
+  acceptanceToken: { type: String }
 };
 
 // Factory functions to create models
 async function getMongoose(): Promise<Mongoose> {
+  console.log('[DEBUG] Initializing Mongoose connection')
   if (!mongoosePromise) {
-    throw new Error("Mongoose is not initialized");
+    console.error('[DEBUG] Mongoose is not initialized - mongoosePromise is null')
+    throw new Error("Mongoose is not initialized")
   }
-  const { default: mongoose } = await mongoosePromise;
-  return mongoose;
+  try {
+    const { default: mongoose } = await mongoosePromise
+    console.log('[DEBUG] Mongoose connection status:', {
+      readyState: mongoose.connection.readyState,
+      host: mongoose.connection.host,
+      name: mongoose.connection.name
+    })
+    return mongoose
+  } catch (error) {
+    console.error('[DEBUG] Error initializing Mongoose:', error)
+    throw error
+  }
 }
 
 export const getCostEstimateModel = async (): Promise<Model<ICostEstimate>> => {
-  const mongoose = await getMongoose();
-  return (
-    mongoose.models.CostEstimate ||
-    mongoose.model<ICostEstimate>(
+  console.log('[DEBUG] Getting CostEstimate model')
+  try {
+    const mongoose = await getMongoose()
+    console.log('[DEBUG] Checking for existing CostEstimate model')
+
+    if (mongoose.models.CostEstimate) {
+      console.log('[DEBUG] Using existing CostEstimate model')
+      return mongoose.models.CostEstimate
+    }
+
+    console.log('[DEBUG] Creating new CostEstimate model with timestamps')
+    return mongoose.model<ICostEstimate>(
       "CostEstimate",
-      new mongoose.Schema(CostEstimateSchemaDefinition, { timestamps: true }) // Add timestamps option
+      new mongoose.Schema(CostEstimateSchemaDefinition, { timestamps: true })
     )
-  );
-};
+  } catch (error) {
+    console.error('[DEBUG] Error getting CostEstimate model:', error)
+    throw error
+  }
+}
