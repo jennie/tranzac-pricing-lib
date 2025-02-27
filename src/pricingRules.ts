@@ -550,7 +550,10 @@ export default class PricingRules {
       // Check if booking includes evening hours
       const startHour = startTime.getHours();
       const endHour = endTime.getHours();
-      if (startHour >= 17 || endHour >= 17 || startHour < 5 || endHour < 5) {
+      const endMinute = endTime.getMinutes();
+
+      // Allow bookings that end exactly at 5:00 PM (17:00) but not after
+      if (startHour >= 17 || (endHour > 17 || (endHour === 17 && endMinute > 0)) || startHour < 5 || endHour < 5) {
         throw new Error('Southern Cross is only available during daytime hours (before 5 PM)');
       }
     }
