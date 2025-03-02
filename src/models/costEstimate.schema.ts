@@ -15,6 +15,8 @@ export interface ICostEstimate extends Document {
   rentalRequestId: string;
   createdAt: Date;
   updatedAt: Date;
+  memberId?: string;
+  userId?: string;
 
   // Core cost estimates data (moved from versions)
   costEstimates: Array<{
@@ -67,6 +69,15 @@ export interface ICostEstimate extends Document {
   discountDescription?: string;
   depositInvoiceUrl?: string;
   balanceInvoiceUrl?: string;
+  depositInvoicePdfUrl?: string;
+  balanceInvoicePdfUrl?: string;
+  stripeCustomerId?: string;
+  depositPaid?: boolean;
+  depositPaidAt?: Date;
+  depositPaidAmount?: number;
+  balancePaid?: boolean;
+  balancePaidAt?: Date;
+  balancePaidAmount?: number;
 
   // Contract data (moved from versions)
   contractPdf?: {
@@ -100,6 +111,8 @@ export interface ICostEstimate extends Document {
 
 export const CostEstimateSchemaDefinition = {
   rentalRequestId: { type: String, required: true },
+  memberId: { type: String },
+  userId: { type: String },
 
   // Cost estimates (moved from versions)
   costEstimates: [
@@ -177,6 +190,15 @@ export const CostEstimateSchemaDefinition = {
   discountDescription: { type: String },
   depositInvoiceUrl: { type: String, default: null },
   balanceInvoiceUrl: { type: String, default: null },
+  depositInvoicePdfUrl: { type: String, default: null },
+  balanceInvoicePdfUrl: { type: String, default: null },
+  stripeCustomerId: { type: String, default: null },
+  depositPaid: { type: Boolean, default: false },
+  depositPaidAt: { type: Date, default: null },
+  depositPaidAmount: { type: Number, default: 0 },
+  balancePaid: { type: Boolean, default: false },
+  balancePaidAt: { type: Date, default: null },
+  balancePaidAmount: { type: Number, default: 0 },
 
   // Contract data (moved from versions)
   contractPdf: {
