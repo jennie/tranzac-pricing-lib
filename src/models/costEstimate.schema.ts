@@ -69,8 +69,6 @@ export interface ICostEstimate extends Document {
   discountDescription?: string;
   depositInvoiceUrl?: string;
   balanceInvoiceUrl?: string;
-  depositInvoicePdfUrl?: string;
-  balanceInvoicePdfUrl?: string;
   stripeCustomerId?: string;
   depositPaid?: boolean;
   depositPaidAt?: Date;
@@ -190,8 +188,6 @@ export const CostEstimateSchemaDefinition = {
   discountDescription: { type: String },
   depositInvoiceUrl: { type: String, default: null },
   balanceInvoiceUrl: { type: String, default: null },
-  depositInvoicePdfUrl: { type: String, default: null },
-  balanceInvoicePdfUrl: { type: String, default: null },
   stripeCustomerId: { type: String, default: null },
   depositPaid: { type: Boolean, default: false },
   depositPaidAt: { type: Date, default: null },
