@@ -81,6 +81,10 @@ export interface ICostEstimate extends Document {
   contractPdf?: {
     data: Buffer;
     contentType: string;
+    url?: string;
+    generatedAt?: Date;
+    documentId?: string;
+    status?: string;
   };
 
   // Status tracking
@@ -200,6 +204,10 @@ export const CostEstimateSchemaDefinition = {
   contractPdf: {
     data: Buffer,
     contentType: String,
+    url: String,
+    generatedAt: Date,
+    documentId: String,
+    status: String
   },
 
   // Status tracking
