@@ -10,6 +10,14 @@ export interface IStatusHistory {
   changedBy: string;
 }
 
+// Digital signature interface
+export interface ISignatureData {
+  signedBy: string;
+  signedAt: Date;
+  ipAddress: string;
+  userAgent: string;
+}
+
 // Removing ICostEstimateVersion and directly using its fields in ICostEstimate
 export interface ICostEstimate extends Document {
   rentalRequestId: string;
@@ -86,6 +94,10 @@ export interface ICostEstimate extends Document {
     documentId?: string;
     status?: string;
   };
+  
+  // Digital signature data
+  signatureData?: ISignatureData;
+  isSigned?: boolean;
 
   // Status tracking
   status: string;
@@ -209,6 +221,15 @@ export const CostEstimateSchemaDefinition = {
     documentId: String,
     status: String
   },
+  
+  // Digital signature data
+  signatureData: {
+    signedBy: String,
+    signedAt: Date,
+    ipAddress: String,
+    userAgent: String
+  },
+  isSigned: { type: Boolean, default: false },
 
   // Status tracking
   status: { type: String, required: true },
