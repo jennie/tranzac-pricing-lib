@@ -1196,13 +1196,17 @@ export default class PricingRules {
       }
     }
 
-    // Early Open Staff calculation
-    const venueOpeningTime = new Date(booking.startTime);
-    venueOpeningTime.setHours(18, 0, 0, 0);
+    // Early Open Staff calculation (Toronto-local time)
+    const torontoStartForOpen = toZonedTime(
+      parseISO(booking.startTime),
+      TORONTO_TIMEZONE
+    );
+    const openingToronto = new Date(torontoStartForOpen);
+    openingToronto.setHours(18, 0, 0, 0); // 6:00 PM Toronto
 
-    if (new Date(booking.startTime) < venueOpeningTime) {
+    if (torontoStartForOpen < openingToronto) {
       const earlyOpenHours = Math.ceil(
-        differenceInHours(venueOpeningTime, new Date(booking.startTime))
+        differenceInHours(openingToronto, torontoStartForOpen)
       );
       if (earlyOpenHours > 0) {
         perSlotCosts.push({
@@ -1377,13 +1381,17 @@ export default class PricingRules {
     const perSlotCosts: Cost[] = [];
     const { startTime, endTime } = booking;
 
-    // Early Open Staff calculation
-    const venueOpeningTime = new Date(startTime);
-    venueOpeningTime.setHours(18, 0, 0, 0);
+    // Early Open Staff calculation (Toronto-local time)
+    const torontoStartForOpen2 = toZonedTime(
+      parseISO(startTime),
+      TORONTO_TIMEZONE
+    );
+    const openingToronto2 = new Date(torontoStartForOpen2);
+    openingToronto2.setHours(18, 0, 0, 0); // 6:00 PM Toronto
 
-    if (new Date(startTime) < venueOpeningTime) {
+    if (torontoStartForOpen2 < openingToronto2) {
       const earlyOpenHours = Math.ceil(
-        differenceInHours(venueOpeningTime, new Date(startTime))
+        differenceInHours(openingToronto2, torontoStartForOpen2)
       );
       if (earlyOpenHours > 0) {
         perSlotCosts.push({
