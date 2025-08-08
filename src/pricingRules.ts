@@ -617,8 +617,13 @@ export default class PricingRules {
 
     const slotCustomLineItems = [...customLineItems];
 
-    // Ensure date is valid before passing to getDayRules (use Toronto date)
-    const bookingDate = toZonedTime(new Date(date), TORONTO_TIMEZONE);
+    // Ensure date is valid before passing to getDayRules (interpret plain date as Toronto midnight)
+    const offsetForDate = format(
+      toZonedTime(parseISO(`${date}T12:00:00Z`), TORONTO_TIMEZONE),
+      "xxx",
+      { timeZone: TORONTO_TIMEZONE }
+    );
+    const bookingDate = new Date(`${date}T00:00:00${offsetForDate}`);
     if (isNaN(bookingDate.getTime())) {
       throw new Error(`Invalid date: ${date}`);
     }
@@ -886,25 +891,34 @@ export default class PricingRules {
         ? eveningStartTime
         : startDateTime;
       const pricingRate = dayRules.evening[isPrivate ? "private" : "public"];
-      const {
-        hours,
-        cost,
-        hourlyRate,
-        crossoverApplied: isCrossover,
-      } = this.calculateHoursAndCost(
-        eveningStartDateTime,
-        endDateTime,
-        pricingRate,
-        dayRules.evening.type,
-        dayRules.evening.crossoverRate,
-        roomSlug
-      );
+      // Evening flat type: charge full evening flat if any portion is in evening
+      if (dayRules.evening.type === "flat") {
+        eveningHours = differenceInHours(endDateTime, eveningStartDateTime);
+        eveningPrice = pricingRate;
+        eveningRate = pricingRate;
+        eveningRateType = "flat";
+        basePrice += eveningPrice;
+      } else {
+        const {
+          hours,
+          cost,
+          hourlyRate,
+          crossoverApplied: isCrossover,
+        } = this.calculateHoursAndCost(
+          eveningStartDateTime,
+          endDateTime,
+          pricingRate,
+          dayRules.evening.type,
+          dayRules.evening.crossoverRate,
+          roomSlug
+        );
 
-      eveningHours = hours;
-      eveningPrice = cost;
-      eveningRate = hourlyRate || pricingRate;
-      eveningRateType = dayRules.evening.type;
-      basePrice += eveningPrice;
+        eveningHours = hours;
+        eveningPrice = cost;
+        eveningRate = hourlyRate || pricingRate;
+        eveningRateType = dayRules.evening.type;
+        basePrice += eveningPrice;
+      }
     }
 
     // Rest of the function remains the same...
