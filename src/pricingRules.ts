@@ -11,7 +11,7 @@ import {
 
 import { AdditionalCosts } from "./models/additionalCosts.schema"; // Import the interface
 
-import { formatISO, parseISO, isValid, differenceInHours, sub } from "date-fns";
+import { formatISO, parseISO, isValid, differenceInHours, differenceInMinutes, sub } from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
 
 interface Booking {
@@ -1678,7 +1678,7 @@ export default class PricingRules {
     crossoverRate?: number,
     roomSlug?: string
   ) {
-    const hours = differenceInHours(end, start);
+    const hours = differenceInMinutes(end, start) / 60;
 
     // Check for Southern Cross special hours
     const isSouthernCrossSpecialHours =
