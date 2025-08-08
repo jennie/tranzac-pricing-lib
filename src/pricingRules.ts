@@ -462,12 +462,9 @@ export default class PricingRules {
       console.log("Full end time string:", fullEndTime);
     }
 
-    // Use parseISO to parse the full date-time strings
-    const startDateTime = toZonedTime(
-      parseISO(fullStartTime),
-      TORONTO_TIMEZONE
-    );
-    const endDateTime = toZonedTime(parseISO(fullEndTime), TORONTO_TIMEZONE);
+    // Parse as UTC instants; payload already encodes Toronto wall-clock intent in UTC
+    const startDateTime = parseISO(fullStartTime);
+    const endDateTime = parseISO(fullEndTime);
 
     // Log the parsed Date objects
     if (process.env.NODE_ENV === "development") {
@@ -488,7 +485,7 @@ export default class PricingRules {
       throw new Error("Invalid start or end time in booking data");
     }
 
-    // Convert to canonical UTC ISO strings to avoid server-local offset leakage
+    // Canonical UTC ISO strings
     const formattedStartTime = startDateTime.toISOString();
     const formattedEndTime = endDateTime.toISOString();
 
@@ -600,11 +597,15 @@ export default class PricingRules {
     const estimates: any[] = [];
     let slotTotal = 0;
 
-    const startDateTime = toZonedTime(parseISO(startTime), TORONTO_TIMEZONE);
-    const endDateTime = toZonedTime(parseISO(endTime), TORONTO_TIMEZONE);
-    const currentDay = format(startDateTime, "EEEE", {
-      timeZone: TORONTO_TIMEZONE,
-    });
+    const startDateTime = parseISO(startTime);
+    const endDateTime = parseISO(endTime);
+    const currentDay = format(
+      toZonedTime(startDateTime, TORONTO_TIMEZONE),
+      "EEEE",
+      {
+        timeZone: TORONTO_TIMEZONE,
+      }
+    );
 
     const { perSlotCosts, additionalCosts, customLineItems } =
       await this.calculateAdditionalCosts(booking);
@@ -776,12 +777,20 @@ export default class PricingRules {
     let eveningRateType = "";
     let daytimeRateType = "";
 
-    // Compute evening start (5 PM Toronto) on the booking date
+    // Compute evening start (5 PM Toronto) on the booking date, expressed in UTC for safe comparisons
     const torontoStart = toZonedTime(startDateTime, TORONTO_TIMEZONE);
     const eveningStartTimeToronto = new Date(torontoStart);
     eveningStartTimeToronto.setHours(17, 0, 0, 0);
-    // Normalize to a plain Date for comparisons
-    const eveningStartTime = parseISO(formatISO(eveningStartTimeToronto));
+    // Convert Toronto wall-clock 17:00 to a comparable UTC Date without importing zonedTimeToUtc
+    // by formatting with offset and letting Date parse it
+    const torontoOffset = format(eveningStartTimeToronto, "xxx", {
+      timeZone: TORONTO_TIMEZONE,
+    });
+    const eveningStartTime = new Date(
+      `${format(eveningStartTimeToronto, "yyyy-MM-dd'T'HH:mm:ss", {
+        timeZone: TORONTO_TIMEZONE,
+      })}${torontoOffset}`
+    );
 
     const totalBookingHours = differenceInHours(endDateTime, startDateTime);
     const bookingCrossesEveningThreshold =
