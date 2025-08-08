@@ -893,7 +893,7 @@ export default class PricingRules {
       const pricingRate = dayRules.evening[isPrivate ? "private" : "public"];
       // Evening flat type: charge full evening flat if any portion is in evening
       if (dayRules.evening.type === "flat") {
-        eveningHours = differenceInHours(endDateTime, eveningStartDateTime);
+        eveningHours = differenceInMinutes(endDateTime, eveningStartDateTime) / 60;
         eveningPrice = pricingRate;
         eveningRate = pricingRate;
         eveningRateType = "flat";
