@@ -110,7 +110,8 @@ interface Room {
 
 const TORONTO_TIMEZONE = "America/Toronto";
 const HST_RATE = 0.13; // 13% HST rate
-const SOUTHERN_CROSS_ID = "DhqLkkzvQmKvCDMubndPjw";
+// Use the room slug consistently
+const SOUTHERN_CROSS_ID = "southern-cross";
 
 function formatCurrency(amount: number): string {
   return new Intl.NumberFormat("en-CA", {
@@ -296,12 +297,12 @@ export default class PricingRules {
                 eveningMinHours: estimate.eveningMinHours || 0,
                 additionalCosts: Array.isArray(estimate.additionalCosts)
                   ? estimate.additionalCosts.map((cost: Cost) => ({
-                    id: cost.id || uuidv4(),
-                    description: cost.description || "",
-                    subDescription: cost.subDescription || "",
-                    cost: Number(cost.cost) || 0,
-                    isRequired: cost.isRequired || false,
-                  }))
+                      id: cost.id || uuidv4(),
+                      description: cost.description || "",
+                      subDescription: cost.subDescription || "",
+                      cost: Number(cost.cost) || 0,
+                      isRequired: cost.isRequired || false,
+                    }))
                   : [],
                 totalCost: estimate.totalCost || 0,
                 rateDescription: estimate.rateDescription || "",
@@ -351,7 +352,7 @@ export default class PricingRules {
                 estimateTotal,
                 perSlotCostsTotal,
                 totalForThisBooking,
-                slotTotal
+                slotTotal,
               });
 
               const costEstimate = {
@@ -401,7 +402,10 @@ export default class PricingRules {
       costEstimates.push(...resolvedCostEstimates);
 
       // Calculate grandTotal after all promises have resolved
-      const grandTotal = costEstimates.reduce((total, estimate) => total + estimate.slotTotal, 0);
+      const grandTotal = costEstimates.reduce(
+        (total, estimate) => total + estimate.slotTotal,
+        0
+      );
 
       console.log("Before tax calculation - grandTotal:", grandTotal);
       const tax = this.calculateTax(grandTotal);
@@ -484,9 +488,9 @@ export default class PricingRules {
       throw new Error("Invalid start or end time in booking data");
     }
 
-    // Convert the Date objects back to ISO strings
-    const formattedStartTime = formatISO(startDateTime);
-    const formattedEndTime = formatISO(endDateTime);
+    // Convert to canonical UTC ISO strings to avoid server-local offset leakage
+    const formattedStartTime = startDateTime.toISOString();
+    const formattedEndTime = endDateTime.toISOString();
 
     // Return the updated booking object with ISO startTime and endTime
     return {
@@ -505,9 +509,10 @@ export default class PricingRules {
     };
   }
 
-  // Helper method to determine if a given time is during evening hours
+  // Helper method to determine if a given time is during evening hours in Toronto
   isEveningTime(time: Date) {
-    const hour = time.getHours();
+    const tzTime = toZonedTime(time, TORONTO_TIMEZONE);
+    const hour = tzTime.getHours();
     return hour >= 17 || hour < 5;
   }
 
@@ -536,7 +541,7 @@ export default class PricingRules {
     slotCustomLineItems: any[];
   }> {
     // Add validation for Southern Cross
-    const SOUTHERN_CROSS_ID = 'southern-cross'; // Replace with actual slug
+    const SOUTHERN_CROSS_ID = "southern-cross"; // Replace with actual slug
     if (booking.roomSlugs.includes(SOUTHERN_CROSS_ID)) {
       const startTime = new Date(booking.startTime);
       const endTime = new Date(booking.endTime);
@@ -544,7 +549,7 @@ export default class PricingRules {
       // Check if booking is on a weekend
       const day = startTime.getDay();
       if (day === 0 || day === 6) {
-        throw new Error('Southern Cross is not available for weekend bookings');
+        throw new Error("Southern Cross is not available for weekend bookings");
       }
 
       // Check if booking includes evening hours
@@ -553,8 +558,16 @@ export default class PricingRules {
       const endMinute = endTime.getMinutes();
 
       // Allow bookings that end exactly at 5:00 PM (17:00) but not after
-      if (startHour >= 17 || (endHour > 17 || (endHour === 17 && endMinute > 0)) || startHour < 5 || endHour < 5) {
-        throw new Error('Southern Cross is only available during daytime hours (before 5 PM)');
+      if (
+        startHour >= 17 ||
+        endHour > 17 ||
+        (endHour === 17 && endMinute > 0) ||
+        startHour < 5 ||
+        endHour < 5
+      ) {
+        throw new Error(
+          "Southern Cross is only available during daytime hours (before 5 PM)"
+        );
       }
     }
 
@@ -603,8 +616,8 @@ export default class PricingRules {
 
     const slotCustomLineItems = [...customLineItems];
 
-    // Ensure date is valid before passing to getDayRules
-    const bookingDate = new Date(date);
+    // Ensure date is valid before passing to getDayRules (use Toronto date)
+    const bookingDate = toZonedTime(new Date(date), TORONTO_TIMEZONE);
     if (isNaN(bookingDate.getTime())) {
       throw new Error(`Invalid date: ${date}`);
     }
@@ -763,23 +776,28 @@ export default class PricingRules {
     let eveningRateType = "";
     let daytimeRateType = "";
 
-    const eveningStartTime = new Date(startDateTime);
-    eveningStartTime.setHours(17, 0, 0, 0); // 5 PM
+    // Compute evening start (5 PM Toronto) on the booking date
+    const torontoStart = toZonedTime(startDateTime, TORONTO_TIMEZONE);
+    const eveningStartTimeToronto = new Date(torontoStart);
+    eveningStartTimeToronto.setHours(17, 0, 0, 0);
+    // Normalize to a plain Date for comparisons
+    const eveningStartTime = parseISO(formatISO(eveningStartTimeToronto));
 
     const totalBookingHours = differenceInHours(endDateTime, startDateTime);
     const bookingCrossesEveningThreshold =
       startDateTime < eveningStartTime && endDateTime > eveningStartTime;
 
     // Add logging to track behavior
-    const isEveningOnly = this.isEveningTime(startDateTime) && this.isEveningTime(endDateTime);
+    const isEveningOnly =
+      this.isEveningTime(startDateTime) && this.isEveningTime(endDateTime);
 
-    console.log('[PricingRules] Calculating price:', {
+    console.log("[PricingRules] Calculating price:", {
       roomSlug,
       startDateTime,
       endDateTime,
       isEveningOnly,
       startHour: startDateTime.getHours(),
-      endHour: endDateTime.getHours()
+      endHour: endDateTime.getHours(),
     });
 
     // NEW: Handle full-day pricing if available (e.g. for parking-lot)
@@ -823,7 +841,11 @@ export default class PricingRules {
     }
 
     // Calculate daytime pricing if applicable
-    if (!isEveningOnly && startDateTime < eveningStartTime && dayRules.daytime) {
+    if (
+      !isEveningOnly &&
+      startDateTime < eveningStartTime &&
+      dayRules.daytime
+    ) {
       const daytimeEndTime = bookingCrossesEveningThreshold
         ? eveningStartTime
         : endDateTime;
@@ -935,8 +957,9 @@ export default class PricingRules {
     if (!this.additionalCosts) return null;
 
     // Check both conditions that require security
-    const needsSecurity = booking.resources?.includes('security') ||
-      booking.roomSlugs?.includes('parking-lot');
+    const needsSecurity =
+      booking.resources?.includes("security") ||
+      booking.roomSlugs?.includes("parking-lot");
 
     if (!needsSecurity) return null;
 
@@ -954,7 +977,7 @@ export default class PricingRules {
       subDescription: securityConfig.subDescription || "Will quote separately",
       cost: 0,
       isEditable: true,
-      isRequired: booking.roomSlugs?.includes('parking-lot'),
+      isRequired: booking.roomSlugs?.includes("parking-lot"),
     };
   }
 
@@ -982,7 +1005,7 @@ export default class PricingRules {
       expectedAttendance: Number(booking.expectedAttendance) || 0,
       startTime: booking.startTime,
       endTime: booking.endTime,
-      projectorIncluded: booking.resources.includes('backline')
+      projectorIncluded: booking.resources.includes("backline"),
     };
 
     // Process each resource
@@ -997,17 +1020,20 @@ export default class PricingRules {
       }
 
       // Skip security as it's handled separately
-      if (resourceId === 'security') continue;
+      if (resourceId === "security") continue;
 
       // Handle food cleaning fee
-      if (resourceId === 'food') {
-        const calculatedCost = this.calculateResourceCost(resourceId, resourceDetails);
+      if (resourceId === "food") {
+        const calculatedCost = this.calculateResourceCost(
+          resourceId,
+          resourceDetails
+        );
         if (calculatedCost && !Array.isArray(calculatedCost)) {
           perSlotCosts.push({
             ...calculatedCost,
             id: uuidv4(),
             isRequired: true,
-            subDescription: "Required when food is served"
+            subDescription: "Required when food is served",
           });
         }
         continue;
@@ -1016,27 +1042,31 @@ export default class PricingRules {
       // Handle backline specially since it's room-specific
       if (resourceId === "backline") {
         // Convert hyphenated room slug to underscore format for config lookup
-        const configRoomSlug = resourceDetails.roomSlug.replace(/-/g, '_');
-        const roomConfig = this.additionalCosts.resources.find(r => r.id === 'backline')?.rooms?.[configRoomSlug];
+        const configRoomSlug = resourceDetails.roomSlug.replace(/-/g, "_");
+        const roomConfig = this.additionalCosts.resources.find(
+          (r) => r.id === "backline"
+        )?.rooms?.[configRoomSlug];
         console.log("[DEBUG] Backline room config:", {
           roomSlug: resourceDetails.roomSlug,
           configRoomSlug,
-          roomConfig
+          roomConfig,
         });
         if (roomConfig) {
           const cost: Cost = {
             id: uuidv4(),
-            description: roomConfig.description || 'Backline',
+            description: roomConfig.description || "Backline",
             cost: roomConfig.cost,
             isRequired: false,
-            isEditable: false
+            isEditable: false,
           };
           console.log("[DEBUG] Created backline cost:", cost);
 
           // If this room's backline includes projector, remove projector cost if it exists
           if (roomConfig.includes_projector) {
-            const projectorCosts = perSlotCosts.filter(c => c.description?.includes('Projector'));
-            projectorCosts.forEach(pc => {
+            const projectorCosts = perSlotCosts.filter((c) =>
+              c.description?.includes("Projector")
+            );
+            projectorCosts.forEach((pc) => {
               const index = perSlotCosts.indexOf(pc);
               if (index > -1) {
                 perSlotCosts.splice(index, 1);
@@ -1045,20 +1075,26 @@ export default class PricingRules {
           }
 
           perSlotCosts.push(cost);
-          console.log("[DEBUG] perSlotCosts after adding backline:", perSlotCosts);
+          console.log(
+            "[DEBUG] perSlotCosts after adding backline:",
+            perSlotCosts
+          );
         }
         continue;
       }
 
       // Handle audio tech and overtime
-      if (resourceId === 'audio_tech') {
-        const calculatedCosts = this.calculateResourceCost(resourceId, resourceDetails);
+      if (resourceId === "audio_tech") {
+        const calculatedCosts = this.calculateResourceCost(
+          resourceId,
+          resourceDetails
+        );
         if (Array.isArray(calculatedCosts)) {
-          calculatedCosts.forEach(cost => {
+          calculatedCosts.forEach((cost) => {
             perSlotCosts.push({
               ...cost,
               id: uuidv4(),
-              isRequired: false
+              isRequired: false,
             });
           });
         }
@@ -1066,58 +1102,72 @@ export default class PricingRules {
       }
 
       // Handle bartender with hourly calculation
-      if (resourceId === 'bartender') {
-        const bartenderCost = this.calculateResourceCost(resourceId, resourceDetails);
+      if (resourceId === "bartender") {
+        const bartenderCost = this.calculateResourceCost(
+          resourceId,
+          resourceDetails
+        );
         if (bartenderCost && !Array.isArray(bartenderCost)) {
           perSlotCosts.push({
             ...bartenderCost,
             id: uuidv4(),
-            isRequired: false
+            isRequired: false,
           });
         }
         continue;
       }
 
       // Handle standard hourly resources
-      if (resource.type === 'hourly') {
+      if (resource.type === "hourly") {
         const hours = differenceInHours(
           parseISO(booking.endTime),
           parseISO(booking.startTime)
         );
-        const hourlyCost = this.calculateResourceCost(resourceId, resourceDetails);
+        const hourlyCost = this.calculateResourceCost(
+          resourceId,
+          resourceDetails
+        );
         if (hourlyCost && !Array.isArray(hourlyCost)) {
           perSlotCosts.push({
             ...hourlyCost,
             id: uuidv4(),
             isRequired: false,
-            subDescription: `${hours} hours @ ${formatCurrency(resource.cost)}/hour`
+            subDescription: `${hours} hours @ ${formatCurrency(
+              resource.cost
+            )}/hour`,
           });
         }
         continue;
       }
 
       // Handle flat rate resources
-      if (resource.type === 'flat') {
-        const flatCost = this.calculateResourceCost(resourceId, resourceDetails);
+      if (resource.type === "flat") {
+        const flatCost = this.calculateResourceCost(
+          resourceId,
+          resourceDetails
+        );
         if (flatCost && !Array.isArray(flatCost)) {
           perSlotCosts.push({
             ...flatCost,
             id: uuidv4(),
-            isRequired: false
+            isRequired: false,
           });
         }
         continue;
       }
 
       // Handle custom line items
-      if (resource.type === 'custom') {
-        const customCost = this.calculateResourceCost(resourceId, resourceDetails);
+      if (resource.type === "custom") {
+        const customCost = this.calculateResourceCost(
+          resourceId,
+          resourceDetails
+        );
         if (customCost && !Array.isArray(customCost)) {
           customLineItems.push({
             ...customCost,
             id: uuidv4(),
             isRequired: false,
-            isEditable: true
+            isEditable: true,
           });
         }
       }
@@ -1151,16 +1201,17 @@ export default class PricingRules {
     // Room-specific additional costs
     if (booking.roomSlugs) {
       for (const roomSlug of booking.roomSlugs) {
-        const roomAdditionalCosts = this.additionalCosts.conditions
-          ?.filter(condition => condition.roomSlug === roomSlug)
-          ?.map(condition => ({
-            id: uuidv4(),
-            description: condition.description,
-            subDescription: condition.subDescription,
-            cost: condition.cost || 0,
-            roomSlug: roomSlug,
-            isRequired: condition.isRequired || false
-          })) || [];
+        const roomAdditionalCosts =
+          this.additionalCosts.conditions
+            ?.filter((condition) => condition.roomSlug === roomSlug)
+            ?.map((condition) => ({
+              id: uuidv4(),
+              description: condition.description,
+              subDescription: condition.subDescription,
+              cost: condition.cost || 0,
+              roomSlug: roomSlug,
+              isRequired: condition.isRequired || false,
+            })) || [];
 
         additionalCosts.push(...roomAdditionalCosts);
       }
@@ -1213,7 +1264,7 @@ export default class PricingRules {
           subDescription,
           cost,
           isRequired: false,
-          isEditable: false
+          isEditable: false,
         };
 
       case "bartender":
@@ -1226,12 +1277,17 @@ export default class PricingRules {
             isRequired: true,
           };
         } else {
-          const hours = differenceInHours(parseISO(endTime), parseISO(startTime));
+          const hours = differenceInHours(
+            parseISO(endTime),
+            parseISO(startTime)
+          );
           cost = (Number(resourceConfig?.cost) || 0) * hours;
           return {
             id: uuidv4(),
             description: resourceConfig?.description || "Bartender",
-            subDescription: `${hours} hours @ ${formatCurrency(resourceConfig?.cost || 0)}/hour`,
+            subDescription: `${hours} hours @ ${formatCurrency(
+              resourceConfig?.cost || 0
+            )}/hour`,
             cost,
           };
         }
@@ -1404,7 +1460,7 @@ export default class PricingRules {
       rate: periodCost.rate,
       minimumHours: periodCost.minimumHours,
       minimumApplied: periodCost.minimumApplied,
-      type: periodCost.type || rateType
+      type: periodCost.type || rateType,
     };
 
     console.log("[PricingRules] Created cost item:", costItem);
@@ -1448,14 +1504,16 @@ export default class PricingRules {
     );
 
     // Check if this is Southern Cross during 11am-4pm
-    const isSouthernCrossSpecialHours = roomSlug === SOUTHERN_CROSS_ID &&
+    const isSouthernCrossSpecialHours =
+      roomSlug === SOUTHERN_CROSS_ID &&
       startTime.getHours() >= 11 &&
       endTime.getHours() <= 16;
 
     // Get minimumHours from parent rules if not found in period rules
     // Set to 0 for Southern Cross during special hours
-    const minimumHours = isSouthernCrossSpecialHours ? 0 :
-      (periodRules.minimumHours || periodRules.parent?.minimumHours || 0);
+    const minimumHours = isSouthernCrossSpecialHours
+      ? 0
+      : periodRules.minimumHours || periodRules.parent?.minimumHours || 0;
 
     console.log("[PricingRules] Calculated minimum hours:", {
       periodMinimumHours: periodRules.minimumHours,
@@ -1465,7 +1523,7 @@ export default class PricingRules {
       minimumApplied: actualHours < minimumHours,
       isSouthernCrossSpecialHours,
       roomSlug,
-      timeRange: `${startTime.getHours()}:00-${endTime.getHours()}:00`
+      timeRange: `${startTime.getHours()}:00-${endTime.getHours()}:00`,
     });
 
     // Check if this is a crossover period and use crossover rate if applicable
@@ -1481,7 +1539,7 @@ export default class PricingRules {
         hours,
         rate: effectiveRate,
         minimumHours: 0,
-        type: "flat"
+        type: "flat",
       };
     } else if (periodRules.type === "hourly") {
       // Apply minimum hours to price calculation
@@ -1494,7 +1552,7 @@ export default class PricingRules {
         rate: effectiveRate,
         minimumHours,
         minimumApplied: actualHours < minimumHours,
-        type: "hourly"
+        type: "hourly",
       };
     }
 
@@ -1592,7 +1650,8 @@ export default class PricingRules {
     const hours = differenceInHours(end, start);
 
     // Check for Southern Cross special hours
-    const isSouthernCrossSpecialHours = roomSlug === SOUTHERN_CROSS_ID &&
+    const isSouthernCrossSpecialHours =
+      roomSlug === SOUTHERN_CROSS_ID &&
       start.getHours() >= 11 &&
       end.getHours() <= 16;
 
@@ -1606,7 +1665,7 @@ export default class PricingRules {
       cost: rateType === "flat" ? rate : effectiveRate * hours,
       hourlyRate: rateType === "flat" ? null : effectiveRate,
       crossoverApplied: effectiveRate !== rate,
-      isSouthernCrossSpecialHours
+      isSouthernCrossSpecialHours,
     };
   }
 
