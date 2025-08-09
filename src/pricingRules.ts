@@ -869,18 +869,10 @@ export default class PricingRules {
       totalBookingHours >= 5 && // Long event likely to be evening
       endTimeToronto.getHours() >= 20; // Ends late (8pm or later in Toronto time)
 
-    // Debug logging for crossover detection
-    console.log('[CROSSOVER DEBUG]', {
-      roomSlug,
-      startDateTime: startDateTime.toISOString(),
-      endDateTime: endDateTime.toISOString(),
-      endTimeToronto: endTimeToronto.toISOString(),
-      endHourToronto: endTimeToronto.getHours(),
-      bookingCrossesEveningThreshold,
-      eveningType: dayRules.evening?.type,
-      totalBookingHours,
-      isEveningEventStartingEarly
-    });
+    // Debug crossover detection (only if detected)
+    if (isEveningEventStartingEarly) {
+      console.log(`[CROSSOVER DETECTED] ${roomSlug} - EndHour: ${endTimeToronto.getHours()}, Total: ${totalBookingHours}h`);
+    }
 
     // Calculate daytime pricing if applicable
     if (
