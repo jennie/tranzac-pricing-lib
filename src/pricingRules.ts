@@ -875,7 +875,8 @@ export default class PricingRules {
         pricingRate,
         dayRules.daytime.type,
         dayRules.daytime.crossoverRate,
-        roomSlug
+        roomSlug,
+        dayRules.daytime.minimumHours
       );
 
       daytimeHours = hours;
@@ -910,7 +911,8 @@ export default class PricingRules {
           pricingRate,
           dayRules.evening.type,
           dayRules.evening.crossoverRate,
-          roomSlug
+          roomSlug,
+          dayRules.evening.minimumHours
         );
 
         eveningHours = hours;
@@ -1676,9 +1678,10 @@ export default class PricingRules {
     rate: number,
     rateType: string,
     crossoverRate?: number,
-    roomSlug?: string
+    roomSlug?: string,
+    minimumHours?: number
   ) {
-    const hours = differenceInMinutes(end, start) / 60;
+    const actualHours = differenceInMinutes(end, start) / 60;
 
     // Check for Southern Cross special hours
     const isSouthernCrossSpecialHours =
@@ -1691,12 +1694,17 @@ export default class PricingRules {
         ? crossoverRate
         : rate;
 
+    // Apply minimum hours for pricing calculation
+    const billableHours = minimumHours ? Math.max(actualHours, minimumHours) : actualHours;
+
     return {
-      hours,
-      cost: rateType === "flat" ? rate : effectiveRate * hours,
+      hours: actualHours, // Return actual hours for display
+      billableHours, // Hours used for pricing
+      cost: rateType === "flat" ? rate : effectiveRate * billableHours,
       hourlyRate: rateType === "flat" ? null : effectiveRate,
       crossoverApplied: effectiveRate !== rate,
       isSouthernCrossSpecialHours,
+      minimumApplied: minimumHours ? actualHours < minimumHours : false,
     };
   }
 
