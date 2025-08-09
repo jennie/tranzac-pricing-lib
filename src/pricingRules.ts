@@ -1047,8 +1047,14 @@ export default class PricingRules {
       return { perSlotCosts, additionalCosts, customLineItems };
     }
 
+    // Ensure booking.resources is always an array
     if (!booking.resources) {
-      return { perSlotCosts, additionalCosts, customLineItems };
+      booking.resources = [];
+    }
+
+    // FIXED: Check for food boolean flag and add "food" to resources if food service is requested
+    if ((booking as any).food && !booking.resources.includes("food")) {
+      booking.resources = [...booking.resources, "food"];
     }
 
     const resourceDetails: ResourceDetails = {
