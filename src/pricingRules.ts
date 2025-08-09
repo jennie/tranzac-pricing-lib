@@ -1253,8 +1253,12 @@ export default class PricingRules {
     const hasAdminStaff = isTuesdayToThursday && isAdminHours;
 
     if (torontoStartForOpen < openingToronto && !hasAdminStaff) {
+      // Calculate hours from event start until the earlier of: event end OR bartenders arrive (6 PM)
+      const torontoEndForOpen = toZonedTime(parseISO(booking.endTime), TORONTO_TIMEZONE);
+      const staffingEndTime = torontoEndForOpen < openingToronto ? torontoEndForOpen : openingToronto;
+      
       const earlyOpenHours = Math.ceil(
-        differenceInHours(openingToronto, torontoStartForOpen)
+        differenceInHours(staffingEndTime, torontoStartForOpen)
       );
       if (earlyOpenHours > 0) {
         perSlotCosts.push({
@@ -1427,36 +1431,6 @@ export default class PricingRules {
     }
   }
 
-  calculatePerSlotCosts(booking: Booking): Cost[] {
-    const perSlotCosts: Cost[] = [];
-    const { startTime, endTime } = booking;
-
-    // Early Open Staff calculation (Toronto-local time)
-    const torontoStartForOpen2 = toZonedTime(
-      parseISO(startTime),
-      TORONTO_TIMEZONE
-    );
-    const openingToronto2 = new Date(torontoStartForOpen2);
-    openingToronto2.setHours(18, 0, 0, 0); // 6:00 PM Toronto
-
-    if (torontoStartForOpen2 < openingToronto2) {
-      const earlyOpenHours = Math.ceil(
-        differenceInHours(openingToronto2, torontoStartForOpen2)
-      );
-      if (earlyOpenHours > 0) {
-        perSlotCosts.push({
-          description: `Early Open Staff (${earlyOpenHours} hours)`,
-          subDescription: "Additional staff for early opening",
-          cost: Number(earlyOpenHours) * 30,
-          isRequired: true,
-        } as Cost);
-      }
-    }
-
-    // Add any other per-slot costs here
-
-    return perSlotCosts;
-  }
 
   calculatePeriodPrice(
     startTime: Date,
