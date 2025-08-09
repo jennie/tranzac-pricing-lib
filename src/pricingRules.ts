@@ -31,6 +31,7 @@ interface Booking {
   endTime: string;
   date?: string;
   costItems?: any[];
+  food?: boolean;
 }
 
 interface ResourceDetails {
@@ -863,15 +864,17 @@ export default class PricingRules {
 
     // Check if this is an evening event starting early (should use crossover penalty logic)
     const endTimeToronto = toZonedTime(endDateTime, TORONTO_TIMEZONE);
-    const isEveningEventStartingEarly = 
-      bookingCrossesEveningThreshold && 
+    const isEveningEventStartingEarly =
+      bookingCrossesEveningThreshold &&
       dayRules.evening?.type === "flat" &&
       totalBookingHours >= 5 && // Long event likely to be evening
       endTimeToronto.getHours() >= 20; // Ends late (8pm or later in Toronto time)
 
     // Debug crossover detection (only if detected)
     if (isEveningEventStartingEarly) {
-      console.log(`[CROSSOVER DETECTED] ${roomSlug} - EndHour: ${endTimeToronto.getHours()}, Total: ${totalBookingHours}h`);
+      console.log(
+        `[CROSSOVER DETECTED] ${roomSlug} - EndHour: ${endTimeToronto.getHours()}, Total: ${totalBookingHours}h`
+      );
     }
 
     // Calculate daytime pricing if applicable
@@ -884,12 +887,16 @@ export default class PricingRules {
         ? eveningStartTime
         : endDateTime;
       const pricingRate = dayRules.daytime[isPrivate ? "private" : "public"];
-      
+
       // For evening events starting early, use crossover penalty instead of full daytime rate
-      const shouldUseCrossoverPenalty = isEveningEventStartingEarly && dayRules.daytime.crossoverRate;
-      const effectiveRate = shouldUseCrossoverPenalty ? dayRules.daytime.crossoverRate : pricingRate;
-      const shouldApplyMinimum = !shouldUseCrossoverPenalty && dayRules.daytime.minimumHours;
-      
+      const shouldUseCrossoverPenalty =
+        isEveningEventStartingEarly && dayRules.daytime.crossoverRate;
+      const effectiveRate = shouldUseCrossoverPenalty
+        ? dayRules.daytime.crossoverRate
+        : pricingRate;
+      const shouldApplyMinimum =
+        !shouldUseCrossoverPenalty && dayRules.daytime.minimumHours;
+
       const {
         hours,
         cost,
@@ -1053,7 +1060,7 @@ export default class PricingRules {
     }
 
     // FIXED: Check for food boolean flag and add "food" to resources if food service is requested
-    if ((booking as any).food && !booking.resources.includes("food")) {
+    if (booking.food && !booking.resources.includes("food")) {
       booking.resources = [...booking.resources, "food"];
     }
 
@@ -1736,9 +1743,10 @@ export default class PricingRules {
         : rate;
 
     // Apply minimum hours for pricing calculation only when specified
-    const billableHours = (minimumHours && minimumHours > 0)
-      ? Math.max(actualHours, minimumHours)
-      : actualHours;
+    const billableHours =
+      minimumHours && minimumHours > 0
+        ? Math.max(actualHours, minimumHours)
+        : actualHours;
 
     return {
       hours: actualHours, // Return actual hours for display
