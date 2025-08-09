@@ -862,11 +862,12 @@ export default class PricingRules {
     }
 
     // Check if this is an evening event starting early (should use crossover penalty logic)
+    const endTimeToronto = toZonedTime(endDateTime, TORONTO_TIMEZONE);
     const isEveningEventStartingEarly = 
       bookingCrossesEveningThreshold && 
       dayRules.evening?.type === "flat" &&
       totalBookingHours >= 5 && // Long event likely to be evening
-      endDateTime.getHours() >= 20; // Ends late (8pm or later)
+      endTimeToronto.getHours() >= 20; // Ends late (8pm or later in Toronto time)
 
     // Calculate daytime pricing if applicable
     if (
