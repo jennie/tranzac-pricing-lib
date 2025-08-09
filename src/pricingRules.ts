@@ -11,7 +11,14 @@ import {
 
 import { AdditionalCosts } from "./models/additionalCosts.schema"; // Import the interface
 
-import { formatISO, parseISO, isValid, differenceInHours, differenceInMinutes, sub } from "date-fns";
+import {
+  formatISO,
+  parseISO,
+  isValid,
+  differenceInHours,
+  differenceInMinutes,
+  sub,
+} from "date-fns";
 import { format, toZonedTime } from "date-fns-tz";
 
 interface Booking {
@@ -854,6 +861,13 @@ export default class PricingRules {
       };
     }
 
+    // Check if this is an evening event starting early (should use crossover penalty logic)
+    const isEveningEventStartingEarly = 
+      bookingCrossesEveningThreshold && 
+      dayRules.evening?.type === "flat" &&
+      totalBookingHours >= 5 && // Long event likely to be evening
+      endDateTime.getHours() >= 20; // Ends late (8pm or later)
+
     // Calculate daytime pricing if applicable
     if (
       !isEveningOnly &&
@@ -864,6 +878,12 @@ export default class PricingRules {
         ? eveningStartTime
         : endDateTime;
       const pricingRate = dayRules.daytime[isPrivate ? "private" : "public"];
+      
+      // For evening events starting early, use crossover penalty instead of full daytime rate
+      const shouldUseCrossoverPenalty = isEveningEventStartingEarly && dayRules.daytime.crossoverRate;
+      const effectiveRate = shouldUseCrossoverPenalty ? dayRules.daytime.crossoverRate : pricingRate;
+      const shouldApplyMinimum = !shouldUseCrossoverPenalty && dayRules.daytime.minimumHours;
+      
       const {
         hours,
         cost,
@@ -872,17 +892,17 @@ export default class PricingRules {
       } = this.calculateHoursAndCost(
         startDateTime,
         daytimeEndTime,
-        pricingRate,
-        dayRules.daytime.type,
+        effectiveRate,
+        shouldUseCrossoverPenalty ? "hourly" : dayRules.daytime.type,
         dayRules.daytime.crossoverRate,
         roomSlug,
-        dayRules.daytime.minimumHours
+        shouldApplyMinimum ? dayRules.daytime.minimumHours : undefined
       );
 
       daytimeHours = hours;
       daytimePrice = cost;
-      daytimeRate = hourlyRate || pricingRate;
-      crossoverApplied = isCrossover;
+      daytimeRate = hourlyRate || effectiveRate;
+      crossoverApplied = isCrossover || shouldUseCrossoverPenalty;
       basePrice += daytimePrice;
     }
 
@@ -894,7 +914,8 @@ export default class PricingRules {
       const pricingRate = dayRules.evening[isPrivate ? "private" : "public"];
       // Evening flat type: charge full evening flat if any portion is in evening
       if (dayRules.evening.type === "flat") {
-        eveningHours = differenceInMinutes(endDateTime, eveningStartDateTime) / 60;
+        eveningHours =
+          differenceInMinutes(endDateTime, eveningStartDateTime) / 60;
         eveningPrice = pricingRate;
         eveningRate = pricingRate;
         eveningRateType = "flat";
@@ -1204,9 +1225,15 @@ export default class PricingRules {
       TORONTO_TIMEZONE
     );
     const openingToronto = new Date(torontoStartForOpen);
-    openingToronto.setHours(18, 0, 0, 0); // 6:00 PM Toronto
+    openingToronto.setHours(18, 0, 0, 0); // 6:00 PM Toronto (when bartenders arrive)
+    // Check if admin staff is onsite (Tuesday-Thursday 11am-4pm)
+    const dayOfWeek = torontoStartForOpen.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
+    const hour = torontoStartForOpen.getHours();
+    const isTuesdayToThursday = dayOfWeek >= 2 && dayOfWeek <= 4; // Tuesday(2), Wednesday(3), Thursday(4)
+    const isAdminHours = hour >= 11 && hour < 16; // 11am-4pm (exclusive end)
+    const hasAdminStaff = isTuesdayToThursday && isAdminHours;
 
-    if (torontoStartForOpen < openingToronto) {
+    if (torontoStartForOpen < openingToronto && !hasAdminStaff) {
       const earlyOpenHours = Math.ceil(
         differenceInHours(openingToronto, torontoStartForOpen)
       );
@@ -1214,7 +1241,9 @@ export default class PricingRules {
         perSlotCosts.push({
           id: uuidv4(),
           description: `Early Open Staff (${earlyOpenHours} hours)`,
-          subDescription: "Additional staff for early opening",
+          subDescription: hasAdminStaff
+            ? "Admin staff onsite - no early open fee"
+            : "Additional staff for early opening",
           cost: Number(earlyOpenHours) * 30,
           isRequired: true,
         });
@@ -1694,8 +1723,10 @@ export default class PricingRules {
         ? crossoverRate
         : rate;
 
-    // Apply minimum hours for pricing calculation
-    const billableHours = minimumHours ? Math.max(actualHours, minimumHours) : actualHours;
+    // Apply minimum hours for pricing calculation only when specified
+    const billableHours = (minimumHours && minimumHours > 0)
+      ? Math.max(actualHours, minimumHours)
+      : actualHours;
 
     return {
       hours: actualHours, // Return actual hours for display
